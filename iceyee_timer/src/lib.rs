@@ -93,9 +93,10 @@ impl Timer {
     /// - @param pattern "秒 分 时 日 月 周几", 可以参考linux的crontab.
     /// - @param f 函数指针, 要过返回Future.
     /// - @exception [TimerError::InvalidFormat] pattern参数的格式错误.
-    pub fn schedule_pattern<F>(&mut self, pattern: &str, f: fn() -> F) -> Result<(), TimerError>
+    pub fn schedule_pattern<F1, F2>(&mut self, pattern: &str, mut f: F1) -> Result<(), TimerError>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F1: FnMut() -> F2 + Send + 'static,
+        F2: Future<Output = ()> + Send + 'static,
     {
         // 在'*'可能有'/', 即SLASH.
         enum Status {
@@ -277,9 +278,10 @@ impl Timer {
     }
 
     /// 定时任务, 在任务执行就开始等待.
-    pub fn schedule_execute_before<F>(&mut self, delay: u64, period: u64, f: fn() -> F)
+    pub fn schedule_execute_before<F1, F2>(&mut self, delay: u64, period: u64, mut f: F1)
     where
-        F: Future<Output = ()> + Send + 'static,
+        F1: FnMut() -> F2 + Send + 'static,
+        F2: Future<Output = ()> + Send + 'static,
     {
         let is_stop: Arc<AtomicBool> = self.is_stop.clone();
         let handle = tokio::task::spawn(async move {
@@ -300,9 +302,10 @@ impl Timer {
     }
 
     /// 定时任务, 在任务执行完成后等待.
-    pub fn schedule_execute_after<F>(&mut self, delay: u64, period: u64, f: fn() -> F)
+    pub fn schedule_execute_after<F1, F2>(&mut self, delay: u64, period: u64, mut f: F1)
     where
-        F: Future<Output = ()> + Send + 'static,
+        F1: FnMut() -> F2 + Send + 'static,
+        F2: Future<Output = ()> + Send + 'static,
     {
         let is_stop: Arc<AtomicBool> = self.is_stop.clone();
         let handle = tokio::task::spawn(async move {

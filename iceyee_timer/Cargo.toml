@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_timer"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 readme = "README.md"
 description = "Timer."
