@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"iceyee_datetime":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/alloc/string/trait.ToString.html\" title=\"trait alloc::string::ToString\">ToString</a> for <a class=\"struct\" href=\"iceyee_datetime/struct.DateTime.html\" title=\"struct iceyee_datetime::DateTime\">DateTime</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
