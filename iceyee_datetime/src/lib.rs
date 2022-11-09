@@ -319,6 +319,7 @@ impl From<(usize, usize, usize, usize, usize, usize, Option<i16>)> for DateTime 
             timestamp += (t / 4) * ONE_DAY;
             t %= 4;
         }
+        let _ = t;
         // 月.
         t = 0;
         for x in 1..=12 {
