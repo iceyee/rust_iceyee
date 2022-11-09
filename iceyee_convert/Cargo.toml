@@ -1,0 +1,18 @@
+# **************************************************
+# *  Author: Iceyee                                *
+# *  Mail: iceyee.studio@qq.com                    *
+# *  Git: https://github.com/iceyee                *
+# **************************************************
+#                                                   
+[package]
+name = "iceyee_convert"
+version = "1.0.0"
+edition = "2021"
+readme = "README.md"
+description = "Conversion."
+license = "Apache-2.0"
+repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_convert/"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
