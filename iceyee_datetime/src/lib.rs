@@ -6,7 +6,7 @@
 //
 // Use.
 
-/// 当前系统正在使用的时区对应的时间偏移.
+/// 当前系统正在使用的时区所对应的时间偏移.
 /// 比如用+0800表示东八区的时间偏移, 即+08:00.
 pub static mut TIME_OFFSET: Option<i16> = None;
 
@@ -79,13 +79,11 @@ impl DateTime {
     /// ```
     /// DateTime::from((DateTime::now(), None));
     /// ```
-
     pub fn new() -> Self {
         return Self::from((Self::now(), None));
     }
 
     /// 返回当前系统的时间戳, 单位:毫秒.
-
     pub fn now() -> i64 {
         #[cfg(target_os = "linux")]
         unsafe {
@@ -125,7 +123,6 @@ impl DateTime {
     }
 
     /// 转成国际标准时间.
-
     pub fn to_utc(&self) -> Self {
         return Self::from((self.timestamp, Some(0)));
     }
@@ -134,11 +131,12 @@ impl DateTime {
 impl From<(i64, Option<i16>)> for DateTime {
     /// 从时间戳转成[DateTime].
     ///
+    /// - @param value (timestamp, offset)
     /// - @param value$0 时间戳, 单位:毫秒.
-    /// - @param value$1 时间偏移, 默认是系统设置的时区对应的偏移.
-
+    /// - @param value$1 时间偏移, 默认是系统设置的时区所对应的偏移.
     fn from(value: (i64, Option<i16>)) -> Self {
-        let offset: i16 = match value.1 {
+        let (timestamp_, offset) = value;
+        let offset: i16 = match offset {
             Some(offset) => offset,
             None => unsafe { *TIME_OFFSET.as_ref().unwrap() },
         };
@@ -147,7 +145,7 @@ impl From<(i64, Option<i16>)> for DateTime {
         let mut timestamp: i64 = TIME_0
             + offset_hour as i64 * 60 * 60 * 1000
             + offset_minute as i64 * 60 * 1000
-            + value.0;
+            + timestamp_;
         // 年.
         let mut year: i64 = 0;
         year += timestamp / FOUR_HUNDRED_YEAR * 400;
@@ -230,7 +228,7 @@ impl From<(i64, Option<i16>)> for DateTime {
         let mut weekday: i64 = (TIME_0
             + offset_hour as i64 * 60 * 60 * 1000
             + offset_minute as i64 * 60 * 1000
-            + value.0)
+            + timestamp_)
             % ONE_WEEK
             / ONE_DAY
             + 1
@@ -248,7 +246,7 @@ impl From<(i64, Option<i16>)> for DateTime {
             second: second as usize,
             day_of_year: day_of_year as usize,
             weekday: weekday as usize,
-            timestamp: value.0,
+            timestamp: timestamp_,
             offset: offset,
         };
     }
@@ -257,13 +255,14 @@ impl From<(i64, Option<i16>)> for DateTime {
 impl From<(usize, usize, usize, usize, usize, usize, Option<i16>)> for DateTime {
     /// 从设置好的时间, 转成[DateTime].
     ///
+    /// - @param value (year, month, day, hour, minute, second, offset)
     /// - @param value$0 年.
     /// - @param value$1 月.
     /// - @param value$2 日.
     /// - @param value$3 时.
     /// - @param value$4 分.
     /// - @param value$5 秒.
-    /// - @param value$6 时间偏移, 默认是系统设置的时区对应的偏移.
+    /// - @param value$6 时间偏移, 默认是系统设置的时区所对应的偏移.
     ///
     /// # Panics
     ///
@@ -272,7 +271,6 @@ impl From<(usize, usize, usize, usize, usize, usize, Option<i16>)> for DateTime 
     /// 例如, '时'的范围是0~23, 如果对应的入参是24, 就会panic.
     ///
     /// 例如, 某一年的二月份, 只有28天, 但是参数'日'的入参是29, 就会panic.
-
     fn from(value: (usize, usize, usize, usize, usize, usize, Option<i16>)) -> Self {
         let (year, month, day, hour, minute, second, offset) = value;
         if month == 0 || 12 < month {
@@ -340,7 +338,7 @@ impl From<(usize, usize, usize, usize, usize, usize, Option<i16>)> for DateTime 
             timestamp += max_days * ONE_DAY;
             t += max_days;
         }
-        let day_of_year: i64 = t + day as i64;
+        // let day_of_year: i64 = t + day as i64;
         // 日.
         timestamp += (day as i64 - 1) * ONE_DAY;
         // 时分秒.
@@ -358,29 +356,30 @@ impl From<(usize, usize, usize, usize, usize, usize, Option<i16>)> for DateTime 
         timestamp -= TIME_0;
         timestamp -= offset_hour as i64 * 60 * 60 * 1000;
         timestamp -= offset_minute as i64 * 60 * 1000;
-        // println!("@timestamp={:?}", timestamp);
-        // 周几.
-        let mut weekday: i64 = timestamp % ONE_WEEK / ONE_DAY + 1 + 5;
-        if 7 < weekday {
-            weekday -= 7;
-        }
-        return Self {
-            year: year as usize,
-            month: month as usize,
-            day: day as usize,
-            hour: hour as usize,
-            minute: minute as usize,
-            second: second as usize,
-            day_of_year: day_of_year as usize,
-            weekday: weekday as usize,
-            timestamp: timestamp,
-            offset: offset,
-        };
+        return Self::from((timestamp, Some(offset)));
+        // // println!("@timestamp={:?}", timestamp);
+        // // 周几.
+        // let mut weekday: i64 = timestamp % ONE_WEEK / ONE_DAY + 1 + 3;
+        // if 7 < weekday {
+        //     weekday -= 7;
+        // }
+        // return Self {
+        //     year: year as usize,
+        //     month: month as usize,
+        //     day: day as usize,
+        //     hour: hour as usize,
+        //     minute: minute as usize,
+        //     second: second as usize,
+        //     day_of_year: day_of_year as usize,
+        //     weekday: weekday as usize,
+        //     timestamp: timestamp,
+        //     offset: offset,
+        // };
     }
 }
 
 impl ToString for DateTime {
-    /// 转成字符串, 使用RFC3339标准, 格式'xx-xx-xxTxx:xx:xx.xxx+-xx:xx'.
+    /// 转成字符串, 使用RFC3339标准, 格式'xx-xx-xxTxx:xx:xx.xxx\[+/-\]xx:xx'.
     fn to_string(&self) -> String {
         let v1: String = format!(
             "{}-{:02}-{:02}T{:02}:{:02}:{:02}.{}",
