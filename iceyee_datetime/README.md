@@ -47,8 +47,6 @@ fn function() {
 }
 ```
 
-输出结果如下:
-
 ```
 test function ...
 @TIME_OFFSET=Some(800)
