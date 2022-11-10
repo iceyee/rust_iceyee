@@ -7,8 +7,6 @@
 
 //! 读写配置.
 //!
-//! # Examples
-//!
 //! ```
 //! use serde::Deserialize;
 //! use serde::Serialize;
@@ -25,7 +23,6 @@ use std::string::FromUtf8Error;
 // Enum.
 
 /// Error.
-
 #[derive(Debug)]
 pub enum ConfigError {
     StdIoError(std::io::Error),
@@ -68,8 +65,7 @@ impl std::fmt::Display for ConfigError {
 
 // Struct.
 
-/// 读写配置, 只支持'.json'和'.yaml'格式.
-
+/// 读写配置, 只支持'json'和'yaml'格式.
 #[derive(Debug, Clone, Default)]
 pub struct ConfigParser;
 

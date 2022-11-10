@@ -6,11 +6,13 @@
 #                                                   
 [package]
 name = "iceyee_config"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
-readme = "README.md"
-description = "IceyeeError."
+
+description = "Config file parser."
+keywords = ["config"]
 license = "Apache-2.0"
+readme = "README.md"
 repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_config/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -19,4 +21,4 @@ repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_config/"
 serde = { version = "=1.0.147", features = ["derive"] }
 serde_json = "=1.0.87"
 serde_yaml = "=0.9.14"
-tokio = { version = "=1.21.2", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
