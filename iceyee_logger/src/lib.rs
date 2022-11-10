@@ -17,10 +17,11 @@ use tokio::fs::File;
 use tokio::fs::OpenOptions;
 use tokio::sync::Mutex;
 
-/// 默认 用户主目录+'/.iceyee_log'.
-pub static mut DEFAULT: Option<String> = None;
-/// 用户主目录.
+/// $HOME
 pub static mut HOME: Option<String> = None;
+
+/// $HOME/.iceyee_log
+pub static mut DEFAULT: Option<String> = None;
 
 #[allow(dead_code)]
 #[cfg(target_os = "linux")]
@@ -89,7 +90,6 @@ impl ToString for Level {
 // Struct.
 
 /// 日志.
-
 #[derive(Debug)]
 pub struct Logger {
     timer: Timer,
@@ -116,13 +116,10 @@ impl Logger {
         let mut timer = Timer::new();
         static mut EMPTY_STRING: String = String::new();
         let time: Arc<AtomicPtr<String>> = Arc::new(AtomicPtr::new(unsafe { &mut EMPTY_STRING }));
-        Self::update_time(time.clone()).await;
         // 更新时间.
-        let time_2 = time.clone();
-        timer.schedule_execute_before(0, 10, move || {
-            let time_3 = time_2.clone();
-            Self::update_time(time_3)
-        });
+        Self::update_time(time.clone()).await;
+        let time_clone = time.clone();
+        timer.schedule_execute_before(0, 10, move || Self::update_time(time_clone.clone()));
         let level: Level = level.unwrap_or(Level::Debug);
         let (warn_file, error_file) = if !project_name.is_none() && !target_directory.is_none() {
             let project_name: &str = project_name.unwrap();
@@ -136,21 +133,21 @@ impl Logger {
                 Arc::new(Mutex::new(error_file)),
             );
             // 更新缓存.
-            let (warn_file_2, error_file_2) = (warn_file.clone(), error_file.clone());
+            let (warn_file_clone, error_file_clone) = (warn_file.clone(), error_file.clone());
             timer.schedule_execute_before(60_000, 60_000, move || {
-                Self::flush(warn_file_2.clone(), error_file_2.clone())
+                Self::flush(warn_file_clone.clone(), error_file_clone.clone())
             });
             // 文件管理.
-            let project_name_2: String = project_name.to_string();
-            let target_directory_2: String = target_directory.to_string();
-            let (warn_file_2, error_file_2) = (warn_file.clone(), error_file.clone());
+            let project_name_clone: String = project_name.to_string();
+            let target_directory_clone: String = target_directory.to_string();
+            let (warn_file_clone, error_file_clone) = (warn_file.clone(), error_file.clone());
             timer
                 .schedule_pattern("50 59 23 * * *", move || {
                     Self::manage(
-                        project_name_2.clone(),
-                        target_directory_2.clone(),
-                        warn_file_2.clone(),
-                        error_file_2.clone(),
+                        project_name_clone.clone(),
+                        target_directory_clone.clone(),
+                        warn_file_clone.clone(),
+                        error_file_clone.clone(),
                     )
                 })
                 .unwrap();
@@ -224,10 +221,8 @@ impl Logger {
         use iceyee_datetime::DateTime;
         use std::time::SystemTime;
         use tokio::io::AsyncWriteExt;
-        let mut dirs =
-            tokio::fs::read_dir((target_directory.clone() + "/" + project_name.as_str()).as_str())
-                .await
-                .unwrap();
+        let path: String = target_directory.to_string() + "/" + project_name.as_str();
+        let mut dirs = tokio::fs::read_dir(&path).await.unwrap();
         // 删除.
         while let Ok(Some(entry)) = dirs.next_entry().await {
             let t = entry.metadata().await.unwrap().modified().unwrap();
@@ -246,38 +241,16 @@ impl Logger {
             "{}_{:02}_{:02}",
             datetime.year, datetime.month, datetime.day
         );
-        let warn_file_from: String = target_directory.clone()
-            + "/"
-            + project_name.as_str()
-            + "/"
-            + project_name.as_str()
-            + "_warn.log";
-        let error_file_from: String = target_directory.clone()
-            + "/"
-            + project_name.as_str()
-            + "/"
-            + project_name.as_str()
-            + "_error.log";
-        let warn_file_to: String = target_directory.clone()
-            + "/"
-            + project_name.as_str()
-            + "/"
-            + project_name.as_str()
-            + "_warn_"
-            + date.as_str()
-            + ".log";
-        let error_file_to: String = target_directory.clone()
-            + "/"
-            + project_name.as_str()
-            + "/"
-            + project_name.as_str()
-            + "_error_"
-            + date.as_str()
-            + ".log";
-        println!("{warn_file_from}");
-        println!("{warn_file_to}");
-        println!("{error_file_from}");
-        println!("{error_file_to}");
+        let warn_file_from: String = path.clone() + "/" + project_name.as_str() + "_warn.log";
+        let error_file_from: String = path.clone() + "/" + project_name.as_str() + "_error.log";
+        let warn_file_to: String =
+            path.clone() + "/" + project_name.as_str() + "_warn_" + date.as_str() + ".log";
+        let error_file_to: String =
+            path.clone() + "/" + project_name.as_str() + "_error_" + date.as_str() + ".log";
+        // println!("{warn_file_from}");
+        // println!("{warn_file_to}");
+        // println!("{error_file_from}");
+        // println!("{error_file_to}");
         tokio::fs::rename(&warn_file_from, &warn_file_to)
             .await
             .unwrap();

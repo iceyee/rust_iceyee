@@ -28,13 +28,13 @@ async fn test_logger_no_project() {
     logger.warn("hello world.").await;
     logger.error("hello world.").await;
     let logger: Arc<Mutex<Logger>> = Arc::new(Mutex::new(logger));
-    let logger_2 = logger.clone();
+    let logger_clone = logger.clone();
     tokio::task::spawn(async move {
         let mut counter: usize = 0;
         loop {
             counter += 1;
             let message = counter.to_string();
-            let mut logger = logger_2.lock().await;
+            let mut logger = logger_clone.lock().await;
             logger.debug(message.as_str()).await;
             logger.info(message.as_str()).await;
             logger.warn(message.as_str()).await;
@@ -67,13 +67,13 @@ async fn test_logger_project() {
     logger.warn("hello world.").await;
     logger.error("hello world.").await;
     let logger: Arc<Mutex<Logger>> = Arc::new(Mutex::new(logger));
-    let logger_2 = logger.clone();
+    let logger_clone = logger.clone();
     tokio::task::spawn(async move {
         let mut counter: usize = 0;
         loop {
             counter += 1;
             let message = counter.to_string();
-            let mut logger = logger_2.lock().await;
+            let mut logger = logger_clone.lock().await;
             logger.debug(message.as_str()).await;
             logger.info(message.as_str()).await;
             logger.warn(message.as_str()).await;
