@@ -3,6 +3,12 @@
 
 自定义的异常, 包含有堆栈信息.
 
+## Supported Os
+
+- [x] linux
+- [x] macos
+- [x] windows
+
 ## Example
 
 ```rust
