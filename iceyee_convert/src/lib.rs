@@ -11,7 +11,6 @@
 // Enum.
 
 /// Error.
-
 #[derive(Debug, Clone)]
 pub enum ConversionError {
     TooLong(usize),
@@ -56,26 +55,26 @@ impl Conversion {
     ///
     /// - @exception [ConversionError::TooLong] 长度超过16.
     /// - @exception [ConversionError::UnexpectedCharacter] 出现未预期的字符.
-    pub fn string_to_hex(s: &str) -> Result<usize, ConversionError> {
+    pub fn string_to_hex(s: &str) -> Result<u64, ConversionError> {
         let v1: &[u8] = s.as_bytes();
         if 16 < v1.len() {
             // 长度过长.
             return Err(ConversionError::TooLong(v1.len()));
         }
-        let mut hex: usize = 0;
+        let mut hex: u64 = 0;
         for x in 0..v1.len() {
             match v1[x] {
                 b'0'..=b'9' => {
                     hex <<= 4;
-                    hex |= (v1[x] - b'0') as usize;
+                    hex |= (v1[x] - b'0') as u64;
                 }
                 b'A'..=b'F' => {
                     hex <<= 4;
-                    hex |= (v1[x] - b'A' + 10) as usize;
+                    hex |= (v1[x] - b'A' + 10) as u64;
                 }
                 b'a'..=b'f' => {
                     hex <<= 4;
-                    hex |= (v1[x] - b'a' + 10) as usize;
+                    hex |= (v1[x] - b'a' + 10) as u64;
                 }
                 any => {
                     return Err(ConversionError::UnexpectedCharacter(any as char));
