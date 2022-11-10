@@ -8,18 +8,19 @@
 //! 自定义的异常.
 //!
 //! 重新导出标准库的异常并重命名:
+//! - [std::error::Error] as [StdError]
 //! - [std::fmt::Error] as [StdFmtError]
 //! - [std::io::ErrorKind] as [StdIoErrorKind]
 //! - [std::io::Error] as [StdIoError]
 
 // Use.
 
+pub use std::error::Error as StdError;
 pub use std::fmt::Error as StdFmtError;
 pub use std::io::Error as StdIoError;
 pub use std::io::ErrorKind as StdIoErrorKind;
 
 use std::backtrace::Backtrace;
-use std::error::Error;
 
 // Enum.
 
@@ -31,7 +32,7 @@ use std::error::Error;
 
 pub struct IceyeeError {
     message: String,
-    error: Option<Box<dyn Error>>,
+    error: Option<Box<dyn StdError>>,
     backtrace: Backtrace,
 }
 
@@ -75,8 +76,8 @@ impl From<String> for IceyeeError {
     }
 }
 
-impl From<Box<dyn Error>> for IceyeeError {
-    fn from(e: Box<dyn Error>) -> Self {
+impl From<Box<dyn StdError>> for IceyeeError {
+    fn from(e: Box<dyn StdError>) -> Self {
         return IceyeeError {
             message: e.to_string(),
             error: Some(e),
@@ -85,8 +86,8 @@ impl From<Box<dyn Error>> for IceyeeError {
     }
 }
 
-impl Error for IceyeeError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
+impl StdError for IceyeeError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
         use std::ops::Deref;
         return match &self.error {
             Some(e) => Some(e.deref()),

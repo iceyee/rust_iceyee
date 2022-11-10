@@ -17,13 +17,14 @@
 #[test]
 pub fn test_iceyee_error() {
     use iceyee_error::IceyeeError;
-    use std::error::Error;
+    use iceyee_error::StdError;
+    use iceyee_error::StdFmtError;
     println!("");
     let e: IceyeeError = IceyeeError::new();
-    println!("{}\n", e.to_string());
+    println!("{e}\n");
     let e: IceyeeError = IceyeeError::from("hello world.");
-    println!("{}\n", e.to_string());
-    let e: IceyeeError = IceyeeError::from(Box::new(std::fmt::Error {}) as Box<dyn Error>);
-    println!("{}\n", e.to_string());
+    println!("{e}\n");
+    let e: IceyeeError = IceyeeError::from(Box::new(StdFmtError) as Box<dyn StdError>);
+    println!("{e}\n");
     return;
 }
