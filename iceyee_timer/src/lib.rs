@@ -90,9 +90,9 @@ impl Timer {
 
     /// 定时任务, 模式匹配.
     ///
-    /// - @param pattern "秒 分 时 日 月 周几", 可以参考linux的crontab.
-    /// - @param f 函数指针, 要过返回Future.
-    /// - @exception [TimerError::InvalidFormat] pattern参数的格式错误.
+    /// - @param pattern "秒 分 时 日 月 周几", "second minute hour day month weekday", 可以参考linux的crontab.
+    /// - @param f
+    /// - @exception [TimerError::InvalidFormat] pattern参数, 格式错误.
     pub fn schedule_pattern<F1, F2>(&mut self, pattern: &str, mut f: F1) -> Result<(), TimerError>
     where
         F1: FnMut() -> F2 + Send + 'static,
@@ -277,7 +277,7 @@ impl Timer {
         return Ok(());
     }
 
-    /// 定时任务, 在任务执行就开始等待.
+    /// 定时任务, 任务执行的同时等待.
     pub fn schedule_execute_before<F1, F2>(&mut self, delay: u64, period: u64, mut f: F1)
     where
         F1: FnMut() -> F2 + Send + 'static,

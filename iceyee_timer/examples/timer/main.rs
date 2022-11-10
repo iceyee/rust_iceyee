@@ -6,9 +6,6 @@
 //
 // Use.
 
-use iceyee_datetime::DateTime;
-use iceyee_timer::Timer;
-
 // Enum.
 
 // Trait.
@@ -19,6 +16,8 @@ use iceyee_timer::Timer;
 
 // #[tokio::test]
 async fn test_schedule_pattern() {
+    use iceyee_datetime::DateTime;
+    use iceyee_timer::Timer;
     println!("");
     println!("{}", DateTime::now());
     let mut timer: Timer = Timer::new();
@@ -49,8 +48,10 @@ async fn test_schedule_pattern() {
     return;
 }
 
-// #[tokio::test]
+#[tokio::test]
 async fn test_execute() {
+    use iceyee_datetime::DateTime;
+    use iceyee_timer::Timer;
     println!("");
     println!("{}", DateTime::now());
     let mut timer: Timer = Timer::new();
