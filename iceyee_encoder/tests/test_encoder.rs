@@ -6,10 +6,6 @@
 //
 // Use.
 
-use iceyee_encoder::Base64Encoder;
-use iceyee_encoder::Encoder;
-use iceyee_encoder::UrlEncoder;
-
 // Enum.
 
 // Trait.
@@ -20,6 +16,8 @@ use iceyee_encoder::UrlEncoder;
 
 #[test]
 pub fn test_base64_encoder() {
+    use iceyee_encoder::Base64Encoder;
+    use iceyee_encoder::Encoder;
     println!("");
     let table = [
         ("hello world.", "aGVsbG8gd29ybGQu"),
@@ -36,6 +34,8 @@ pub fn test_base64_encoder() {
 
 #[test]
 pub fn test_url_encoder() {
+    use iceyee_encoder::Encoder;
+    use iceyee_encoder::UrlEncoder;
     println!("");
     assert!(UrlEncoder::encode(" 1_1 ".to_string()).unwrap() == "%201_1%20");
     assert!(UrlEncoder::decode("%201_1%20".to_string()).unwrap() == " 1_1 ");
