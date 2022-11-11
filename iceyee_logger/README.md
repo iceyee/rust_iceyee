@@ -5,7 +5,7 @@
 
 - [x] linux
 - [ ] macos
-- [ ] windows
+- [x] windows
 
 ## Example
 
@@ -82,7 +82,6 @@ test test_logger_no_project ...
 
 2022-11-10T14:50:25.521+08:00 ERROR #
     4
-Stop timer.
-Stop timer - match.
-Stop timer - match.
+
+ok
 ```

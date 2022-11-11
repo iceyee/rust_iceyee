@@ -24,12 +24,17 @@ pub static mut HOME: Option<String> = None;
 pub static mut DEFAULT: Option<String> = None;
 
 #[allow(dead_code)]
-#[cfg(target_os = "linux")]
 #[ctor::ctor]
 fn init() {
+    #[cfg(target_os = "linux")]
     unsafe {
         DEFAULT = Some(std::env::var("HOME").unwrap() + "/.iceyee_log");
         HOME = Some(std::env::var("HOME").unwrap());
+    }
+    #[cfg(target_os = "windows")]
+    unsafe {
+        DEFAULT = Some(std::env::var("USERPROFILE").unwrap() + "\\.iceyee_log");
+        HOME = Some(std::env::var("USERPROFILE").unwrap());
     }
     return;
 }
