@@ -6,11 +6,11 @@
 #                                                   
 [package]
 name = "iceyee_convert"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 
 description = "Conversion."
-keywords = ["convert"]
+keywords = ["iceyee", "convert"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_convert/"
