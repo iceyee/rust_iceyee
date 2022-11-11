@@ -6,11 +6,11 @@
 #                                                   
 [package]
 name = "iceyee_datetime"
-version = "1.0.4"
+version = "1.0.5"
 edition = "2021"
 
 description = "Datetime."
-keywords = ["datetime"]
+keywords = ["iceyee", "datetime", "time"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_datetime/"
