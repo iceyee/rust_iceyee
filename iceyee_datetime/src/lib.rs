@@ -511,7 +511,9 @@ impl ToString for DateTime {
         } else {
             format!("{:02}:{:02}", offset / 100 % 100, offset % 100)
         };
-        return v1 + v2 + v3.as_str();
+        let result: String = v1 + v2 + &v3;
+        let result: String = format!("{result:29}");
+        return result;
     }
 }
 
