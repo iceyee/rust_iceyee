@@ -111,4 +111,13 @@ fn get_thread_id() -> i64 {
         }
         return pthread_self() as i64;
     }
+    #[cfg(target_os = "windows")]
+    unsafe {
+        // DWORD GetCurrentThreadId();
+        use std::ffi::c_ulong;
+        extern "C" {
+            fn GetCurrentThreadId() -> c_ulong;
+        }
+        return GetCurrentThreadId() as i64;
+    }
 }

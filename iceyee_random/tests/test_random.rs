@@ -14,8 +14,6 @@
 
 // Function.
 
-// TODO Function
-
 #[test]
 pub fn test_random() {
     use iceyee_random::Random;

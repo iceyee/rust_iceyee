@@ -5,7 +5,7 @@
 
 - [x] linux
 - [ ] macos
-- [ ] windows
+- [x] windows
 
 ## Example
 
@@ -35,4 +35,10 @@ pub fn test_random() {
     }
     return;
 }
+```
+
+```
+test test_random ...
+0:1041,   1:968,   2:993,   3:965,   4:984,   5:1011,   6:984,   7:1000,   8:1042,   9:1012,
+ok
 ```
