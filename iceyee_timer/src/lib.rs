@@ -73,12 +73,10 @@ impl Timer {
 
     /// 停止时钟并结束所有与其绑定的定时任务.
     pub async fn stop(&mut self) {
-        println!("Stop timer.");
         self.is_stop.store(true, Ordering::SeqCst);
         loop {
             match {
                 let handle = self.thread_handles.pop();
-                println!("Stop timer - match.");
                 handle
             } {
                 Some(handle) => handle.await.unwrap(),
@@ -329,7 +327,7 @@ impl Timer {
 impl Drop for Timer {
     fn drop(&mut self) {
         if self.thread_handles.len() != 0 {
-            panic!("没有执行Timer::stop().");
+            panic!("Please call 'Timer::stop()' before droped.");
         }
         return;
     }

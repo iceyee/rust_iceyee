@@ -48,7 +48,7 @@ async fn test_schedule_pattern() {
     return;
 }
 
-#[tokio::test]
+// #[tokio::test]
 async fn test_execute() {
     use iceyee_datetime::DateTime;
     use iceyee_timer::Timer;

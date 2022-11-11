@@ -5,7 +5,7 @@
 
 - [x] linux
 - [ ] macos
-- [ ] windows
+- [x] windows
 
 ## Example
 
@@ -36,9 +36,6 @@ test test_schedule_pattern ...
 2022-11-10T14:07:41.211+08:00
 2022-11-10T14:07:42.207+08:00
 2022-11-10T14:07:43.209+08:00
-Stop timer.
-Stop timer - match.
-Stop timer - match.
 1668060464098
 ```
 
@@ -79,9 +76,5 @@ test test_execute ...
 2022-11-10T14:09:06.238+08:00 - before
 2022-11-10T14:09:07.218+08:00 - after
 2022-11-10T14:09:07.240+08:00 - before
-Stop timer.
-Stop timer - match.
-Stop timer - match.
-Stop timer - match.
 1668060548241
 ```
