@@ -33,7 +33,7 @@ nohup.*
 
 # Uml
 uml/*
-!uml/*.mdj
+!*.mdj
 
 # Vim
 *.swp
