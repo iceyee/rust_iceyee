@@ -6,11 +6,11 @@
 #                                                   
 [package]
 name = "iceyee_error"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2021"
 
 description = "IceyeeError."
-keywords = ["error"]
+keywords = ["iceyee", "error"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_error/"
