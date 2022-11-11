@@ -15,7 +15,7 @@
 // Function.
 
 #[test]
-fn function() {
+fn test_datetime() {
     use iceyee_datetime::DateTime;
     println!("");
     println!("@TIME_OFFSET={:?}", unsafe { iceyee_datetime::TIME_OFFSET });

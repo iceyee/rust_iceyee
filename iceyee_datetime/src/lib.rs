@@ -66,19 +66,19 @@ fn init() {
         //         );
         use std::ffi::c_int;
         use std::ffi::c_long;
-        use std::ffi::c_short;
+        use std::ffi::c_ushort;
         #[allow(non_snake_case)]
         #[derive(Debug, Clone, Default)]
         #[repr(C)]
         struct SYSTEMTIME {
-            wYear: c_short,
-            wMonth: c_short,
-            wDayOfWeek: c_short,
-            wDay: c_short,
-            wHour: c_short,
-            wMinute: c_short,
-            wSecond: c_short,
-            wMilliseconds: c_short,
+            wYear: c_ushort,
+            wMonth: c_ushort,
+            wDayOfWeek: c_ushort,
+            wDay: c_ushort,
+            wHour: c_ushort,
+            wMinute: c_ushort,
+            wSecond: c_ushort,
+            wMilliseconds: c_ushort,
         }
         #[allow(non_camel_case_types)]
         #[allow(non_snake_case)]
@@ -86,10 +86,10 @@ fn init() {
         #[repr(C)]
         struct TIME_ZONE_INFORMATION {
             Bias: c_long,
-            StandardName: [c_short; 32],
+            StandardName: [c_ushort; 32],
             StandardDate: SYSTEMTIME,
             StandardBias: c_long,
-            DaylightName: [c_short; 32],
+            DaylightName: [c_ushort; 32],
             DaylightDate: SYSTEMTIME,
             DaylightBias: c_long,
         }

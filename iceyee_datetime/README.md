@@ -11,7 +11,7 @@
 
 ```rust
 #[test]
-fn function() {
+fn test_datetime() {
     use iceyee_datetime::DateTime;
     println!("");
     println!("@TIME_OFFSET={:?}", unsafe { iceyee_datetime::TIME_OFFSET });
@@ -48,7 +48,7 @@ fn function() {
 ```
 
 ```
-test function ...
+test test_datetime ...
 @TIME_OFFSET=Some(800)
 DateTime::now()=1668051555891
 DateTime::new()=

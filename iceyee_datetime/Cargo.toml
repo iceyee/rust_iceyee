@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_datetime"
-version = "1.0.3"
+version = "1.0.4"
 edition = "2021"
 
 description = "Datetime."
