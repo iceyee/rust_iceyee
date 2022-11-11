@@ -40,6 +40,68 @@ fn init() {
         let offset_minute: i16 = timezone as i16 / 60 % 60;
         TIME_OFFSET = Some(-(offset_hour * 100 + offset_minute));
     }
+    #[cfg(target_os = "windows")]
+    unsafe {
+        // typedef struct _SYSTEMTIME {
+        //     WORD wYear;
+        //     WORD wMonth;
+        //     WORD wDayOfWeek;
+        //     WORD wDay;
+        //     WORD wHour;
+        //     WORD wMinute;
+        //     WORD wSecond;
+        //     WORD wMilliseconds;
+        // } SYSTEMTIME, *PSYSTEMTIME, *LPSYSTEMTIME;
+        // typedef struct _TIME_ZONE_INFORMATION {
+        //     LONG       Bias;
+        //     WCHAR      StandardName[32];
+        //     SYSTEMTIME StandardDate;
+        //     LONG       StandardBias;
+        //     WCHAR      DaylightName[32];
+        //     SYSTEMTIME DaylightDate;
+        //     LONG       DaylightBias;
+        // } TIME_ZONE_INFORMATION, *PTIME_ZONE_INFORMATION, *LPTIME_ZONE_INFORMATION;
+        // DWORD GetTimeZoneInformation(
+        //         [out] LPTIME_ZONE_INFORMATION lpTimeZoneInformation
+        //         );
+        use std::ffi::c_int;
+        use std::ffi::c_long;
+        use std::ffi::c_short;
+        #[allow(non_snake_case)]
+        #[derive(Debug, Clone, Default)]
+        #[repr(C)]
+        struct SYSTEMTIME {
+            wYear: c_short,
+            wMonth: c_short,
+            wDayOfWeek: c_short,
+            wDay: c_short,
+            wHour: c_short,
+            wMinute: c_short,
+            wSecond: c_short,
+            wMilliseconds: c_short,
+        }
+        #[allow(non_camel_case_types)]
+        #[allow(non_snake_case)]
+        #[derive(Debug, Clone, Default)]
+        #[repr(C)]
+        struct TIME_ZONE_INFORMATION {
+            Bias: c_long,
+            StandardName: [c_short; 32],
+            StandardDate: SYSTEMTIME,
+            StandardBias: c_long,
+            DaylightName: [c_short; 32],
+            DaylightDate: SYSTEMTIME,
+            DaylightBias: c_long,
+        }
+        extern "C" {
+            fn GetTimeZoneInformation(lpTimeZoneInformation: *mut TIME_ZONE_INFORMATION) -> c_int;
+        }
+        let mut tzi: TIME_ZONE_INFORMATION = Default::default();
+        GetTimeZoneInformation(&mut tzi);
+        let offset_hour: i16 = tzi.Bias as i16 / 60;
+        let offset_minute: i16 = tzi.Bias as i16 % 60;
+        TIME_OFFSET = Some(-(offset_hour * 100 + offset_minute));
+    }
     return;
 }
 
@@ -119,6 +181,47 @@ impl DateTime {
                 return 0;
             }
             return tv.tv_sec as i64 * 1000 + tv.tv_usec as i64 / 1000;
+        }
+        #[cfg(target_os = "windows")]
+        unsafe {
+            // typedef struct _SYSTEMTIME {
+            //     WORD wYear;
+            //     WORD wMonth;
+            //     WORD wDayOfWeek;
+            //     WORD wDay;
+            //     WORD wHour;
+            //     WORD wMinute;
+            //     WORD wSecond;
+            //     WORD wMilliseconds;
+            // } SYSTEMTIME, *PSYSTEMTIME, *LPSYSTEMTIME;
+            // void GetLocalTime(
+            //         [out] LPSYSTEMTIME lpSystemTime
+            //         );
+            // time_t time(time_t *);
+            use std::ffi::c_long;
+            use std::ffi::c_short;
+            #[allow(non_snake_case)]
+            #[derive(Debug, Clone, Default)]
+            #[repr(C)]
+            struct SYSTEMTIME {
+                wYear: c_short,
+                wMonth: c_short,
+                wDayOfWeek: c_short,
+                wDay: c_short,
+                wHour: c_short,
+                wMinute: c_short,
+                wSecond: c_short,
+                wMilliseconds: c_short,
+            }
+            extern "C" {
+                fn GetLocalTime(lpSystemTime: *mut SYSTEMTIME);
+                fn time(t: *mut c_long) -> c_long;
+            }
+            let mut st: SYSTEMTIME = Default::default();
+            GetLocalTime(&mut st);
+            let mut t: c_long = 0;
+            time(&mut t);
+            return t as i64 * 1000 + st.wMilliseconds as i64;
         }
     }
 

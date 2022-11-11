@@ -5,7 +5,7 @@
 
 - [x] linux
 - [ ] macos
-- [ ] windows
+- [x] windows
 
 ## Example
 
