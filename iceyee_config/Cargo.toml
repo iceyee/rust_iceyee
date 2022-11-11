@@ -6,11 +6,11 @@
 #                                                   
 [package]
 name = "iceyee_config"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 
 description = "Config file parser."
-keywords = ["config"]
+keywords = ["iceyee", "config"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_config/"
