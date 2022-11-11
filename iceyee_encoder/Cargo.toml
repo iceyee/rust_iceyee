@@ -6,11 +6,11 @@
 #                                                   
 [package]
 name = "iceyee_encoder"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 
 description = "Base64Encoder, UrlEncoder."
-keywords = ["base64", "url"]
+keywords = ["iceyee", "base64", "url"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_encoder/"
@@ -18,4 +18,3 @@ repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_encoder/"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
