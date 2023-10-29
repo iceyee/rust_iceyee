@@ -89,6 +89,29 @@ pub fn test_hex_encoder() {
         Err(HexError::UnexpectedCharacter('g')) => {}
         _ => assert!(false),
     };
+    assert!(HexEncoder::decode_to_number("0123456789".to_string()).unwrap() == 0x0123456789);
+    assert!(
+        HexEncoder::decode_to_number("0123456789abcdef".to_string()).unwrap() == 0x0123456789ABCDEF
+    );
+    assert!(
+        HexEncoder::decode_to_number("0123456789ABCDEF".to_string()).unwrap() == 0x0123456789ABCDEF
+    );
+    match HexEncoder::decode_to_number("0123456789ABCDEF0".to_string()) {
+        Err(HexError::InvalidLength(17)) => {}
+        _ => assert!(false),
+    };
+    match HexEncoder::decode_to_number("0123456789ABCDEF01".to_string()) {
+        Err(HexError::InvalidLength(18)) => {}
+        _ => assert!(false),
+    };
+    match HexEncoder::decode_to_number("-123456789".to_string()) {
+        Err(HexError::UnexpectedCharacter('-')) => {}
+        _ => assert!(false),
+    };
+    match HexEncoder::decode_to_number("012345678z".to_string()) {
+        Err(HexError::UnexpectedCharacter('z')) => {}
+        _ => assert!(false),
+    };
     return;
 }
 

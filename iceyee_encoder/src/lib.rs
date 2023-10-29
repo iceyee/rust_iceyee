@@ -111,7 +111,7 @@ impl Encoder for Base64Encoder {
     /// 编码.
     ///
     /// - @exception 没有异常.
-    fn encode(plain: Vec<u8>) -> Result<Self::Cipher, Self::Error> {
+    fn encode(plain: Self::Plain) -> Result<Self::Cipher, Self::Error> {
         let plain_length: usize = plain.len();
         if plain_length == 0 {
             return Ok("".to_string());
@@ -187,7 +187,7 @@ impl Encoder for Base64Encoder {
     ///
     /// - @exception [Base64Error::InvalidLength] 无效的长度.
     /// - @exception [Base64Error::UnexpectedCharacter] 出现未预期的字符.
-    fn decode(cipher: String) -> Result<Self::Plain, Self::Error> {
+    fn decode(cipher: Self::Cipher) -> Result<Self::Plain, Self::Error> {
         const TABLE: [u8; 0x100] = [
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -305,7 +305,7 @@ impl Encoder for HexEncoder {
     ///
     /// - @exception [HexError::InvalidLength] 无效的长度.
     /// - @exception [HexError::UnexpectedCharacter] 出现未预期的字符.
-    fn decode(cipher: String) -> Result<Self::Plain, Self::Error> {
+    fn decode(cipher: Self::Cipher) -> Result<Self::Plain, Self::Error> {
         let length: usize = cipher.len();
         if length % 2 != 0 {
             return Err(HexError::InvalidLength(length));
@@ -346,6 +346,41 @@ impl Encoder for HexEncoder {
     }
 }
 
+impl HexEncoder {
+    /// 解码到64位整数.
+    ///
+    /// - @exception [HexError::InvalidLength] 长度超过16.
+    /// - @exception [HexError::UnexpectedCharacter] 出现未预期的字符.
+    pub fn decode_to_number(cipher: String) -> Result<u64, HexError> {
+        let v1: &[u8] = cipher.as_bytes();
+        if 16 < v1.len() {
+            // 长度过长.
+            return Err(HexError::InvalidLength(v1.len()));
+        }
+        let mut hex: u64 = 0;
+        for x in 0..v1.len() {
+            match v1[x] {
+                b'0'..=b'9' => {
+                    hex <<= 4;
+                    hex |= (v1[x] - b'0') as u64;
+                }
+                b'A'..=b'F' => {
+                    hex <<= 4;
+                    hex |= (v1[x] - b'A' + 10) as u64;
+                }
+                b'a'..=b'f' => {
+                    hex <<= 4;
+                    hex |= (v1[x] - b'a' + 10) as u64;
+                }
+                any => {
+                    return Err(HexError::UnexpectedCharacter(any as char));
+                }
+            }
+        }
+        return Ok(hex);
+    }
+}
+
 /// Url编码.
 
 #[derive(Debug, Clone, Default)]
@@ -359,7 +394,7 @@ impl Encoder for UrlEncoder {
     /// 编码.
     ///
     /// - @exception 没有异常.
-    fn encode(plain: String) -> Result<Self::Plain, Self::Error> {
+    fn encode(plain: Self::Plain) -> Result<Self::Cipher, Self::Error> {
         static TABLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
         ];
@@ -383,7 +418,7 @@ impl Encoder for UrlEncoder {
     ///
     /// - @exception [UrlError::InvalidFormat] 错误的格式.
     /// - @exception [UrlError::FromUtf8Error] 解码后的内容不是UTF-8编码.
-    fn decode(cipher: String) -> Result<Self::Plain, Self::Error> {
+    fn decode(cipher: Self::Cipher) -> Result<Self::Plain, Self::Error> {
         enum Status {
             Normal,
             High,
