@@ -55,6 +55,7 @@ impl Conversion {
     ///
     /// - @exception [ConversionError::TooLong] 长度超过16.
     /// - @exception [ConversionError::UnexpectedCharacter] 出现未预期的字符.
+    #[deprecated = "被iceyee_encoder v1.3.0 的 HexEncoder::decode_to_number() 代替."]
     pub fn string_to_hex(s: &str) -> Result<u64, ConversionError> {
         let v1: &[u8] = s.as_bytes();
         if 16 < v1.len() {

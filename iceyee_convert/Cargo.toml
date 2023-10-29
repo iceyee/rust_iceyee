@@ -6,10 +6,10 @@
 #                                                   
 [package]
 name = "iceyee_convert"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2021"
 
-description = "Conversion."
+description = "类型转换, Conversion, 已被弃用, 参考iceyee_encoder."
 keywords = ["iceyee", "convert"]
 license = "Apache-2.0"
 readme = "README.md"
