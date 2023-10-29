@@ -6,11 +6,11 @@
 #                                                   
 [package]
 name = "iceyee_datetime"
-version = "1.0.6"
+version = "1.1.0"
 edition = "2021"
 
 description = "Datetime."
-keywords = ["iceyee", "datetime", "time"]
+keywords = ["iceyee", "datetime", "date", "time"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_datetime/"
@@ -18,4 +18,4 @@ repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_datetime/"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ctor = "=0.1.26"
+ctor = "=0.2.5"
