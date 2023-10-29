@@ -82,7 +82,6 @@ impl ConfigParser {
     where
         T: Deserialize<'a>,
     {
-        static mut CONTENT: String = String::new();
         // # std::io::Error
         let content: Vec<u8> = tokio::fs::read(file_name)
             .await
