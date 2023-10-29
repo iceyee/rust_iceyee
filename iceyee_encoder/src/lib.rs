@@ -47,6 +47,8 @@ impl std::fmt::Display for Base64Error {
     }
 }
 
+pub type HexError = Base64Error;
+
 /// Error.
 ///
 /// - @see [UrlEncoder]
@@ -213,9 +215,9 @@ impl Encoder for Base64Encoder {
         let cipher_data: &[u8] = cipher.as_bytes();
         for x in 0..cipher_data.len() {
             let c: u8 = cipher_data[x];
-            if TABLE[c as usize] == 255 && x + 2 < cipher_data.len()
-                || c == b'=' && x + 2 < cipher_data.len()
-            {
+            if TABLE[c as usize] != 255 || c == b'=' && cipher_data.len() <= x + 2 {
+                // 正常.
+            } else {
                 return Err(Base64Error::UnexpectedCharacter(c as char));
             }
         }
@@ -268,6 +270,77 @@ impl Encoder for Base64Encoder {
             v1 = (TABLE[cipher_data[y1] as usize] & 0b00001111) << 4;
             v2 = (TABLE[cipher_data[y2] as usize] & 0b00111100) >> 2;
             plain.push(v1 | v2);
+        }
+        return Ok(plain);
+    }
+}
+
+/// 十六进制编码.
+#[derive(Debug, Clone, Default)]
+pub struct HexEncoder;
+
+impl Encoder for HexEncoder {
+    type Plain = Vec<u8>;
+    type Cipher = String;
+    type Error = HexError;
+
+    /// 编码.
+    ///
+    /// - @exception 没有异常.
+    fn encode(plain: Self::Plain) -> Result<Self::Cipher, Self::Error> {
+        static TABLE: [char; 16] = [
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+        ];
+        let mut cipher: String = String::new();
+        for x in plain {
+            let high: u8 = (x >> 4) & 0x0F;
+            let low: u8 = (x >> 0) & 0x0F;
+            cipher.push(TABLE[high as usize]);
+            cipher.push(TABLE[low as usize]);
+        }
+        return Ok(cipher);
+    }
+
+    /// 解码.
+    ///
+    /// - @exception [HexError::InvalidLength] 无效的长度.
+    /// - @exception [HexError::UnexpectedCharacter] 出现未预期的字符.
+    fn decode(cipher: String) -> Result<Self::Plain, Self::Error> {
+        let length: usize = cipher.len();
+        if length % 2 != 0 {
+            return Err(HexError::InvalidLength(length));
+        }
+        let mut plain: Vec<u8> = Vec::new();
+        let cipher: &[u8] = cipher.as_bytes();
+        let mut high: u8;
+        let mut low: u8;
+        for x in 0..(length / 2) {
+            match cipher[x * 2] {
+                b'0'..=b'9' => {
+                    high = cipher[x * 2] - b'0';
+                }
+                b'a'..=b'f' => {
+                    high = cipher[x * 2] - b'a' + 10;
+                }
+                b'A'..=b'F' => {
+                    high = cipher[x * 2] - b'A' + 10;
+                }
+                _ => return Err(HexError::UnexpectedCharacter(cipher[x * 2] as char)),
+            }
+            match cipher[x * 2 + 1] {
+                b'0'..=b'9' => {
+                    low = cipher[x * 2 + 1] - b'0';
+                }
+                b'a'..=b'f' => {
+                    low = cipher[x * 2 + 1] - b'a' + 10;
+                }
+                b'A'..=b'F' => {
+                    low = cipher[x * 2 + 1] - b'A' + 10;
+                }
+                _ => return Err(HexError::UnexpectedCharacter(cipher[x * 2 + 1] as char)),
+            }
+            let b: u8 = (high << 4) | (low << 0);
+            plain.push(b);
         }
         return Ok(plain);
     }

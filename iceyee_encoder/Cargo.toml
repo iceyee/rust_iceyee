@@ -6,11 +6,11 @@
 #                                                   
 [package]
 name = "iceyee_encoder"
-version = "1.0.2"
+version = "1.2.0"
 edition = "2021"
 
-description = "Base64Encoder, UrlEncoder."
-keywords = ["iceyee", "base64", "url"]
+description = "Base64Encoder, HexEncoder, UrlEncoder."
+keywords = ["iceyee", "base64", "hex", "url"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_encoder/"
