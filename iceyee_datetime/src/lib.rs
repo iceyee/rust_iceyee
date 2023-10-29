@@ -125,6 +125,8 @@ pub struct DateTime {
     pub minute: usize,
     /// \[0, 59\]
     pub second: usize,
+    /// \[0, 999\]
+    pub millisecond: usize,
     /// \[1, 365\]
     pub day_of_year: usize,
     /// \[1, 7\]
@@ -322,7 +324,7 @@ impl From<(i64, Option<i16>)> for DateTime {
         timestamp %= ONE_MINUTE;
         let second: i64 = timestamp / ONE_SECOND;
         timestamp %= ONE_SECOND;
-        let _ = timestamp;
+        let millisecond: i64 = timestamp / ONE_MILLISECOND;
         // println!(
         //     "@hour,minute,second={:02}:{:02}:{:02}",
         //     hour, minute, second
@@ -347,6 +349,7 @@ impl From<(i64, Option<i16>)> for DateTime {
             hour: hour as usize,
             minute: minute as usize,
             second: second as usize,
+            millisecond: millisecond as usize,
             day_of_year: day_of_year as usize,
             weekday: weekday as usize,
             timestamp: timestamp_,
@@ -355,17 +358,18 @@ impl From<(i64, Option<i16>)> for DateTime {
     }
 }
 
-impl From<(usize, usize, usize, usize, usize, usize, Option<i16>)> for DateTime {
+impl From<(usize, usize, usize, usize, usize, usize, usize, Option<i16>)> for DateTime {
     /// 从设置好的时间, 转成[DateTime].
     ///
-    /// - @param value (year, month, day, hour, minute, second, offset)
+    /// - @param value (year, month, day, hour, minute, second, millisecond, offset)
     /// - @param value$0 年.
     /// - @param value$1 月.
     /// - @param value$2 日.
     /// - @param value$3 时.
     /// - @param value$4 分.
     /// - @param value$5 秒.
-    /// - @param value$6 时间偏移, 默认是系统设置的时区所对应的偏移.
+    /// - @param value$6 毫秒.
+    /// - @param value$7 时间偏移, 默认是系统设置的时区所对应的偏移.
     ///
     /// # Panics
     ///
@@ -374,8 +378,8 @@ impl From<(usize, usize, usize, usize, usize, usize, Option<i16>)> for DateTime 
     /// 例如, '时'的范围是0~23, 如果对应的入参是24, 就会panic.
     ///
     /// 例如, 某一年的二月份, 只有28天, 但是参数'日'的入参是29, 就会panic.
-    fn from(value: (usize, usize, usize, usize, usize, usize, Option<i16>)) -> Self {
-        let (year, month, day, hour, minute, second, offset) = value;
+    fn from(value: (usize, usize, usize, usize, usize, usize, usize, Option<i16>)) -> Self {
+        let (year, month, day, hour, minute, second, millisecond, offset) = value;
         if month == 0 || 12 < month {
             panic!("@month={:?}", month);
         }
@@ -401,6 +405,9 @@ impl From<(usize, usize, usize, usize, usize, usize, Option<i16>)> for DateTime 
         }
         if 59 < second {
             panic!("@second={:?}", second);
+        }
+        if 999 < millisecond {
+            panic!("@millisecond={:?}", millisecond);
         }
         let mut timestamp: i64 = 0;
         let mut t: i64 = year as i64;
@@ -448,6 +455,7 @@ impl From<(usize, usize, usize, usize, usize, usize, Option<i16>)> for DateTime 
         timestamp += hour as i64 * ONE_HOUR;
         timestamp += minute as i64 * ONE_MINUTE;
         timestamp += second as i64 * ONE_SECOND;
+        timestamp += millisecond as i64 * ONE_MILLISECOND;
         // println!("@timestamp={:?}", timestamp);
         // 时间差.
         let offset: i16 = match offset {

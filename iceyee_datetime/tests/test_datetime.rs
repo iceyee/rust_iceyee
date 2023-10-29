@@ -33,6 +33,7 @@ fn test_datetime() {
         dt_new.hour,
         dt_new.minute,
         dt_new.second,
+        dt_new.millisecond,
         Some(dt_new.offset),
     ));
     // println!("DateTime::new()::from()=\n{:?}", dt_new_from);
@@ -44,6 +45,7 @@ fn test_datetime() {
         dt_new_utc.hour,
         dt_new_utc.minute,
         dt_new_utc.second,
+        dt_new_utc.millisecond,
         Some(dt_new_utc.offset),
     ));
     // println!("DateTime::new().to_utc()::from()=\n{:?}", dt_new_utc_from);
