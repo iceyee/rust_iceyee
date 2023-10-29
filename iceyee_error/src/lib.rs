@@ -28,13 +28,16 @@ use std::backtrace::Backtrace;
 
 // Struct.
 
-/// 自定义的异常.
+/// 自定义的异常, 能输出堆栈信息.
 
 pub struct IceyeeError {
     message: String,
     error: Option<Box<dyn StdError>>,
     backtrace: Backtrace,
 }
+
+unsafe impl Send for IceyeeError {}
+unsafe impl Sync for IceyeeError {}
 
 impl IceyeeError {
     pub fn new() -> Self {
