@@ -15,7 +15,7 @@
 // Function.
 
 // #[tokio::test]
-async fn test_schedule_pattern() {
+pub async fn test_schedule_pattern_1() {
     use iceyee_datetime::DateTime;
     use iceyee_timer::Timer;
     println!("");
@@ -29,19 +29,25 @@ async fn test_schedule_pattern() {
         .unwrap();
     Timer::sleep(3333).await;
 
-    // timer
-    //     .schedule_pattern("*/2 * * * * *", || async {
-    //         println!("{}", DateTime::new().to_string());
-    //     })
-    //     .unwrap();
-    // Timer::sleep(6666).await;
+    timer.stop().await;
+    println!("{}", DateTime::now());
+    return;
+}
 
-    // timer
-    //     .schedule_pattern("1-50/2,59 * * * * *", || async {
-    //         println!("{}", DateTime::new().to_string());
-    //     })
-    //     .unwrap();
-    // Timer::sleep(66666).await;
+// #[tokio::test]
+pub async fn test_schedule_pattern_2() {
+    use iceyee_datetime::DateTime;
+    use iceyee_timer::Timer;
+    println!("");
+    println!("{}", DateTime::now());
+    let mut timer: Timer = Timer::new();
+
+    timer
+        .schedule_pattern("*/2 * * * * *", || async {
+            println!("{}", DateTime::new().to_string());
+        })
+        .unwrap();
+    Timer::sleep(6666).await;
 
     timer.stop().await;
     println!("{}", DateTime::now());
@@ -49,7 +55,27 @@ async fn test_schedule_pattern() {
 }
 
 // #[tokio::test]
-async fn test_execute() {
+pub async fn test_schedule_pattern_3() {
+    use iceyee_datetime::DateTime;
+    use iceyee_timer::Timer;
+    println!("");
+    println!("{}", DateTime::now());
+    let mut timer: Timer = Timer::new();
+
+    timer
+        .schedule_pattern("1-50/2,59 * * * * *", || async {
+            println!("{}", DateTime::new().to_string());
+        })
+        .unwrap();
+    Timer::sleep(66666).await;
+
+    timer.stop().await;
+    println!("{}", DateTime::now());
+    return;
+}
+
+// #[tokio::test]
+pub async fn test_execute() {
     use iceyee_datetime::DateTime;
     use iceyee_timer::Timer;
     println!("");
