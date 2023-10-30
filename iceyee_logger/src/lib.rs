@@ -107,8 +107,7 @@ pub struct Logger {
 impl Logger {
     /// new.
     ///
-    /// project_name和target_directory同时不为空, 才是有效的.
-    /// 否则只会把信息输出到stdout, 而不会保存在文件中.
+    /// project_name不为空, 才是有效的, 否则只会把信息输出到stdout, 而不会保存在文件中.
     ///
     /// - @param level 默认Debug.
     /// - @param project_name 项目名.
@@ -126,11 +125,17 @@ impl Logger {
         let time_clone = time.clone();
         timer.schedule_execute_before(0, 10, move || Self::update_time(time_clone.clone()));
         let level: Level = level.unwrap_or(Level::Debug);
-        let (warn_file, error_file) = if !project_name.is_none() && !target_directory.is_none() {
+        let (warn_file, error_file) = if !project_name.is_none() {
             let project_name: &str = project_name.unwrap();
-            let target_directory: &str = target_directory.unwrap();
+            let target_directory_: String;
+            let target_directory: &str = if target_directory.is_none() {
+                target_directory_ = unsafe { DEFAULT.as_ref() }.unwrap().clone();
+                target_directory_.as_str()
+            } else {
+                target_directory.unwrap()
+            };
             if project_name.len() == 0 || target_directory.len() == 0 {
-                panic!("project_name或target_directory不能长度为0.");
+                panic!("project_name和target_directory不能长度为0.");
             }
             let (warn_file, error_file) = Self::create(project_name, target_directory).await;
             let (warn_file, error_file) = (
