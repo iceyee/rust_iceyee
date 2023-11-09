@@ -6,6 +6,8 @@
 //
 // Use.
 
+//! 客户端接口.
+
 use crate::http::Args;
 use crate::http::Request;
 use crate::http::Response;
@@ -31,16 +33,21 @@ use tokio_native_tls::TlsStream;
 
 // Trait.
 
+/// 抽象代理.
 #[async_trait::async_trait]
 pub trait Proxy: AsyncRead + AsyncWrite + Unpin {
+    /// 连接目标服务器或代理服务器.
     async fn connect(&mut self) -> Result<(), IceyeeError>;
 
+    /// 关闭连接.
     fn close(&mut self);
 
+    /// 是否已关闭.
     fn is_closed(&self) -> bool {
         true
     }
 
+    /// 将自己打包.
     fn wrap(self) -> Arc<TokioMutex<Box<dyn Proxy>>>
     where
         Self: Sized + 'static,
@@ -51,6 +58,7 @@ pub trait Proxy: AsyncRead + AsyncWrite + Unpin {
 
 // Struct.
 
+/// 不使用代理.
 #[derive(Debug)]
 pub struct NoProxy {
     target_host: String,
@@ -168,6 +176,7 @@ impl AsyncWrite for NoProxy {
     }
 }
 
+/// Http代理.
 #[derive(Debug)]
 pub struct HttpProxy {
     target_host: String,
@@ -344,6 +353,7 @@ impl AsyncWrite for HttpProxy {
     }
 }
 
+/// Socks5代理.
 #[derive(Debug)]
 pub struct Socks5Proxy {
     target_host: String,

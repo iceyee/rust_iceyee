@@ -10,6 +10,7 @@
 pub mod client;
 pub mod server;
 
+use iceyee_error::StdError;
 use iceyee_error::StdIoError;
 use std::collections::HashMap;
 use tokio::io::AsyncRead;
@@ -231,14 +232,26 @@ pub struct UrlError {
     index: usize,
 }
 
-impl ToString for UrlError {
-    fn to_string(&self) -> String {
-        return format!(
+impl std::fmt::Display for UrlError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        return write!(
+            f,
             "Url, 错误的格式, @state={:?}, @index={}",
             self.state, self.index
         );
     }
 }
+
+impl StdError for UrlError {}
+
+// impl ToString for UrlError {
+//     fn to_string(&self) -> String {
+//         return format!(
+//             "Url, 错误的格式, @state={:?}, @index={}",
+//             self.state, self.index
+//         );
+//     }
+// }
 
 /// 统一资源定位器, Uniform Resource Locator.
 ///
@@ -555,6 +568,7 @@ impl ToString for Request {
 }
 
 impl Request {
+    /// 解析数据.
     pub async fn read_from<R>(mut input: R) -> Result<Request, StdIoError>
     where
         R: AsyncRead + Unpin,
@@ -622,6 +636,9 @@ impl Request {
                         } else {
                             bytes.push(buffer.block[x]);
                             x += 1;
+                            if 0xFF < bytes.len() {
+                                Err(StdIoError::new(std::io::ErrorKind::Other, "大小非预期."))?;
+                            }
                         }
                     }
                 }
@@ -644,6 +661,9 @@ impl Request {
                         } else {
                             bytes.push(buffer.block[x]);
                             x += 1;
+                            if 0xFFF < bytes.len() {
+                                Err(StdIoError::new(std::io::ErrorKind::Other, "大小非预期."))?;
+                            }
                         }
                     }
                 }
@@ -660,6 +680,9 @@ impl Request {
                         } else {
                             bytes.push(buffer.block[x]);
                             x += 1;
+                            if 0xFF < bytes.len() {
+                                Err(StdIoError::new(std::io::ErrorKind::Other, "大小非预期."))?;
+                            }
                         }
                     }
                 }
@@ -691,6 +714,9 @@ impl Request {
                         } else {
                             bytes.push(buffer.block[x]);
                             x += 1;
+                            if 0xFFFF < bytes.len() {
+                                Err(StdIoError::new(std::io::ErrorKind::Other, "大小非预期."))?;
+                            }
                         }
                     }
                 }
@@ -710,6 +736,9 @@ impl Request {
                             .map_err(|_| {
                                 StdIoError::new(std::io::ErrorKind::Other, "String::parse().")
                             })?
+                    };
+                    if 0x3FFFFFFF < needed {
+                        Err(StdIoError::new(std::io::ErrorKind::Other, "大小非预期."))?;
                     }
                 }
                 State::Body => {
@@ -798,6 +827,7 @@ impl ToString for Response {
 }
 
 impl Response {
+    /// 解析数据.
     pub async fn read_from<R>(mut input: R) -> Result<Response, StdIoError>
     where
         R: AsyncRead + Unpin,
