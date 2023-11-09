@@ -121,9 +121,10 @@ pub fn test_url_encoder() {
     use iceyee_encoder::UrlEncoder;
     use iceyee_encoder::UrlError;
     println!("");
-    assert!(UrlEncoder::encode(" 1_1 ".to_string()).unwrap() == "%201_1%20");
+    assert!(UrlEncoder::encode(" 1_1 ".to_string()).unwrap() == "+1_1+");
     assert!(UrlEncoder::decode("%201_1%20".to_string()).unwrap() == " 1_1 ");
     assert!(UrlEncoder::decode("%201+1%20".to_string()).unwrap() == " 1 1 ");
+    assert!(UrlEncoder::decode("+1+1+".to_string()).unwrap() == " 1 1 ");
     match UrlEncoder::decode("%%".to_string()) {
         Err(UrlError::InvalidFormat) => {}
         _ => assert!(false),

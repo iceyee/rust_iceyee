@@ -401,7 +401,9 @@ impl Encoder for UrlEncoder {
         let mut cipher: String = String::new();
         let plain: &[u8] = plain.as_bytes();
         for x in plain {
-            if x.is_ascii_alphanumeric() || *x == b'_' || *x == b'-' {
+            if *x == b' ' {
+                cipher.push('+');
+            } else if x.is_ascii_alphanumeric() || "$-_.".contains(*x as char) {
                 cipher.push(*x as char);
             } else {
                 let high: u8 = (*x >> 4) & 0x0F;
@@ -431,16 +433,11 @@ impl Encoder for UrlEncoder {
         let mut low: u8;
         for x in cipher {
             match status {
-                Status::Normal => {
-                    if *x == b'%' {
-                        status = Status::High;
-                    }
-                    match *x {
-                        b'%' => status = Status::High,
-                        b'+' => plain.push(b' '),
-                        _ => plain.push(*x),
-                    }
-                }
+                Status::Normal => match *x {
+                    b'%' => status = Status::High,
+                    b'+' => plain.push(b' '),
+                    _ => plain.push(*x),
+                },
                 Status::High => match *x {
                     b'0'..=b'9' => {
                         status = Status::Low;
