@@ -51,6 +51,7 @@ pub trait Proxy: AsyncRead + AsyncWrite + Unpin {
 
 // Struct.
 
+#[derive(Debug)]
 pub struct NoProxy {
     target_host: String,
     target_port: u16,
@@ -74,17 +75,13 @@ impl NoProxy {
 #[async_trait::async_trait]
 impl Proxy for NoProxy {
     async fn connect(&mut self) -> Result<(), IceyeeError> {
+        let plain_socket: TokioTcpStream =
+            TokioTcpStream::connect((self.target_host.clone(), self.target_port))
+                .await
+                .map_err(|e| IceyeeError::from(Box::new(e) as Box<dyn StdError>))?;
         if !self.using_ssl {
-            let plain_socket: TokioTcpStream =
-                TokioTcpStream::connect((self.target_host.clone(), self.target_port))
-                    .await
-                    .map_err(|e| IceyeeError::from(Box::new(e) as Box<dyn StdError>))?;
             self.plain_socket = Some(plain_socket);
         } else {
-            let plain_socket: TokioTcpStream =
-                TokioTcpStream::connect((self.target_host.clone(), self.target_port))
-                    .await
-                    .map_err(|e| IceyeeError::from(Box::new(e) as Box<dyn StdError>))?;
             let connector = tokio_native_tls::native_tls::TlsConnector::new()
                 .map_err(|e| IceyeeError::from(Box::new(e) as Box<dyn StdError>))?;
             let connector = tokio_native_tls::TlsConnector::from(connector);
@@ -171,6 +168,187 @@ impl AsyncWrite for NoProxy {
     }
 }
 
+#[derive(Debug)]
+pub struct HttpProxy {
+    target_host: String,
+    target_port: u16,
+    using_ssl: bool,
+    plain_socket: Option<TokioTcpStream>,
+    ssl_socket: Option<TlsStream<TokioTcpStream>>,
+    proxy_host: String,
+    proxy_port: u16,
+    proxy_auth: Option<String>,
+}
+
+impl HttpProxy {
+    pub fn new(
+        target_host: &str,
+        target_port: u16,
+        using_ssl: bool,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_auth: Option<&str>,
+    ) -> HttpProxy {
+        return HttpProxy {
+            target_host: target_host.to_string(),
+            target_port: target_port,
+            using_ssl: using_ssl,
+            plain_socket: None,
+            ssl_socket: None,
+            proxy_host: proxy_host.to_string(),
+            proxy_port: proxy_port,
+            proxy_auth: proxy_auth.map(|s| s.to_string()),
+        };
+    }
+}
+
+#[async_trait::async_trait]
+impl Proxy for HttpProxy {
+    async fn connect(&mut self) -> Result<(), IceyeeError> {
+        use iceyee_encoder::Base64Encoder;
+        use iceyee_encoder::Encoder;
+
+        // 1 连接代理.
+        let mut plain_socket: TokioTcpStream =
+            TokioTcpStream::connect((self.proxy_host.clone(), self.proxy_port))
+                .await
+                .map_err(|e| IceyeeError::from(Box::new(e) as Box<dyn StdError>))?;
+        // 2 CONNECT.
+        let mut request: Request = Default::default();
+        request.method = "CONNECT".to_string();
+        request.path = self.target_host.clone() + ":" + self.target_port.to_string().as_str();
+        request
+            .header
+            .insert("Host".to_string(), request.path.clone());
+        request
+            .header
+            .insert("Proxy-Connection".to_string(), "keep-alive".to_string());
+        if self.proxy_auth.is_some() {
+            let auth: String =
+                Base64Encoder::encode(self.proxy_auth.as_ref().unwrap().as_bytes().to_vec())
+                    .unwrap();
+            let auth: String = "Basic ".to_string() + auth.trim();
+            request
+                .header
+                .insert("Authorization".to_string(), auth.clone());
+            request
+                .header
+                .insert("Proxy-Authenticate".to_string(), auth.clone());
+            request
+                .header
+                .insert("Proxy-Authorization".to_string(), auth.clone());
+        }
+        println!("测试点995");
+        println!("{}", request.to_string());
+        plain_socket
+            .write(request.to_string().as_bytes())
+            .await
+            .map_err(|e| IceyeeError::from(Box::new(e) as Box<dyn StdError>))?;
+        // CONNECT响应.
+        let response: Response = Response::read_from(&mut plain_socket)
+            .await
+            .map_err(|e| IceyeeError::from(Box::new(e) as Box<dyn StdError>))?;
+        println!("测试点540");
+        println!("{}", response.to_string());
+        println!("{}", String::from_utf8(response.body.clone()).unwrap());
+        if 200 <= response.status_code && response.status_code < 300 {
+            // 请求代理连接成功.
+        } else {
+            // 请求代理连接失败.
+            let message: String =
+                format!("请求代理连接失败 {}:{}", &self.proxy_host, self.proxy_port);
+            return Err(IceyeeError::from(&message));
+        }
+        // 3 tls握手.
+        if !self.using_ssl {
+            self.plain_socket = Some(plain_socket);
+        } else {
+            let connector = tokio_native_tls::native_tls::TlsConnector::new()
+                .map_err(|e| IceyeeError::from(Box::new(e) as Box<dyn StdError>))?;
+            let connector = tokio_native_tls::TlsConnector::from(connector);
+            let ssl_socket: TlsStream<TokioTcpStream> = connector
+                .connect(self.target_host.as_str(), plain_socket)
+                .await
+                .map_err(|e| IceyeeError::from(Box::new(e) as Box<dyn StdError>))?;
+            self.ssl_socket = Some(ssl_socket);
+        }
+        Ok(())
+    }
+
+    fn close(&mut self) {
+        self.plain_socket = None;
+        self.ssl_socket = None;
+        return;
+    }
+
+    fn is_closed(&self) -> bool {
+        self.plain_socket.is_none() && self.ssl_socket.is_none()
+    }
+}
+
+impl AsyncRead for HttpProxy {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<Result<(), StdIoError>> {
+        if self.plain_socket.is_some() {
+            let mut pinned = std::pin::pin!(self.plain_socket.as_mut().unwrap());
+            return pinned.as_mut().poll_read(cx, buf);
+        } else if self.ssl_socket.is_some() {
+            let mut pinned = std::pin::pin!(self.ssl_socket.as_mut().unwrap());
+            return pinned.as_mut().poll_read(cx, buf);
+        } else {
+            return std::task::Poll::Ready(Ok(()));
+        }
+    }
+}
+
+impl AsyncWrite for HttpProxy {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, StdIoError>> {
+        if self.plain_socket.is_some() {
+            let mut pinned = std::pin::pin!(self.plain_socket.as_mut().unwrap());
+            return pinned.as_mut().poll_write(cx, buf);
+        } else if self.ssl_socket.is_some() {
+            let mut pinned = std::pin::pin!(self.ssl_socket.as_mut().unwrap());
+            return pinned.as_mut().poll_write(cx, buf);
+        } else {
+            return std::task::Poll::Ready(Ok(0));
+        }
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), StdIoError>> {
+        if self.plain_socket.is_some() {
+            let mut pinned = std::pin::pin!(self.plain_socket.as_mut().unwrap());
+            return pinned.as_mut().poll_flush(cx);
+        } else if self.ssl_socket.is_some() {
+            let mut pinned = std::pin::pin!(self.ssl_socket.as_mut().unwrap());
+            return pinned.as_mut().poll_flush(cx);
+        } else {
+            return std::task::Poll::Ready(Ok(()));
+        }
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), StdIoError>> {
+        if self.plain_socket.is_some() {
+            let mut pinned = std::pin::pin!(self.plain_socket.as_mut().unwrap());
+            return pinned.as_mut().poll_shutdown(cx);
+        } else if self.ssl_socket.is_some() {
+            let mut pinned = std::pin::pin!(self.ssl_socket.as_mut().unwrap());
+            return pinned.as_mut().poll_shutdown(cx);
+        } else {
+            return std::task::Poll::Ready(Ok(()));
+        }
+    }
+}
+
 /// Http客户端.
 pub struct HttpClient {
     log: String,
@@ -187,10 +365,6 @@ impl HttpClient {
             using_ssl: false,
             verbose: false,
         };
-        http_client
-            .request
-            .header
-            .insert("User-Agent".to_string(), "iceyee/1.0".to_string());
         return http_client;
     }
 
