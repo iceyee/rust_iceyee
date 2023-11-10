@@ -174,10 +174,10 @@ impl Logger {
         };
     }
 
-    pub async fn stop(&mut self) {
-        self.timer.stop().await;
-        return;
-    }
+    // pub async fn stop(&mut self) {
+    //     self.timer.stop().await;
+    //     return;
+    // }
 
     // 更新时间.
     async fn update_time(time: Arc<AtomicPtr<String>>) {
