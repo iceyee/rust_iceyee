@@ -354,7 +354,6 @@ impl Drop for Timer {
                 }
             }
         });
-        println!("测试点942");
         return;
     }
 }
