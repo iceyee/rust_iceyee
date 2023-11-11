@@ -95,8 +95,8 @@ impl ToString for Level {
 // Struct.
 
 /// 日志.
-#[derive(Debug)]
 pub struct Logger {
+    #[allow(dead_code)]
     timer: Timer,
     time: Arc<AtomicPtr<String>>,
     level: Level,
@@ -174,10 +174,11 @@ impl Logger {
         };
     }
 
-    // pub async fn stop(&mut self) {
-    //     self.timer.stop().await;
-    //     return;
-    // }
+    #[deprecated(since = "2.0.0", note = "see iceyee_timer::Timer::stop().")]
+    pub async fn stop(&mut self) {
+        // self.timer.stop().await;
+        return;
+    }
 
     // 更新时间.
     async fn update_time(time: Arc<AtomicPtr<String>>) {

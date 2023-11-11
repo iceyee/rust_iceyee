@@ -43,7 +43,8 @@ pub async fn test_logger_no_project() {
         }
     });
     Timer::sleep(10_000).await;
-    logger.lock().await.stop().await;
+    drop(logger);
+    Timer::sleep(2_000).await;
     println!("");
     return;
 }
@@ -77,12 +78,13 @@ pub async fn test_logger_project_1() {
         }
     });
     Timer::sleep(10_000).await;
-    logger.lock().await.stop().await;
+    drop(logger);
+    Timer::sleep(2_000).await;
     println!("");
     return;
 }
 
-// #[tokio::test]
+#[tokio::test]
 pub async fn test_logger_project_2() {
     use iceyee_logger::Level;
     use iceyee_logger::Logger;
@@ -116,7 +118,8 @@ pub async fn test_logger_project_2() {
         }
     });
     Timer::sleep(10_000).await;
-    logger.lock().await.stop().await;
+    drop(logger);
+    Timer::sleep(2_000).await;
     println!("");
     return;
 }
