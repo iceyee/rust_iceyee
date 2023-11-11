@@ -13,6 +13,7 @@ use std::future::Future;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use tokio::sync::Mutex as TokioMutex;
 use tokio::task::JoinHandle;
 use tokio::time::Sleep;
 
@@ -51,16 +52,16 @@ impl std::fmt::Display for TimerError {
 
 /// 时钟.
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Timer {
-    thread_handles: Vec<JoinHandle<()>>,
+    thread_handles: Arc<TokioMutex<Vec<JoinHandle<()>>>>,
     is_stop: Arc<AtomicBool>,
 }
 
 impl Timer {
     pub fn new() -> Self {
         return Self {
-            thread_handles: Vec::new(),
+            thread_handles: Arc::new(TokioMutex::new(Vec::new())),
             is_stop: Arc::new(AtomicBool::new(false)),
         };
     }
@@ -71,12 +72,16 @@ impl Timer {
         return tokio::time::sleep(Duration::from_millis(t));
     }
 
+    #[deprecated(
+        since = "2.0.0",
+        note = "停止时钟放到了Drop中, 只需要在主程序等待一段时间, 即可正确地释放资源."
+    )]
     /// 停止时钟并结束所有与其绑定的定时任务.
     pub async fn stop(&mut self) {
         self.is_stop.store(true, Ordering::SeqCst);
         loop {
             match {
-                let handle = self.thread_handles.pop();
+                let handle = self.thread_handles.lock().await.pop();
                 handle
             } {
                 Some(handle) => handle.await.unwrap(),
@@ -271,7 +276,10 @@ impl Timer {
                 }
             }
         });
-        self.thread_handles.push(handle);
+        let thread_handles = self.thread_handles.clone();
+        tokio::task::spawn(async move {
+            thread_handles.lock().await.push(handle);
+        });
         return Ok(());
     }
 
@@ -295,7 +303,10 @@ impl Timer {
                 }
             }
         });
-        self.thread_handles.push(handle);
+        let thread_handles = self.thread_handles.clone();
+        tokio::task::spawn(async move {
+            thread_handles.lock().await.push(handle);
+        });
         return;
     }
 
@@ -319,16 +330,31 @@ impl Timer {
                 }
             }
         });
-        self.thread_handles.push(handle);
+        let thread_handles = self.thread_handles.clone();
+        tokio::task::spawn(async move {
+            thread_handles.lock().await.push(handle);
+        });
         return;
     }
 }
 
 impl Drop for Timer {
     fn drop(&mut self) {
-        if self.thread_handles.len() != 0 {
-            panic!("Please call 'Timer::stop()' before droped.");
-        }
+        let is_stop = self.is_stop.clone();
+        let thread_handles = self.thread_handles.clone();
+        tokio::task::spawn(async move {
+            is_stop.store(true, Ordering::SeqCst);
+            loop {
+                match {
+                    let handle = thread_handles.lock().await.pop();
+                    handle
+                } {
+                    Some(handle) => handle.await.unwrap(),
+                    None => break,
+                }
+            }
+        });
+        println!("测试点942");
         return;
     }
 }

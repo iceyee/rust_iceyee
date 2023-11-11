@@ -6,6 +6,8 @@
 //
 // Use.
 
+// #![feature(async_closure)]
+
 // Enum.
 
 // Trait.
@@ -18,6 +20,7 @@
 pub async fn test_schedule_pattern_1() {
     use iceyee_datetime::DateTime;
     use iceyee_timer::Timer;
+
     println!("");
     println!("{}", DateTime::now());
     let mut timer: Timer = Timer::new();
@@ -29,8 +32,9 @@ pub async fn test_schedule_pattern_1() {
         .unwrap();
     Timer::sleep(3333).await;
 
-    timer.stop().await;
+    drop(timer);
     println!("{}", DateTime::now());
+    Timer::sleep(2000).await;
     return;
 }
 
@@ -49,8 +53,8 @@ pub async fn test_schedule_pattern_2() {
         .unwrap();
     Timer::sleep(6666).await;
 
-    timer.stop().await;
     println!("{}", DateTime::now());
+    Timer::sleep(2000).await;
     return;
 }
 
@@ -69,8 +73,8 @@ pub async fn test_schedule_pattern_3() {
         .unwrap();
     Timer::sleep(66666).await;
 
-    timer.stop().await;
     println!("{}", DateTime::now());
+    Timer::sleep(2000).await;
     return;
 }
 
@@ -78,9 +82,10 @@ pub async fn test_schedule_pattern_3() {
 pub async fn test_execute() {
     use iceyee_datetime::DateTime;
     use iceyee_timer::Timer;
+
     println!("");
     println!("{}", DateTime::now());
-    let mut timer: Timer = Timer::new();
+    let mut timer = Timer::new();
 
     timer.schedule_execute_before(0, 1000, || async {
         println!("{} - before", DateTime::new().to_string());
@@ -93,8 +98,8 @@ pub async fn test_execute() {
     });
 
     Timer::sleep(5000).await;
-    timer.stop().await;
     println!("{}", DateTime::now());
+    Timer::sleep(2000).await;
     return;
 }
 
