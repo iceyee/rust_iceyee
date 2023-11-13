@@ -95,6 +95,7 @@ impl ToString for Level {
 // Struct.
 
 /// 日志.
+#[derive(Clone, Debug)]
 pub struct Logger {
     #[allow(dead_code)]
     timer: Timer,
