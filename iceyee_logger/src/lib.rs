@@ -286,7 +286,7 @@ impl Logger {
 }
 
 impl Logger {
-    async fn print(&mut self, message: &str, level: Level) {
+    async fn print(&self, message: &str, level: Level) {
         use tokio::io::AsyncWriteExt;
         use tokio::io::Stdout;
         static STDOUT: Mutex<Option<Stdout>> = Mutex::const_new(None);
@@ -332,7 +332,7 @@ impl Logger {
                 drop(stdout);
                 if self.warn_file.is_some() {
                     self.warn_file
-                        .as_mut()
+                        .as_ref()
                         .unwrap()
                         .lock()
                         .await
@@ -357,7 +357,7 @@ impl Logger {
                 drop(stdout);
                 if self.error_file.is_some() {
                     self.error_file
-                        .as_mut()
+                        .as_ref()
                         .unwrap()
                         .lock()
                         .await
@@ -371,25 +371,25 @@ impl Logger {
     }
 
     /// Debug.
-    pub async fn debug(&mut self, message: &str) {
+    pub async fn debug(&self, message: &str) {
         Self::print(self, message, Level::Debug).await;
         return;
     }
 
     /// Info.
-    pub async fn info(&mut self, message: &str) {
+    pub async fn info(&self, message: &str) {
         Self::print(self, message, Level::Info).await;
         return;
     }
 
     /// Warn.
-    pub async fn warn(&mut self, message: &str) {
+    pub async fn warn(&self, message: &str) {
         Self::print(self, message, Level::Warn).await;
         return;
     }
 
     /// Error.
-    pub async fn error(&mut self, message: &str) {
+    pub async fn error(&self, message: &str) {
         Self::print(self, message, Level::Error).await;
         return;
     }
