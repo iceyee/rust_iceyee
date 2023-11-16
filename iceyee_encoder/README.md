@@ -29,6 +29,67 @@ pub fn test_base64_encoder() {
 }
 
 #[test]
+pub fn test_hex_encoder() {
+    use iceyee_encoder::HexEncoder;
+    use iceyee_encoder::HexError;
+
+    let a: Vec<u8> = [0x12, 0x34, 0x56, 0xab, 0xcd].to_vec();
+    let b1: String = "123456ABCD".to_string();
+    let b2: String = "123456abcd".to_string();
+    println!("");
+    assert!(HexEncoder::encode(a.clone()) == b1);
+    assert!(HexEncoder::decode(b1.clone()).unwrap() == a);
+    assert!(HexEncoder::decode(b2.clone()).unwrap() == a);
+    match HexEncoder::decode("123456a".to_string()) {
+        Err(HexError::InvalidLength(7)) => {}
+        _ => assert!(false),
+    };
+    match HexEncoder::decode("123456abc".to_string()) {
+        Err(HexError::InvalidLength(9)) => {}
+        _ => assert!(false),
+    };
+    match HexEncoder::decode("12@456abcd".to_string()) {
+        Err(HexError::UnexpectedCharacter('@')) => {}
+        _ => assert!(false),
+    };
+    match HexEncoder::decode("123456a#cd".to_string()) {
+        Err(HexError::UnexpectedCharacter('#')) => {}
+        _ => assert!(false),
+    };
+    match HexEncoder::decode("123456abcg".to_string()) {
+        Err(HexError::UnexpectedCharacter('g')) => {}
+        _ => assert!(false),
+    };
+    assert!(HexEncoder::decode_number("0123456789".to_string()).unwrap() == 0x0123456789);
+    assert!(
+        HexEncoder::decode_number("0123456789abcdef".to_string()).unwrap() == 0x0123456789ABCDEF
+    );
+    assert!(
+        HexEncoder::decode_number("0123456789ABCDEF".to_string()).unwrap() == 0x0123456789ABCDEF
+    );
+    assert!(HexEncoder::encode_number(0x0123456789) == "0123456789");
+    assert!(HexEncoder::encode_number(0x0123456789abcdef) == "0123456789ABCDEF");
+    assert!(HexEncoder::encode_number(0x0123456789ABCDEF) == "0123456789ABCDEF");
+    match HexEncoder::decode_number("0123456789ABCDEF0".to_string()) {
+        Err(HexError::InvalidLength(17)) => {}
+        _ => assert!(false),
+    };
+    match HexEncoder::decode_number("0123456789ABCDEF01".to_string()) {
+        Err(HexError::InvalidLength(18)) => {}
+        _ => assert!(false),
+    };
+    match HexEncoder::decode_number("-123456789".to_string()) {
+        Err(HexError::UnexpectedCharacter('-')) => {}
+        _ => assert!(false),
+    };
+    match HexEncoder::decode_number("012345678z".to_string()) {
+        Err(HexError::UnexpectedCharacter('z')) => {}
+        _ => assert!(false),
+    };
+    return;
+}
+
+#[test]
 pub fn test_url_encoder() {
     use iceyee_encoder::Encoder;
     use iceyee_encoder::UrlEncoder;

@@ -22,31 +22,27 @@ pub enum Base64Error {
     UnexpectedCharacter(char),
 }
 
-impl std::error::Error for Base64Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        return None;
-    }
-}
-
 impl std::fmt::Display for Base64Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        use std::fmt::Write;
         match self {
             Self::InvalidLength(length) => {
-                f.write_str("无效的长度, length=")?;
-                f.write_str(length.to_string().as_str())?;
-                f.write_str(".")?;
+                f.write_str(format!("Base64Error, 无效的长度, length={}.", length).as_str())?;
             }
             Self::UnexpectedCharacter(character) => {
-                f.write_str("出现未预期字符, character=")?;
-                f.write_char(*character)?;
-                f.write_str(".")?;
+                f.write_str(
+                    format!("Base64Error, 出现未预期字符, character={}.", character).as_str(),
+                )?;
             }
         }
         return Ok(());
     }
 }
 
+impl std::error::Error for Base64Error {}
+
+/// Error.
+///
+/// - @see [HexEncoder]
 pub type HexError = Base64Error;
 
 /// Error.
@@ -58,73 +54,46 @@ pub enum UrlError {
     FromUtf8Error(FromUtf8Error),
 }
 
-impl std::error::Error for UrlError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        return match self {
-            Self::InvalidFormat => None,
-            Self::FromUtf8Error(e) => Some(e),
-        };
-    }
-}
-
 impl std::fmt::Display for UrlError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Self::InvalidFormat => {
-                f.write_str("错误的格式.")?;
+                f.write_str("UrlError, 错误的格式.")?;
             }
             Self::FromUtf8Error(_) => {
-                f.write_str("解码后的内容不是UTF-8编码.")?;
+                f.write_str("UrlError, 解码后的内容不是UTF-8编码.")?;
             }
         }
         return Ok(());
     }
 }
 
+impl std::error::Error for UrlError {}
+
 // Trait.
-
-/// 编码器.
-
-pub trait Encoder {
-    type Plain;
-    type Cipher;
-    type Error;
-
-    /// 编码.
-    fn encode(plain: Self::Plain) -> Result<Self::Cipher, Self::Error>;
-
-    /// 解码.
-    fn decode(cipher: Self::Cipher) -> Result<Self::Plain, Self::Error>;
-}
 
 // Struct.
 
 /// Base64编码.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Base64Encoder;
 
-impl Encoder for Base64Encoder {
-    type Plain = Vec<u8>;
-    type Cipher = String;
-    type Error = Base64Error;
-
+impl Base64Encoder {
     /// 编码.
-    ///
-    /// - @exception 没有异常.
-    fn encode(plain: Self::Plain) -> Result<Self::Cipher, Self::Error> {
-        let plain_length: usize = plain.len();
-        if plain_length == 0 {
-            return Ok("".to_string());
+    pub fn encode(input: Vec<u8>) -> String {
+        let input_length: usize = input.len();
+        if input_length == 0 {
+            return "".to_string();
         }
-        let valid_length: usize = match plain_length % 3 {
-            0 => plain_length / 3 * 4,
-            1 => plain_length / 3 * 4 + 2,
-            2 => plain_length / 3 * 4 + 3,
+        let valid_length: usize = match input_length % 3 {
+            0 => input_length / 3 * 4,
+            1 => input_length / 3 * 4 + 2,
+            2 => input_length / 3 * 4 + 3,
             _ => panic!(""),
         };
         const TABLE: &[u8] =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-".as_bytes();
-        let mut cipher: Vec<u8> = Vec::with_capacity(plain_length * 2 + 1);
+        let mut output: Vec<u8> = Vec::with_capacity(input_length * 2 + 1);
         let m: usize = valid_length / 4;
         for x in 0..m {
             // let x0: usize = x * 4 + 0;
@@ -136,18 +105,18 @@ impl Encoder for Base64Encoder {
             let y2: usize = x * 3 + 2;
             let mut v1: u8;
             let mut v2: u8;
-            v1 = (plain[y0] & 0b11111100) >> 2;
+            v1 = (input[y0] & 0b11111100) >> 2;
             v2 = 0;
-            cipher.push(TABLE[(v1 | v2) as usize]);
-            v1 = (plain[y0] & 0b00000011) << 4;
-            v2 = (plain[y1] & 0b11110000) >> 4;
-            cipher.push(TABLE[(v1 | v2) as usize]);
-            v1 = (plain[y1] & 0b00001111) << 2;
-            v2 = (plain[y2] & 0b11000000) >> 6;
-            cipher.push(TABLE[(v1 | v2) as usize]);
-            v1 = (plain[y2] & 0b00111111) >> 0;
+            output.push(TABLE[(v1 | v2) as usize]);
+            v1 = (input[y0] & 0b00000011) << 4;
+            v2 = (input[y1] & 0b11110000) >> 4;
+            output.push(TABLE[(v1 | v2) as usize]);
+            v1 = (input[y1] & 0b00001111) << 2;
+            v2 = (input[y2] & 0b11000000) >> 6;
+            output.push(TABLE[(v1 | v2) as usize]);
+            v1 = (input[y2] & 0b00111111) >> 0;
             v2 = 0;
-            cipher.push(TABLE[(v1 | v2) as usize]);
+            output.push(TABLE[(v1 | v2) as usize]);
         }
         // let x0: usize = m * 4 + 0;
         // let x1: usize = m * 4 + 1;
@@ -158,36 +127,36 @@ impl Encoder for Base64Encoder {
         // let y2: usize = m * 3 + 2;
         let mut v1: u8;
         let mut v2: u8;
-        if plain_length % 3 == 1 {
-            v1 = (plain[y0] & 0b11111100) >> 2;
+        if input_length % 3 == 1 {
+            v1 = (input[y0] & 0b11111100) >> 2;
             v2 = 0;
-            cipher.push(TABLE[(v1 | v2) as usize]);
-            v1 = (plain[y0] & 0b00000011) << 4;
+            output.push(TABLE[(v1 | v2) as usize]);
+            v1 = (input[y0] & 0b00000011) << 4;
             v2 = 0;
-            cipher.push(TABLE[(v1 | v2) as usize]);
-            cipher.push(b'=');
-            cipher.push(b'=');
-        } else if plain_length % 3 == 2 {
-            v1 = (plain[y0] & 0b11111100) >> 2;
+            output.push(TABLE[(v1 | v2) as usize]);
+            output.push(b'=');
+            output.push(b'=');
+        } else if input_length % 3 == 2 {
+            v1 = (input[y0] & 0b11111100) >> 2;
             v2 = 0;
-            cipher.push(TABLE[(v1 | v2) as usize]);
-            v1 = (plain[y0] & 0b00000011) << 4;
-            v2 = (plain[y1] & 0b11110000) >> 4;
-            cipher.push(TABLE[(v1 | v2) as usize]);
-            v1 = (plain[y1] & 0b00001111) << 2;
+            output.push(TABLE[(v1 | v2) as usize]);
+            v1 = (input[y0] & 0b00000011) << 4;
+            v2 = (input[y1] & 0b11110000) >> 4;
+            output.push(TABLE[(v1 | v2) as usize]);
+            v1 = (input[y1] & 0b00001111) << 2;
             v2 = 0;
-            cipher.push(TABLE[(v1 | v2) as usize]);
-            cipher.push(b'=');
+            output.push(TABLE[(v1 | v2) as usize]);
+            output.push(b'=');
         }
-        let cipher: String = String::from_utf8(cipher).unwrap();
-        return Ok(cipher);
+        let output: String = String::from_utf8(output).unwrap();
+        return output;
     }
 
     /// 解码.
     ///
     /// - @exception [Base64Error::InvalidLength] 无效的长度.
     /// - @exception [Base64Error::UnexpectedCharacter] 出现未预期的字符.
-    fn decode(cipher: Self::Cipher) -> Result<Self::Plain, Self::Error> {
+    pub fn decode(input: String) -> Result<Vec<u8>, Base64Error> {
         const TABLE: [u8; 0x100] = [
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -205,30 +174,30 @@ impl Encoder for Base64Encoder {
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
             255, 255,
         ];
-        let length: usize = cipher.len();
+        let length: usize = input.len();
         if length == 0 {
             return Ok(Vec::<u8>::new());
         }
         if length % 4 != 0 {
             return Err(Base64Error::InvalidLength(length));
         }
-        let cipher_data: &[u8] = cipher.as_bytes();
-        for x in 0..cipher_data.len() {
-            let c: u8 = cipher_data[x];
-            if TABLE[c as usize] != 255 || c == b'=' && cipher_data.len() <= x + 2 {
+        let input_data: &[u8] = input.as_bytes();
+        for x in 0..input_data.len() {
+            let c: u8 = input_data[x];
+            if TABLE[c as usize] != 255 || c == b'=' && input_data.len() <= x + 2 {
                 // 正常.
             } else {
                 return Err(Base64Error::UnexpectedCharacter(c as char));
             }
         }
-        let new_length: usize = if cipher_data[cipher_data.len() - 2] == b'=' {
+        let new_length: usize = if input_data[input_data.len() - 2] == b'=' {
             (length - 2) / 4 * 3 + 1
-        } else if cipher_data[cipher_data.len() - 1] == b'=' {
+        } else if input_data[input_data.len() - 1] == b'=' {
             (length - 1) / 4 * 3 + 2
         } else {
             length / 4 * 3
         };
-        let mut plain: Vec<u8> = Vec::new();
+        let mut output: Vec<u8> = Vec::new();
         let m: usize = new_length / 3;
         for x in 0..m {
             // let x0: usize = x * 3 + 0;
@@ -240,15 +209,15 @@ impl Encoder for Base64Encoder {
             let y3: usize = x * 4 + 3;
             let mut v1: u8;
             let mut v2: u8;
-            v1 = (TABLE[cipher_data[y0] as usize] & 0b00111111) << 2;
-            v2 = (TABLE[cipher_data[y1] as usize] & 0b00110000) >> 4;
-            plain.push(v1 | v2);
-            v1 = (TABLE[cipher_data[y1] as usize] & 0b00001111) << 4;
-            v2 = (TABLE[cipher_data[y2] as usize] & 0b00111100) >> 2;
-            plain.push(v1 | v2);
-            v1 = (TABLE[cipher_data[y2] as usize] & 0b00000011) << 6;
-            v2 = (TABLE[cipher_data[y3] as usize] & 0b00111111) >> 0;
-            plain.push(v1 | v2);
+            v1 = (TABLE[input_data[y0] as usize] & 0b00111111) << 2;
+            v2 = (TABLE[input_data[y1] as usize] & 0b00110000) >> 4;
+            output.push(v1 | v2);
+            v1 = (TABLE[input_data[y1] as usize] & 0b00001111) << 4;
+            v2 = (TABLE[input_data[y2] as usize] & 0b00111100) >> 2;
+            output.push(v1 | v2);
+            v1 = (TABLE[input_data[y2] as usize] & 0b00000011) << 6;
+            v2 = (TABLE[input_data[y3] as usize] & 0b00111111) >> 0;
+            output.push(v1 | v2);
         }
         // let x0: usize = m * 3 + 0;
         // let x1: usize = m * 3 + 1;
@@ -260,167 +229,176 @@ impl Encoder for Base64Encoder {
         let mut v1: u8;
         let mut v2: u8;
         if new_length % 3 == 1 {
-            v1 = (TABLE[cipher_data[y0] as usize] & 0b00111111) << 2;
-            v2 = (TABLE[cipher_data[y1] as usize] & 0b00110000) >> 4;
-            plain.push(v1 | v2);
+            v1 = (TABLE[input_data[y0] as usize] & 0b00111111) << 2;
+            v2 = (TABLE[input_data[y1] as usize] & 0b00110000) >> 4;
+            output.push(v1 | v2);
         } else if new_length % 3 == 2 {
-            v1 = (TABLE[cipher_data[y0] as usize] & 0b00111111) << 2;
-            v2 = (TABLE[cipher_data[y1] as usize] & 0b00110000) >> 4;
-            plain.push(v1 | v2);
-            v1 = (TABLE[cipher_data[y1] as usize] & 0b00001111) << 4;
-            v2 = (TABLE[cipher_data[y2] as usize] & 0b00111100) >> 2;
-            plain.push(v1 | v2);
+            v1 = (TABLE[input_data[y0] as usize] & 0b00111111) << 2;
+            v2 = (TABLE[input_data[y1] as usize] & 0b00110000) >> 4;
+            output.push(v1 | v2);
+            v1 = (TABLE[input_data[y1] as usize] & 0b00001111) << 4;
+            v2 = (TABLE[input_data[y2] as usize] & 0b00111100) >> 2;
+            output.push(v1 | v2);
         }
-        return Ok(plain);
+        return Ok(output);
     }
 }
 
 /// 十六进制编码.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct HexEncoder;
 
-impl Encoder for HexEncoder {
-    type Plain = Vec<u8>;
-    type Cipher = String;
-    type Error = HexError;
-
+impl HexEncoder {
     /// 编码.
-    ///
-    /// - @exception 没有异常.
-    fn encode(plain: Self::Plain) -> Result<Self::Cipher, Self::Error> {
+    pub fn encode(input: Vec<u8>) -> String {
         static TABLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
         ];
-        let mut cipher: String = String::new();
-        for x in plain {
+        let mut output: String = String::new();
+        for x in input {
             let high: u8 = (x >> 4) & 0x0F;
             let low: u8 = (x >> 0) & 0x0F;
-            cipher.push(TABLE[high as usize]);
-            cipher.push(TABLE[low as usize]);
+            output.push(TABLE[high as usize]);
+            output.push(TABLE[low as usize]);
         }
-        return Ok(cipher);
+        return output;
     }
 
     /// 解码.
     ///
     /// - @exception [HexError::InvalidLength] 无效的长度.
     /// - @exception [HexError::UnexpectedCharacter] 出现未预期的字符.
-    fn decode(cipher: Self::Cipher) -> Result<Self::Plain, Self::Error> {
-        let length: usize = cipher.len();
+    pub fn decode(input: String) -> Result<Vec<u8>, HexError> {
+        let length: usize = input.len();
         if length % 2 != 0 {
             return Err(HexError::InvalidLength(length));
         }
-        let mut plain: Vec<u8> = Vec::new();
-        let cipher: &[u8] = cipher.as_bytes();
+        let mut output: Vec<u8> = Vec::new();
+        let input: &[u8] = input.as_bytes();
         let mut high: u8;
         let mut low: u8;
         for x in 0..(length / 2) {
-            match cipher[x * 2] {
+            match input[x * 2] {
                 b'0'..=b'9' => {
-                    high = cipher[x * 2] - b'0';
+                    high = input[x * 2] - b'0';
                 }
                 b'a'..=b'f' => {
-                    high = cipher[x * 2] - b'a' + 10;
+                    high = input[x * 2] - b'a' + 10;
                 }
                 b'A'..=b'F' => {
-                    high = cipher[x * 2] - b'A' + 10;
+                    high = input[x * 2] - b'A' + 10;
                 }
-                _ => return Err(HexError::UnexpectedCharacter(cipher[x * 2] as char)),
+                _ => return Err(HexError::UnexpectedCharacter(input[x * 2] as char)),
             }
-            match cipher[x * 2 + 1] {
+            match input[x * 2 + 1] {
                 b'0'..=b'9' => {
-                    low = cipher[x * 2 + 1] - b'0';
+                    low = input[x * 2 + 1] - b'0';
                 }
                 b'a'..=b'f' => {
-                    low = cipher[x * 2 + 1] - b'a' + 10;
+                    low = input[x * 2 + 1] - b'a' + 10;
                 }
                 b'A'..=b'F' => {
-                    low = cipher[x * 2 + 1] - b'A' + 10;
+                    low = input[x * 2 + 1] - b'A' + 10;
                 }
-                _ => return Err(HexError::UnexpectedCharacter(cipher[x * 2 + 1] as char)),
+                _ => return Err(HexError::UnexpectedCharacter(input[x * 2 + 1] as char)),
             }
             let b: u8 = (high << 4) | (low << 0);
-            plain.push(b);
+            output.push(b);
         }
-        return Ok(plain);
+        return Ok(output);
     }
-}
 
-impl HexEncoder {
-    /// 解码到64位整数.
+    /// 编码64位整数.
+    pub fn encode_number(mut input: u64) -> String {
+        static TABLE: [char; 16] = [
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+        ];
+        if input == 0 {
+            return "0".to_string();
+        }
+        let mut output: Vec<u8> = Vec::new();
+        while input != 0 {
+            let digit: usize = (input & 0xF) as usize;
+            output.push(TABLE[digit] as u8);
+            input = input >> 4;
+            let digit: usize = (input & 0xF) as usize;
+            output.push(TABLE[digit] as u8);
+            input = input >> 4;
+        }
+        output.reverse();
+        return String::from_utf8(output).unwrap();
+    }
+
+    /// 解码64位整数.
     ///
     /// - @exception [HexError::InvalidLength] 长度超过16.
     /// - @exception [HexError::UnexpectedCharacter] 出现未预期的字符.
-    pub fn decode_to_number(cipher: String) -> Result<u64, HexError> {
-        let v1: &[u8] = cipher.as_bytes();
+    pub fn decode_number(input: String) -> Result<u64, HexError> {
+        let v1: &[u8] = input.as_bytes();
         if 16 < v1.len() {
             // 长度过长.
             return Err(HexError::InvalidLength(v1.len()));
         }
-        let mut hex: u64 = 0;
+        let mut output: u64 = 0;
         for x in 0..v1.len() {
             match v1[x] {
                 b'0'..=b'9' => {
-                    hex <<= 4;
-                    hex |= (v1[x] - b'0') as u64;
+                    output <<= 4;
+                    output |= (v1[x] - b'0') as u64;
                 }
                 b'A'..=b'F' => {
-                    hex <<= 4;
-                    hex |= (v1[x] - b'A' + 10) as u64;
+                    output <<= 4;
+                    output |= (v1[x] - b'A' + 10) as u64;
                 }
                 b'a'..=b'f' => {
-                    hex <<= 4;
-                    hex |= (v1[x] - b'a' + 10) as u64;
+                    output <<= 4;
+                    output |= (v1[x] - b'a' + 10) as u64;
                 }
                 any => {
                     return Err(HexError::UnexpectedCharacter(any as char));
                 }
             }
         }
-        return Ok(hex);
+        return Ok(output);
     }
 }
 
 /// Url编码.
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct UrlEncoder;
 
-impl Encoder for UrlEncoder {
-    type Plain = String;
-    type Cipher = String;
-    type Error = UrlError;
-
+impl UrlEncoder {
     /// 编码.
     ///
     /// - @exception 没有异常.
-    fn encode(plain: Self::Plain) -> Result<Self::Cipher, Self::Error> {
+    pub fn encode(input: String) -> String {
         static TABLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
         ];
-        let mut cipher: String = String::new();
-        let plain: &[u8] = plain.as_bytes();
-        for x in plain {
+        let mut output: String = String::new();
+        let input: &[u8] = input.as_bytes();
+        for x in input {
             if *x == b' ' {
-                cipher.push('+');
+                output.push('+');
             } else if x.is_ascii_alphanumeric() || "$-_.".contains(*x as char) {
-                cipher.push(*x as char);
+                output.push(*x as char);
             } else {
                 let high: u8 = (*x >> 4) & 0x0F;
                 let low: u8 = (*x >> 0) & 0x0F;
-                cipher.push('%');
-                cipher.push(TABLE[high as usize]);
-                cipher.push(TABLE[low as usize]);
+                output.push('%');
+                output.push(TABLE[high as usize]);
+                output.push(TABLE[low as usize]);
             }
         }
-        return Ok(cipher);
+        return output;
     }
 
     /// 解码.
     ///
     /// - @exception [UrlError::InvalidFormat] 错误的格式.
     /// - @exception [UrlError::FromUtf8Error] 解码后的内容不是UTF-8编码.
-    fn decode(cipher: Self::Cipher) -> Result<Self::Plain, Self::Error> {
+    pub fn decode(cipher: String) -> Result<String, UrlError> {
         enum Status {
             Normal,
             High,
