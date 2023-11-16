@@ -22,7 +22,7 @@ pub async fn test_logger_no_project() {
     use std::sync::Arc;
     use tokio::sync::Mutex;
     println!("");
-    let mut logger: Logger = Logger::new(Some(Level::Info), None, None).await;
+    let logger: Logger = Logger::new(Some(Level::Info), None, None).await;
     logger.debug("hello world.").await;
     logger.info("hello world.").await;
     logger.warn("hello world.").await;
@@ -34,7 +34,7 @@ pub async fn test_logger_no_project() {
         loop {
             counter += 1;
             let message = counter.to_string();
-            let mut logger = logger_clone.lock().await;
+            let logger = logger_clone.lock().await;
             logger.debug(message.as_str()).await;
             logger.info(message.as_str()).await;
             logger.warn(message.as_str()).await;
@@ -57,7 +57,7 @@ pub async fn test_logger_project_1() {
     use std::sync::Arc;
     use tokio::sync::Mutex;
     println!("");
-    let mut logger: Logger = Logger::new(Some(Level::Info), Some("test"), None).await;
+    let logger: Logger = Logger::new(Some(Level::Info), Some("test"), None).await;
     logger.debug("hello world.").await;
     logger.info("hello world.").await;
     logger.warn("hello world.").await;
@@ -69,7 +69,7 @@ pub async fn test_logger_project_1() {
         loop {
             counter += 1;
             let message = counter.to_string();
-            let mut logger = logger_clone.lock().await;
+            let logger = logger_clone.lock().await;
             logger.debug(message.as_str()).await;
             logger.info(message.as_str()).await;
             logger.warn(message.as_str()).await;
@@ -92,7 +92,7 @@ pub async fn test_logger_project_2() {
     use std::sync::Arc;
     use tokio::sync::Mutex;
     println!("");
-    let mut logger: Logger = Logger::new(
+    let logger: Logger = Logger::new(
         Some(Level::Info),
         Some("test"),
         Some(unsafe { iceyee_logger::DEFAULT.as_ref() }.unwrap().as_str()),
@@ -109,7 +109,7 @@ pub async fn test_logger_project_2() {
         loop {
             counter += 1;
             let message = counter.to_string();
-            let mut logger = logger_clone.lock().await;
+            let logger = logger_clone.lock().await;
             logger.debug(message.as_str()).await;
             logger.info(message.as_str()).await;
             logger.warn(message.as_str()).await;

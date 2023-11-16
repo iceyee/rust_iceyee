@@ -11,14 +11,14 @@
 
 ```rust
 #[tokio::test]
-async fn test_logger_no_project() {
+pub async fn test_logger_no_project() {
     use iceyee_logger::Level;
     use iceyee_logger::Logger;
     use iceyee_timer::Timer;
     use std::sync::Arc;
     use tokio::sync::Mutex;
     println!("");
-    let mut logger: Logger = Logger::new(Some(Level::Info), None, None).await;
+    let logger: Logger = Logger::new(Some(Level::Info), None, None).await;
     logger.debug("hello world.").await;
     logger.info("hello world.").await;
     logger.warn("hello world.").await;
@@ -30,7 +30,7 @@ async fn test_logger_no_project() {
         loop {
             counter += 1;
             let message = counter.to_string();
-            let mut logger = logger_clone.lock().await;
+            let logger = logger_clone.lock().await;
             logger.debug(message.as_str()).await;
             logger.info(message.as_str()).await;
             logger.warn(message.as_str()).await;
@@ -39,49 +39,48 @@ async fn test_logger_no_project() {
         }
     });
     Timer::sleep(10_000).await;
-    logger.lock().await.stop().await;
+    drop(logger);
+    Timer::sleep(2_000).await;
     println!("");
     return;
 }
 ```
 
 ```
-test test_logger_no_project ...
+test test_logger_project_2 ...
 
-2022-11-10T14:50:16.535+08:00 INFO  # hello world.
+2023-11-16T12:10:40.543+08:00 INFO  # hello world.
 
-2022-11-10T14:50:16.535+08:00 WARN  # hello world.
+2023-11-16T12:10:40.543+08:00 WARN  # hello world.
 
-2022-11-10T14:50:16.535+08:00 ERROR #
+2023-11-16T12:10:40.543+08:00 ERROR #
     hello world.
 
-2022-11-10T14:50:16.535+08:00 INFO  # 1
+2023-11-16T12:10:40.543+08:00 INFO  # 1
 
-2022-11-10T14:50:16.535+08:00 WARN  # 1
+2023-11-16T12:10:40.543+08:00 WARN  # 1
 
-2022-11-10T14:50:16.535+08:00 ERROR #
+2023-11-16T12:10:40.543+08:00 ERROR #
     1
 
-2022-11-10T14:50:19.524+08:00 INFO  # 2
+2023-11-16T12:10:43.513+08:00 INFO  # 2
 
-2022-11-10T14:50:19.524+08:00 WARN  # 2
+2023-11-16T12:10:43.513+08:00 WARN  # 2
 
-2022-11-10T14:50:19.524+08:00 ERROR #
+2023-11-16T12:10:43.513+08:00 ERROR #
     2
 
-2022-11-10T14:50:22.523+08:00 INFO  # 3
+2023-11-16T12:10:46.543+08:00 INFO  # 3
 
-2022-11-10T14:50:22.523+08:00 WARN  # 3
+2023-11-16T12:10:46.543+08:00 WARN  # 3
 
-2022-11-10T14:50:22.523+08:00 ERROR #
+2023-11-16T12:10:46.543+08:00 ERROR #
     3
 
-2022-11-10T14:50:25.521+08:00 INFO  # 4
+2023-11-16T12:10:49.514+08:00 INFO  # 4
 
-2022-11-10T14:50:25.521+08:00 WARN  # 4
+2023-11-16T12:10:49.514+08:00 WARN  # 4
 
-2022-11-10T14:50:25.521+08:00 ERROR #
+2023-11-16T12:10:49.514+08:00 ERROR #
     4
-
-ok
 ```

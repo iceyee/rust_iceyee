@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_logger"
-version = "2.1.0"
+version = "3.0.0"
 edition = "2021"
 
 description = "Logger."
@@ -19,6 +19,6 @@ repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_logger/"
 
 [dependencies]
 ctor = "0.2"
-iceyee_datetime = "1"
-iceyee_timer = "2"
+iceyee_datetime = "3"
+iceyee_timer = "3"
 tokio = { version = "1", features = ["full"] }

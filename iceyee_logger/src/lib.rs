@@ -23,22 +23,6 @@ pub static mut HOME: Option<String> = None;
 /// $HOME/.iceyee_log
 pub static mut DEFAULT: Option<String> = None;
 
-#[allow(dead_code)]
-#[ctor::ctor]
-fn init() {
-    #[cfg(target_os = "linux")]
-    unsafe {
-        DEFAULT = Some(std::env::var("HOME").unwrap() + "/.iceyee_log");
-        HOME = Some(std::env::var("HOME").unwrap());
-    }
-    #[cfg(target_os = "windows")]
-    unsafe {
-        DEFAULT = Some(std::env::var("USERPROFILE").unwrap() + "\\.iceyee_log");
-        HOME = Some(std::env::var("USERPROFILE").unwrap());
-    }
-    return;
-}
-
 // Enum.
 
 /// 日志等级, 从低到高分别是(
@@ -47,9 +31,8 @@ fn init() {
 /// [Warn](Level::Warn),
 /// [Error](Level::Error),
 /// ), 默认[Debug](Level::Debug).
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Level {
-    #[default]
     Debug,
     Info,
     Warn,
@@ -63,7 +46,7 @@ impl From<usize> for Level {
             1 => Self::Info,
             2 => Self::Warn,
             3 => Self::Error,
-            _ => panic!("@value={}", value),
+            _ => Self::Debug,
         }
     }
 }
@@ -112,7 +95,7 @@ impl Logger {
     ///
     /// - @param level 默认Debug.
     /// - @param project_name 项目名.
-    /// - @param target_directory 把日志保存在哪一个目录.
+    /// - @param target_directory 把日志保存在哪一个目录, 默认[HOME].
     pub async fn new(
         level: Option<Level>,
         project_name: Option<&str>,
@@ -396,3 +379,19 @@ impl Logger {
 }
 
 // Function.
+
+#[allow(dead_code)]
+#[ctor::ctor]
+fn init() {
+    #[cfg(target_os = "linux")]
+    unsafe {
+        DEFAULT = Some(std::env::var("HOME").unwrap() + "/.iceyee_log");
+        HOME = Some(std::env::var("HOME").unwrap());
+    }
+    #[cfg(target_os = "windows")]
+    unsafe {
+        DEFAULT = Some(std::env::var("USERPROFILE").unwrap() + "\\.iceyee_log");
+        HOME = Some(std::env::var("USERPROFILE").unwrap());
+    }
+    return;
+}
