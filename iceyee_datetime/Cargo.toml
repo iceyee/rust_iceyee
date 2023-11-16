@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_datetime"
-version = "2.0.0"
+version = "3.0.0"
 edition = "2021"
 
 description = "Datetime."
@@ -18,4 +18,5 @@ repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_datetime/"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ctor = "=0.2.5"
+ctor = "0.2"
+tokio = { version = "1", features = ["full"] }

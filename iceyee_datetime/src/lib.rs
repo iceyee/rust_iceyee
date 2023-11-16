@@ -6,6 +6,8 @@
 //
 // Use.
 
+use tokio::time::Sleep;
+
 /// 当前系统正在使用的时区所对应的时间偏移.
 /// 比如用+0800表示东八区的时间偏移, 即+08:00.
 pub static mut TIME_OFFSET: Option<i16> = None;
@@ -24,94 +26,13 @@ const FOUR_HUNDRED_YEAR: i64 = 4 * ONE_HUNDRED_YEAR + ONE_DAY;
 const TIME_0: i64 =
     4 * FOUR_HUNDRED_YEAR + 3 * ONE_HUNDRED_YEAR + ONE_DAY + 17 * FOUR_YEAR + 2 * ONE_YEAR;
 
-#[ctor::ctor]
-fn init() {
-    #[cfg(target_os = "linux")]
-    unsafe {
-        // extern long timezone;
-        // void tzset ();
-        use std::ffi::c_long;
-        extern "C" {
-            static mut timezone: c_long;
-            fn tzset();
-        }
-        tzset();
-        let offset_hour: i16 = timezone as i16 / 60 / 60;
-        let offset_minute: i16 = timezone as i16 / 60 % 60;
-        TIME_OFFSET = Some(-(offset_hour * 100 + offset_minute));
-    }
-    #[cfg(target_os = "windows")]
-    unsafe {
-        // typedef struct _SYSTEMTIME {
-        //     WORD wYear;
-        //     WORD wMonth;
-        //     WORD wDayOfWeek;
-        //     WORD wDay;
-        //     WORD wHour;
-        //     WORD wMinute;
-        //     WORD wSecond;
-        //     WORD wMilliseconds;
-        // } SYSTEMTIME, *PSYSTEMTIME, *LPSYSTEMTIME;
-        // typedef struct _TIME_ZONE_INFORMATION {
-        //     LONG       Bias;
-        //     WCHAR      StandardName[32];
-        //     SYSTEMTIME StandardDate;
-        //     LONG       StandardBias;
-        //     WCHAR      DaylightName[32];
-        //     SYSTEMTIME DaylightDate;
-        //     LONG       DaylightBias;
-        // } TIME_ZONE_INFORMATION, *PTIME_ZONE_INFORMATION, *LPTIME_ZONE_INFORMATION;
-        // DWORD GetTimeZoneInformation(
-        //         [out] LPTIME_ZONE_INFORMATION lpTimeZoneInformation
-        //         );
-        use std::ffi::c_int;
-        use std::ffi::c_long;
-        use std::ffi::c_ushort;
-        #[allow(non_snake_case)]
-        #[derive(Debug, Clone, Default)]
-        #[repr(C)]
-        struct SYSTEMTIME {
-            wYear: c_ushort,
-            wMonth: c_ushort,
-            wDayOfWeek: c_ushort,
-            wDay: c_ushort,
-            wHour: c_ushort,
-            wMinute: c_ushort,
-            wSecond: c_ushort,
-            wMilliseconds: c_ushort,
-        }
-        #[allow(non_camel_case_types)]
-        #[allow(non_snake_case)]
-        #[derive(Debug, Clone, Default)]
-        #[repr(C)]
-        struct TIME_ZONE_INFORMATION {
-            Bias: c_long,
-            StandardName: [c_ushort; 32],
-            StandardDate: SYSTEMTIME,
-            StandardBias: c_long,
-            DaylightName: [c_ushort; 32],
-            DaylightDate: SYSTEMTIME,
-            DaylightBias: c_long,
-        }
-        extern "C" {
-            fn GetTimeZoneInformation(lpTimeZoneInformation: *mut TIME_ZONE_INFORMATION) -> c_int;
-        }
-        let mut tzi: TIME_ZONE_INFORMATION = Default::default();
-        GetTimeZoneInformation(&mut tzi);
-        let offset_hour: i16 = tzi.Bias as i16 / 60;
-        let offset_minute: i16 = tzi.Bias as i16 % 60;
-        TIME_OFFSET = Some(-(offset_hour * 100 + offset_minute));
-    }
-    return;
-}
-
 // Enum.
 
 // Trait.
 
 // Struct.
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DateTime {
     /// \[0, +oo)
     pub year: usize,
@@ -526,3 +447,91 @@ impl ToString for DateTime {
 }
 
 // Function.
+
+#[ctor::ctor]
+fn init() {
+    #[cfg(target_os = "linux")]
+    unsafe {
+        // extern long timezone;
+        // void tzset ();
+        use std::ffi::c_long;
+        extern "C" {
+            static mut timezone: c_long;
+            fn tzset();
+        }
+        tzset();
+        let offset_hour: i16 = timezone as i16 / 60 / 60;
+        let offset_minute: i16 = timezone as i16 / 60 % 60;
+        TIME_OFFSET = Some(-(offset_hour * 100 + offset_minute));
+    }
+    #[cfg(target_os = "windows")]
+    unsafe {
+        // typedef struct _SYSTEMTIME {
+        //     WORD wYear;
+        //     WORD wMonth;
+        //     WORD wDayOfWeek;
+        //     WORD wDay;
+        //     WORD wHour;
+        //     WORD wMinute;
+        //     WORD wSecond;
+        //     WORD wMilliseconds;
+        // } SYSTEMTIME, *PSYSTEMTIME, *LPSYSTEMTIME;
+        // typedef struct _TIME_ZONE_INFORMATION {
+        //     LONG       Bias;
+        //     WCHAR      StandardName[32];
+        //     SYSTEMTIME StandardDate;
+        //     LONG       StandardBias;
+        //     WCHAR      DaylightName[32];
+        //     SYSTEMTIME DaylightDate;
+        //     LONG       DaylightBias;
+        // } TIME_ZONE_INFORMATION, *PTIME_ZONE_INFORMATION, *LPTIME_ZONE_INFORMATION;
+        // DWORD GetTimeZoneInformation(
+        //         [out] LPTIME_ZONE_INFORMATION lpTimeZoneInformation
+        //         );
+        use std::ffi::c_int;
+        use std::ffi::c_long;
+        use std::ffi::c_ushort;
+        #[allow(non_snake_case)]
+        #[derive(Debug, Clone, Default)]
+        #[repr(C)]
+        struct SYSTEMTIME {
+            wYear: c_ushort,
+            wMonth: c_ushort,
+            wDayOfWeek: c_ushort,
+            wDay: c_ushort,
+            wHour: c_ushort,
+            wMinute: c_ushort,
+            wSecond: c_ushort,
+            wMilliseconds: c_ushort,
+        }
+        #[allow(non_camel_case_types)]
+        #[allow(non_snake_case)]
+        #[derive(Debug, Clone, Default)]
+        #[repr(C)]
+        struct TIME_ZONE_INFORMATION {
+            Bias: c_long,
+            StandardName: [c_ushort; 32],
+            StandardDate: SYSTEMTIME,
+            StandardBias: c_long,
+            DaylightName: [c_ushort; 32],
+            DaylightDate: SYSTEMTIME,
+            DaylightBias: c_long,
+        }
+        extern "C" {
+            fn GetTimeZoneInformation(lpTimeZoneInformation: *mut TIME_ZONE_INFORMATION) -> c_int;
+        }
+        let mut tzi: TIME_ZONE_INFORMATION = Default::default();
+        GetTimeZoneInformation(&mut tzi);
+        let offset_hour: i16 = tzi.Bias as i16 / 60;
+        let offset_minute: i16 = tzi.Bias as i16 % 60;
+        TIME_OFFSET = Some(-(offset_hour * 100 + offset_minute));
+    }
+    return;
+}
+
+/// 延时, 单位:毫秒.
+pub fn sleep(t: u64) -> Sleep {
+    use std::time::Duration;
+
+    return tokio::time::sleep(Duration::from_millis(t));
+}
