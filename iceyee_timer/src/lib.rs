@@ -22,17 +22,9 @@ use tokio::time::Sleep;
 /// Error.
 ///
 /// - @see [Timer]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum TimerError {
     InvalidFormat,
-}
-
-impl std::error::Error for TimerError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        return match self {
-            Self::InvalidFormat => None,
-        };
-    }
 }
 
 impl std::fmt::Display for TimerError {
@@ -46,11 +38,13 @@ impl std::fmt::Display for TimerError {
     }
 }
 
+impl std::error::Error for TimerError {}
+
 // Trait.
 
 // Struct.
 
-/// 时钟.
+/// 时钟, 精度50ms ~ 100ms.
 
 #[derive(Clone, Debug)]
 pub struct Timer {
@@ -66,9 +60,10 @@ impl Timer {
         };
     }
 
-    /// 延时.
+    /// 延时, 单位:毫秒.
     pub fn sleep(t: u64) -> Sleep {
-        use tokio::time::Duration;
+        use std::time::Duration;
+
         return tokio::time::sleep(Duration::from_millis(t));
     }
 
@@ -140,12 +135,6 @@ impl Timer {
                 if y.len() == 0 {
                     return Err(TimerError::InvalidFormat);
                 }
-                // if y == "*" {
-                //     for z in expand(table[index].1, table[index].2, 1) {
-                //         table[index].0[z] = true;
-                //     }
-                //     continue;
-                // }
                 let mut status: Status = Status::MIN;
                 let mut min: Vec<u8> = Vec::new();
                 let mut max: Vec<u8> = Vec::new();
@@ -272,7 +261,7 @@ impl Timer {
                     f().await;
                 }
                 while !is_stop.load(Ordering::SeqCst) && !sl.is_finished() {
-                    Self::sleep(10).await;
+                    Self::sleep(50).await;
                 }
             }
         });
@@ -293,13 +282,13 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let sl = tokio::task::spawn(Timer::sleep(delay));
             while !is_stop.load(Ordering::SeqCst) && !sl.is_finished() {
-                Timer::sleep(10).await;
+                Timer::sleep(50).await;
             }
             while !is_stop.load(Ordering::SeqCst) {
                 let sl = tokio::task::spawn(Timer::sleep(period));
                 f().await;
                 while !is_stop.load(Ordering::SeqCst) && !sl.is_finished() {
-                    Timer::sleep(10).await;
+                    Timer::sleep(50).await;
                 }
             }
         });
@@ -320,13 +309,13 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let sl = tokio::task::spawn(Self::sleep(delay));
             while !is_stop.load(Ordering::SeqCst) && !sl.is_finished() {
-                Self::sleep(10).await;
+                Self::sleep(50).await;
             }
             while !is_stop.load(Ordering::SeqCst) {
                 f().await;
                 let sl = tokio::task::spawn(Self::sleep(period));
                 while !is_stop.load(Ordering::SeqCst) && !sl.is_finished() {
-                    Self::sleep(10).await;
+                    Self::sleep(50).await;
                 }
             }
         });

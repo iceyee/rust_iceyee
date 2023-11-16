@@ -78,7 +78,7 @@ pub async fn test_schedule_pattern_3() {
     return;
 }
 
-// #[tokio::test]
+#[tokio::test]
 pub async fn test_execute() {
     use iceyee_datetime::DateTime;
     use iceyee_timer::Timer;
