@@ -18,6 +18,7 @@ use serde::de::Deserialize;
 use serde::ser::Serialize;
 use serde_json::Error as JsonError;
 use serde_yaml::Error as YamlError;
+use std::io::Error as StdIoError;
 use std::string::FromUtf8Error;
 
 // Enum.
@@ -25,23 +26,11 @@ use std::string::FromUtf8Error;
 /// Error.
 #[derive(Debug)]
 pub enum ConfigError {
-    StdIoError(std::io::Error),
+    StdIoError(StdIoError),
     FromUtf8Error(FromUtf8Error),
     JsonError(JsonError),
     YamlError(YamlError),
     NotSupportSuffix(String),
-}
-
-impl std::error::Error for ConfigError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        return match self {
-            ConfigError::StdIoError(e) => Some(e),
-            ConfigError::FromUtf8Error(e) => Some(e),
-            ConfigError::JsonError(e) => Some(e),
-            ConfigError::YamlError(e) => Some(e),
-            ConfigError::NotSupportSuffix(_) => None,
-        };
-    }
 }
 
 impl std::fmt::Display for ConfigError {
@@ -61,12 +50,24 @@ impl std::fmt::Display for ConfigError {
     }
 }
 
+impl std::error::Error for ConfigError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        return match self {
+            ConfigError::StdIoError(e) => Some(e),
+            ConfigError::FromUtf8Error(e) => Some(e),
+            ConfigError::JsonError(e) => Some(e),
+            ConfigError::YamlError(e) => Some(e),
+            ConfigError::NotSupportSuffix(_) => None,
+        };
+    }
+}
+
 // Trait.
 
 // Struct.
 
 /// 读写配置, 只支持'json'和'yaml'格式.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ConfigParser;
 
 impl ConfigParser {

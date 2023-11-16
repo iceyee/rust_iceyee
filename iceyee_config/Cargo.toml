@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_config"
-version = "1.0.3"
+version = "3.0.0"
 edition = "2021"
 
 description = "Config file parser."
