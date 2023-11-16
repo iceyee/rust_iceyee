@@ -93,7 +93,45 @@ where
     pub fn new(e: T) -> Self {
         return Self { e: e };
     }
+
+    pub fn unwrap(self) -> T {
+        return self.e;
+    }
 }
+
+impl<T> std::ops::Deref for WrapError<T>
+where
+    T: StdError,
+{
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        return &self.e;
+    }
+}
+
+impl<T> std::ops::DerefMut for WrapError<T>
+where
+    T: StdError,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        return &mut self.e;
+    }
+}
+
+// impl<T> From<T> for WrapError<T> {
+//     fn from(e: T) -> Self {
+//         return Self { e: e };
+//     }
+// }
+//
+// impl<T> Into<T> for WrapError<T>
+// where
+//     T: StdError,
+// {
+//     fn into(self) -> T {
+//         return self.e;
+//     }
+// }
 
 impl<T> std::fmt::Display for WrapError<T>
 where
