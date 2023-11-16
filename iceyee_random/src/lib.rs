@@ -20,7 +20,7 @@ thread_local! {
 
 /// 随机数.
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug)]
 pub struct Random;
 
 impl Random {

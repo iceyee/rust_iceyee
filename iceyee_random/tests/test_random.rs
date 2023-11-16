@@ -17,6 +17,7 @@
 #[test]
 pub fn test_random() {
     use iceyee_random::Random;
+
     println!("");
     let mut counter: [usize; 10] = [0; 10];
     for _ in 0..10000 {
