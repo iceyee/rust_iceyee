@@ -107,7 +107,7 @@ pub async fn test_request() {
     use iceyee_net::http::Request;
 
     println!("");
-    let mut request: Request = Default::default();
+    let mut request: Request = Request::new();
     request
         .header
         .insert("Header1".to_string(), "Value1".to_string());

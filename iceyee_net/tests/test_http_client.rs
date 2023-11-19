@@ -19,31 +19,32 @@ pub async fn test_httpclient_no_proxy() {
     use iceyee_net::http::client::HttpClient;
 
     println!("");
-    let mut http_client: HttpClient = HttpClient::new();
-    http_client
+    HttpClient::new()
         .set_verbose(true)
-        .set_header("Connection", "close");
-    http_client
         .set_url("http://ip-api.com/json/")
         .unwrap()
+        .set_header("Connection", "close")
         .set_forwarded(None)
         .send(None)
         .await
         .unwrap();
-    // http_client
+    // HttpClient::new()
+    //     .set_verbose(true)
     //     .set_url("http://ip-api.com/json/")
     //     .unwrap()
     //     .remove_header("X-Forwarded-For")
     //     .send(None)
     //     .await
     //     .unwrap();
-    // http_client
+    // HttpClient::new()
+    //     .set_verbose(true)
     //     .set_url("http://www.baidu.com/")
     //     .unwrap()
     //     .send(None)
     //     .await
     //     .unwrap();
-    // http_client
+    // HttpClient::new()
+    //     .set_verbose(true)
     //     .set_url("https://www.baidu.com/")
     //     .unwrap()
     //     .send(None)
@@ -59,8 +60,7 @@ pub async fn test_httpclient_http_proxy() {
 
     println!("");
     let proxy = HttpProxy::new("ip-api.com", 80, false, "localhost", 1081, None).wrap();
-    let mut http_client: HttpClient = HttpClient::new();
-    http_client
+    HttpClient::new()
         .set_verbose(true)
         .set_url("http://ip-api.com/json/")
         .unwrap()
@@ -77,8 +77,7 @@ pub async fn test_httpclient_http_proxy() {
     //     Some("iceyee:74591870"),
     // )
     // .wrap();
-    // let mut http_client: HttpClient = HttpClient::new();
-    // http_client
+    // HttpClient::new()
     //     .set_verbose(true)
     //     .set_url("http://ip-api.com/json/")
     //     .unwrap()
@@ -95,8 +94,7 @@ pub async fn test_httpclient_http_proxy() {
     //     Some("iceyee:74591870"),
     // )
     // .wrap();
-    // let mut http_client: HttpClient = HttpClient::new();
-    // http_client
+    // HttpClient::new()
     //     .set_verbose(true)
     //     .set_url("http://www.c5game.com/")
     //     .unwrap()
@@ -105,8 +103,7 @@ pub async fn test_httpclient_http_proxy() {
     //     .send(Some(proxy))
     //     .await;
     // let proxy = HttpProxy::new("www.baidu.com", 80, false, "localhost", 1081, None).wrap();
-    // let mut http_client: HttpClient = HttpClient::new();
-    // http_client
+    // HttpClient::new()
     //     .set_verbose(true)
     //     .set_url("http://www.baidu.com/")
     //     .unwrap()
@@ -115,8 +112,7 @@ pub async fn test_httpclient_http_proxy() {
     //     .send(Some(proxy))
     //     .await;
     // let proxy = HttpProxy::new("www.baidu.com", 443, true, "localhost", 1081, None).wrap();
-    // let mut http_client: HttpClient = HttpClient::new();
-    // http_client
+    // HttpClient::new()
     //     .set_verbose(true)
     //     .set_url("https://www.baidu.com/")
     //     .unwrap()
@@ -133,16 +129,15 @@ pub async fn test_httpclient_socks5_proxy() {
     use iceyee_net::http::client::Socks5Proxy;
 
     println!("");
-    // let proxy = Socks5Proxy::new("ip-api.com", 80, false, "localhost", 1082, None).wrap();
-    // let mut http_client: HttpClient = HttpClient::new();
-    // http_client
-    //     .set_verbose(true)
-    //     .set_url("http://ip-api.com/json/")
-    //     .unwrap()
-    //     .set_header("Connection", "close")
-    //     .set_forwarded(None)
-    //     .send(Some(proxy))
-    //     .await;
+    let proxy = Socks5Proxy::new("ip-api.com", 80, false, "localhost", 1082, None).wrap();
+    HttpClient::new()
+        .set_verbose(true)
+        .set_url("http://ip-api.com/json/")
+        .unwrap()
+        .set_header("Connection", "close")
+        .set_forwarded(None)
+        .send(Some(proxy))
+        .await;
     // let proxy = Socks5Proxy::new(
     //     "ip-api.com",
     //     80,
@@ -152,8 +147,7 @@ pub async fn test_httpclient_socks5_proxy() {
     //     Some("iceyee:74591870"),
     // )
     // .wrap();
-    // let mut http_client: HttpClient = HttpClient::new();
-    // http_client
+    // HttpClient::new()
     //     .set_verbose(true)
     //     .set_url("http://ip-api.com/json/")
     //     .unwrap()
@@ -170,8 +164,7 @@ pub async fn test_httpclient_socks5_proxy() {
     //     Some("iceyee:74591870"),
     // )
     // .wrap();
-    // let mut http_client: HttpClient = HttpClient::new();
-    // http_client
+    // HttpClient::new()
     //     .set_verbose(true)
     //     .set_url("http://www.c5game.com/")
     //     .unwrap()
@@ -180,8 +173,7 @@ pub async fn test_httpclient_socks5_proxy() {
     //     .send(Some(proxy))
     //     .await;
     // let proxy = Socks5Proxy::new("www.baidu.com", 80, false, "localhost", 1082, None).wrap();
-    // let mut http_client: HttpClient = HttpClient::new();
-    // http_client
+    // HttpClient::new()
     //     .set_verbose(true)
     //     .set_url("http://www.baidu.com/")
     //     .unwrap()
@@ -190,8 +182,7 @@ pub async fn test_httpclient_socks5_proxy() {
     //     .send(Some(proxy))
     //     .await;
     // let proxy = Socks5Proxy::new("www.baidu.com", 443, true, "localhost", 1082, None).wrap();
-    // let mut http_client: HttpClient = HttpClient::new();
-    // http_client
+    // HttpClient::new()
     //     .set_verbose(true)
     //     .set_url("https://www.baidu.com/")
     //     .unwrap()
@@ -205,26 +196,27 @@ pub async fn test_httpclient_socks5_proxy() {
 pub async fn test_httpclient_repeated_use() {
     use iceyee_net::http::client::HttpClient;
     use iceyee_net::http::client::HttpProxy;
+    use iceyee_net::http::client::NoProxy;
     use iceyee_net::http::client::Proxy;
 
     println!("");
     let proxy = HttpProxy::new("ip-api.com", 80, false, "localhost", 1081, None).wrap();
-    let mut http_client: HttpClient = HttpClient::new();
-    http_client
+    // let proxy = NoProxy::new("ip-api.com", 80, false).wrap();
+    HttpClient::new()
         .set_verbose(true)
         .set_url("http://ip-api.com/json/")
         .unwrap()
         .set_forwarded(None)
         .send(Some(proxy.clone()))
         .await;
-    http_client
+    HttpClient::new()
         .set_verbose(true)
         .set_url("http://ip-api.com/json/")
         .unwrap()
         .set_forwarded(None)
         .send(Some(proxy.clone()))
         .await;
-    http_client
+    HttpClient::new()
         .set_verbose(true)
         .set_url("http://ip-api.com/json/")
         .unwrap()

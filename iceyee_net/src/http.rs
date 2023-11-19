@@ -10,9 +10,12 @@
 pub mod client;
 pub mod server;
 
-use iceyee_error::StdError;
-use iceyee_error::StdIoError;
 use std::collections::HashMap;
+use std::error::Error as StdError;
+use std::io::Error as StdIoError;
+use std::io::ErrorKind as StdIoErrorKind;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
 
@@ -51,14 +54,14 @@ use tokio::io::AsyncReadExt;
 /// 502 Bad Gateway
 ///
 /// 503 Service Unavailable
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Status {
     OK,
     Created,
     Accepted,
     NoContent,
-    MovedPermanently,
-    MovedTemporarily,
+    MovedPermanently(String),
+    MovedTemporarily(String),
     NotModified,
     BadRequest,
     Unauthorized,
@@ -78,8 +81,8 @@ impl From<u64> for Status {
             201 => Self::Created,
             202 => Self::Accepted,
             204 => Self::NoContent,
-            301 => Self::MovedPermanently,
-            302 => Self::MovedTemporarily,
+            301 => Self::MovedPermanently("".to_string()),
+            302 => Self::MovedTemporarily("".to_string()),
             304 => Self::NotModified,
             400 => Self::BadRequest,
             401 => Self::Unauthorized,
@@ -101,8 +104,8 @@ impl Into<u64> for Status {
             Self::Created => 201,
             Self::Accepted => 202,
             Self::NoContent => 204,
-            Self::MovedPermanently => 301,
-            Self::MovedTemporarily => 302,
+            Self::MovedPermanently(_) => 301,
+            Self::MovedTemporarily(_) => 302,
             Self::NotModified => 304,
             Self::BadRequest => 400,
             Self::Unauthorized => 401,
@@ -124,8 +127,8 @@ impl ToString for Status {
             Self::Created => "Created".to_string(),
             Self::Accepted => "Accepted".to_string(),
             Self::NoContent => "No Content".to_string(),
-            Self::MovedPermanently => "Moved Permanently".to_string(),
-            Self::MovedTemporarily => "Moved Temporarily".to_string(),
+            Self::MovedPermanently(_) => "Moved Permanently".to_string(),
+            Self::MovedTemporarily(_) => "Moved Temporarily".to_string(),
             Self::NotModified => "Not Modified".to_string(),
             Self::BadRequest => "Bad Request".to_string(),
             Self::Unauthorized => "Unauthorized".to_string(),
@@ -148,11 +151,12 @@ impl ToString for Status {
 #[derive(Clone, Debug)]
 pub struct Args {
     hm: HashMap<String, Vec<String>>,
+    empty_vec: Vec<String>,
 }
 
 impl ToString for Args {
+    /// 转字符串, 如'?a=1&b=2&b=3', 包含url编码.
     fn to_string(&self) -> String {
-        use iceyee_encoder::Encoder;
         use iceyee_encoder::UrlEncoder;
 
         let mut s: String = String::new();
@@ -165,9 +169,9 @@ impl ToString for Args {
                 } else {
                     s.push_str("&");
                 }
-                s.push_str(UrlEncoder::encode(key.clone()).unwrap().as_str());
+                s.push_str(UrlEncoder::encode(key.clone()).as_str());
                 s.push_str("=");
-                s.push_str(UrlEncoder::encode(value.clone()).unwrap().as_str());
+                s.push_str(UrlEncoder::encode(value.clone()).as_str());
             }
         }
         return s;
@@ -176,7 +180,10 @@ impl ToString for Args {
 
 impl Args {
     pub fn new() -> Args {
-        return Args { hm: HashMap::new() };
+        return Args {
+            hm: HashMap::new(),
+            empty_vec: Vec::new(),
+        };
     }
 
     pub fn add(&mut self, key: &str, value: &str) {
@@ -187,14 +194,22 @@ impl Args {
         return;
     }
 
+    pub fn remove(&mut self, key: &str) {
+        self.hm.remove(key);
+        return;
+    }
+
+    pub fn get<'a>(&'a self, key: &str) -> &'a Vec<String> {
+        return self.hm.get(key).unwrap_or(&self.empty_vec);
+    }
+
     /// 解析参数, 例如'?a=1&a=2&b=3'解析得到\[(a,1),(a,2),(b,3)\].
     ///
     /// 解析包括URL解码.
     pub fn parse(s: &str) -> Args {
-        use iceyee_encoder::Encoder;
         use iceyee_encoder::UrlEncoder;
 
-        let mut args: Args = Args { hm: HashMap::new() };
+        let mut args: Args = Args::new();
         for x in s.split(['?', '&']) {
             if !x.contains('=') {
                 continue;
@@ -216,7 +231,7 @@ impl Args {
 // /// 通一资源定位符, Uniform Resource Identifiers.
 // type Uri = Url;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 enum State {
     Protocol,
     Host,
@@ -226,37 +241,42 @@ enum State {
     Fragment,
 }
 
-#[derive(Clone, Copy, Debug)]
+/// Error.
+#[derive(Clone, Debug)]
 pub struct UrlError {
+    link: String,
     state: State,
     index: usize,
+    message: String,
+}
+
+impl UrlError {
+    fn new(link: String, state: State, index: usize, message: String) -> Self {
+        return Self {
+            link: link,
+            state: state,
+            index: index,
+            message: message,
+        };
+    }
 }
 
 impl std::fmt::Display for UrlError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         return write!(
             f,
-            "Url, 错误的格式, @state={:?}, @index={}",
-            self.state, self.index
+            "UrlError, 错误的格式, @link={}, @state={:?}, @index={}, @message={}",
+            self.link, self.state, self.index, self.message
         );
     }
 }
 
 impl StdError for UrlError {}
 
-// impl ToString for UrlError {
-//     fn to_string(&self) -> String {
-//         return format!(
-//             "Url, 错误的格式, @state={:?}, @index={}",
-//             self.state, self.index
-//         );
-//     }
-// }
-
 /// 统一资源定位器, Uniform Resource Locator.
 ///
 /// http_URL = "http:" "//" host \[ ":" port \] \[ abs_path \]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Url {
     pub protocol: String,
     pub host: String,
@@ -268,25 +288,41 @@ pub struct Url {
 
 impl Url {
     pub fn new(value: &str) -> Result<Self, UrlError> {
+        let link: Arc<String> = Arc::new(value.to_string());
         let mut state: State = State::Protocol;
         let value: &[u8] = value.as_bytes();
         let mut index: usize = 0;
         let length: usize = value.len();
         let mut buffer: Vec<u8> = Vec::new();
-        let mut e: UrlError = UrlError {
-            state: state,
-            index: 0,
+        let mut url: Url = Url {
+            protocol: "".to_string(),
+            host: "".to_string(),
+            port: 0,
+            path: "".to_string(),
+            query: None,
+            fragment: None,
         };
-        let mut url: Url = Default::default();
+        let mut _state: Arc<State> = Arc::new(state.clone());
         while index < length {
-            e.state = state;
-            e.index = index;
+            _state = Arc::new(state.clone());
             match state {
                 State::Protocol => {
                     if value[index] == b'/' {
-                        let protocol: String = String::from_utf8(buffer.to_vec()).map_err(|_| e)?;
+                        let protocol: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
+                            UrlError::new(
+                                link.to_string(),
+                                _state.as_ref().clone(),
+                                index,
+                                e.to_string(),
+                            )
+                        })?;
                         if !protocol.ends_with(":") {
-                            return Err(e);
+                            Err(UrlError::new(
+                                link.to_string(),
+                                state,
+                                index,
+                                "".to_string(),
+                            ))?;
                         }
                         url.protocol = protocol;
                         buffer.clear();
@@ -299,9 +335,21 @@ impl Url {
                 }
                 State::Host => match value[index] {
                     b':' | b'/' | b'?' | b'#' => {
-                        let host: String = String::from_utf8(buffer.to_vec()).map_err(|_| e)?;
+                        let host: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
+                            UrlError::new(
+                                link.to_string(),
+                                _state.as_ref().clone(),
+                                index,
+                                e.to_string(),
+                            )
+                        })?;
                         if host.len() == 0 {
-                            return Err(e);
+                            Err(UrlError::new(
+                                link.to_string(),
+                                state,
+                                index,
+                                "".to_string(),
+                            ))?;
                         }
                         url.host = host;
                         buffer.clear();
@@ -335,11 +383,30 @@ impl Url {
                 State::Port => match value[index] {
                     b'/' | b'?' | b'#' => {
                         let port: u16 = String::from_utf8(buffer.to_vec())
-                            .map_err(|_| e)?
+                            .map_err(|e| {
+                                UrlError::new(
+                                    link.to_string(),
+                                    _state.as_ref().clone(),
+                                    index,
+                                    e.to_string(),
+                                )
+                            })?
                             .parse::<u16>()
-                            .map_err(|_| e)?;
+                            .map_err(|e| {
+                                UrlError::new(
+                                    link.to_string(),
+                                    _state.as_ref().clone(),
+                                    index,
+                                    e.to_string(),
+                                )
+                            })?;
                         if port == 0 {
-                            return Err(e);
+                            Err(UrlError::new(
+                                link.to_string(),
+                                state,
+                                index,
+                                "".to_string(),
+                            ))?;
                         }
                         url.port = port;
                         buffer.clear();
@@ -368,7 +435,14 @@ impl Url {
                 },
                 State::Path => match value[index] {
                     b'?' | b'#' => {
-                        let path: String = String::from_utf8(buffer.to_vec()).map_err(|_| e)?;
+                        let path: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
+                            UrlError::new(
+                                link.to_string(),
+                                _state.as_ref().clone(),
+                                index,
+                                e.to_string(),
+                            )
+                        })?;
                         url.path = path;
                         buffer.clear();
                         match value[index] {
@@ -392,7 +466,14 @@ impl Url {
                 },
                 State::Query => match value[index] {
                     b'#' => {
-                        let query: String = String::from_utf8(buffer.to_vec()).map_err(|_| e)?;
+                        let query: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
+                            UrlError::new(
+                                link.to_string(),
+                                _state.as_ref().clone(),
+                                index,
+                                e.to_string(),
+                            )
+                        })?;
                         url.query = Some(query);
                         buffer.clear();
                         state = State::Fragment;
@@ -411,35 +492,92 @@ impl Url {
         } // while index < length
         match state {
             State::Protocol => {
-                return Err(e);
+                Err(UrlError::new(
+                    link.to_string(),
+                    state,
+                    index,
+                    "".to_string(),
+                ))?;
             }
             State::Host => {
-                let host: String = String::from_utf8(buffer.to_vec()).map_err(|_| e)?;
+                let host: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
+                    UrlError::new(
+                        link.to_string(),
+                        _state.as_ref().clone(),
+                        index,
+                        e.to_string(),
+                    )
+                })?;
                 if host.len() == 0 {
-                    return Err(e);
+                    Err(UrlError::new(
+                        link.to_string(),
+                        state,
+                        index,
+                        "".to_string(),
+                    ))?;
                 }
                 url.host = host;
             }
             State::Port => {
                 let port: u16 = String::from_utf8(buffer.to_vec())
-                    .map_err(|_| e)?
+                    .map_err(|e| {
+                        UrlError::new(
+                            link.to_string(),
+                            _state.as_ref().clone(),
+                            index,
+                            e.to_string(),
+                        )
+                    })?
                     .parse::<u16>()
-                    .map_err(|_| e)?;
+                    .map_err(|e| {
+                        UrlError::new(
+                            link.to_string(),
+                            _state.as_ref().clone(),
+                            index,
+                            e.to_string(),
+                        )
+                    })?;
                 if port == 0 {
-                    return Err(e);
+                    Err(UrlError::new(
+                        link.to_string(),
+                        state,
+                        index,
+                        "".to_string(),
+                    ))?;
                 }
                 url.port = port;
             }
             State::Path => {
-                let path: String = String::from_utf8(buffer.to_vec()).map_err(|_| e)?;
+                let path: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
+                    UrlError::new(
+                        link.to_string(),
+                        _state.as_ref().clone(),
+                        index,
+                        e.to_string(),
+                    )
+                })?;
                 url.path = path;
             }
             State::Query => {
-                let query: String = String::from_utf8(buffer.to_vec()).map_err(|_| e)?;
+                let query: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
+                    UrlError::new(
+                        link.to_string(),
+                        _state.as_ref().clone(),
+                        index,
+                        e.to_string(),
+                    )
+                })?;
                 url.query = Some(query);
             }
             State::Fragment => {
-                let fragment: String = String::from_utf8(buffer.to_vec()).map_err(|_| e)?;
+                let fragment: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
+                    UrlError::new(
+                        link.to_string(),
+                        _state.as_ref().clone(),
+                        index,
+                        e.to_string(),
+                    )
+                })?;
                 url.fragment = Some(fragment);
             }
         }
@@ -457,7 +595,7 @@ impl Url {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(in crate::http) struct Buffer {
     pub block: [u8; 0xFFFF],
     pub length: usize,
@@ -522,9 +660,9 @@ pub struct Request {
     pub body: Vec<u8>,
 }
 
-impl Default for Request {
-    fn default() -> Request {
-        return Request {
+impl Request {
+    pub fn new() -> Self {
+        return Self {
             use_ssl: false,
             method: "GET".to_string(),
             version: "HTTP/1.1".to_string(),
@@ -584,7 +722,7 @@ impl Request {
             BodySpace,
             Body,
         }
-        let mut request: Request = Default::default();
+        let mut request: Request = Request::new();
         let mut state: State = State::MethodSpace;
         let mut buffer: Buffer = Buffer::new();
         let mut bytes: Vec<u8> = Vec::new();
@@ -594,7 +732,16 @@ impl Request {
                 || 0xFFF <= needed && buffer.length < 0xFFF
             {
                 let mut buf: [u8; 0xFFF] = [0; 0xFFF];
-                let length: usize = input.read(&mut buf).await?;
+                let length: usize =
+                    match tokio::time::timeout(Duration::from_millis(60_000), input.read(&mut buf))
+                        .await
+                    {
+                        Ok(length) => length?,
+                        Err(_) => {
+                            Err(StdIoError::new(StdIoErrorKind::TimedOut, "tcp读超时."))?;
+                            0
+                        }
+                    };
                 buffer.extend(&buf, length);
             }
             let mut x: usize = 0;
@@ -628,7 +775,10 @@ impl Request {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
                             request.method = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(std::io::ErrorKind::Other, "String::from_utf8().")
+                                StdIoError::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    "String::from_utf8().",
+                                )
                             })?;
                             bytes.clear();
                             state = State::PathSpace;
@@ -646,7 +796,10 @@ impl Request {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
                             request.path = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(std::io::ErrorKind::Other, "String::from_utf8().")
+                                StdIoError::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    "String::from_utf8().",
+                                )
                             })?;
                             bytes.clear();
                             state = State::VersionSpace;
@@ -662,7 +815,10 @@ impl Request {
                             bytes.push(buffer.block[x]);
                             x += 1;
                             if 0xFFF < bytes.len() {
-                                Err(StdIoError::new(std::io::ErrorKind::Other, "大小非预期."))?;
+                                Err(StdIoError::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    "大小非预期.",
+                                ))?;
                             }
                         }
                     }
@@ -671,7 +827,10 @@ impl Request {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
                             request.version = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(std::io::ErrorKind::Other, "String::from_utf8().")
+                                StdIoError::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    "String::from_utf8().",
+                                )
                             })?;
                             bytes.clear();
                             state = State::Header;
@@ -681,7 +840,10 @@ impl Request {
                             bytes.push(buffer.block[x]);
                             x += 1;
                             if 0xFF < bytes.len() {
-                                Err(StdIoError::new(std::io::ErrorKind::Other, "大小非预期."))?;
+                                Err(StdIoError::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    "大小非预期.",
+                                ))?;
                             }
                         }
                     }
@@ -696,7 +858,7 @@ impl Request {
                             let header: String =
                                 String::from_utf8(bytes.clone()).map_err(|_| {
                                     StdIoError::new(
-                                        std::io::ErrorKind::Other,
+                                        std::io::ErrorKind::InvalidData,
                                         "String::from_utf8().",
                                     )
                                 })?;
@@ -715,7 +877,10 @@ impl Request {
                             bytes.push(buffer.block[x]);
                             x += 1;
                             if 0xFFFF < bytes.len() {
-                                Err(StdIoError::new(std::io::ErrorKind::Other, "大小非预期."))?;
+                                Err(StdIoError::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    "大小非预期.",
+                                ))?;
                             }
                         }
                     }
@@ -734,7 +899,7 @@ impl Request {
                             .trim()
                             .parse::<usize>()
                             .map_err(|_| {
-                                StdIoError::new(std::io::ErrorKind::Other, "String::parse().")
+                                StdIoError::new(std::io::ErrorKind::InvalidData, "String::parse().")
                             })?
                     };
                     if 0x3FFFFFFF < needed {
@@ -790,9 +955,9 @@ pub struct Response {
     pub body: Vec<u8>,
 }
 
-impl std::default::Default for Response {
-    fn default() -> Response {
-        return Response {
+impl Response {
+    pub fn new() -> Self {
+        return Self {
             version: "HTTP/1.1".to_string(),
             status_code: 200,
             status: "OK".to_string(),
@@ -847,7 +1012,7 @@ impl Response {
             ChunkSpace,
             ChunkEnd,
         }
-        let mut response: Response = Default::default();
+        let mut response: Response = Response::new();
         let mut state: State = State::VersionSpace;
         let mut buffer: Buffer = Buffer::new();
         let mut bytes: Vec<u8> = Vec::new();
@@ -857,7 +1022,16 @@ impl Response {
                 || 0xFFF <= needed && buffer.length < 0xFFF
             {
                 let mut buf: [u8; 0xFFF] = [0; 0xFFF];
-                let length: usize = input.read(&mut buf).await?;
+                let length: usize =
+                    match tokio::time::timeout(Duration::from_millis(60_000), input.read(&mut buf))
+                        .await
+                    {
+                        Ok(length) => length?,
+                        Err(_) => {
+                            Err(StdIoError::new(StdIoErrorKind::TimedOut, "tcp读超时."))?;
+                            0
+                        }
+                    };
                 buffer.extend(&buf, length);
             }
             let mut x: usize = 0;
@@ -876,7 +1050,10 @@ impl Response {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
                             response.version = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(std::io::ErrorKind::Other, "String::from_utf8().")
+                                StdIoError::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    "String::from_utf8().",
+                                )
                             })?;
                             bytes.clear();
                             state = State::StatusCodeSpace;
@@ -909,7 +1086,10 @@ impl Response {
                                 })?
                                 .parse::<u64>()
                                 .map_err(|_| {
-                                    StdIoError::new(std::io::ErrorKind::Other, "String::parse().")
+                                    StdIoError::new(
+                                        std::io::ErrorKind::InvalidData,
+                                        "String::parse().",
+                                    )
                                 })?;
                             bytes.clear();
                             state = State::StatusSpace;
@@ -940,7 +1120,10 @@ impl Response {
                     while x + 1 < buffer.length {
                         if buffer.block[x] == b'\r' && buffer.block[x + 1] == b'\n' {
                             response.status = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(std::io::ErrorKind::Other, "String::from_utf8().")
+                                StdIoError::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    "String::from_utf8().",
+                                )
                             })?;
                             bytes.clear();
                             state = State::Header;
@@ -960,7 +1143,10 @@ impl Response {
                             && buffer.block[x + 3] == b'\n'
                         {
                             let a001: String = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(std::io::ErrorKind::Other, "String::from_utf8().")
+                                StdIoError::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    "String::from_utf8().",
+                                )
                             })?;
                             bytes.clear();
                             for line in a001.split("\r\n") {
@@ -988,7 +1174,7 @@ impl Response {
                         needed = response.header.get("Content-Length").unwrap().as_slice()[0]
                             .parse::<usize>()
                             .map_err(|_| {
-                                StdIoError::new(std::io::ErrorKind::Other, "String::parse().")
+                                StdIoError::new(std::io::ErrorKind::InvalidData, "String::parse().")
                             })?;
                         state = State::Body;
                     } else if response.header.contains_key("Transfer-Encoding") {
@@ -1020,11 +1206,14 @@ impl Response {
                     while x + 1 < buffer.length {
                         if buffer.block[x] == b'\r' && buffer.block[x + 1] == b'\n' {
                             let a001: String = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(std::io::ErrorKind::Other, "String::from_utf8().")
+                                StdIoError::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    "String::from_utf8().",
+                                )
                             })?;
                             needed = usize::from_str_radix(&a001, 16).map_err(|_| {
                                 StdIoError::new(
-                                    std::io::ErrorKind::Other,
+                                    std::io::ErrorKind::InvalidData,
                                     "usize::from_str_radix().",
                                 )
                             })?;

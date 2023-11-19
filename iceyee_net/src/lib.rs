@@ -7,6 +7,9 @@
 
 //! 网络相关.
 
+#![feature(get_mut_unchecked)]
+#![feature(io_error_more)]
+
 pub mod http;
 
 // Use.
