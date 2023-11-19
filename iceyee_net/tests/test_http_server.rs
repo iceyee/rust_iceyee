@@ -8,6 +8,7 @@
 
 use iceyee_net::http::client::HttpClient;
 use iceyee_net::http::server::Context;
+use iceyee_net::http::server::Filter;
 use iceyee_net::http::server::HttpServer;
 use iceyee_net::http::server::Level;
 use iceyee_net::http::server::Work;
@@ -37,36 +38,6 @@ impl Work for WorkRedirect {
     }
 }
 
-struct WorkSetA;
-#[async_trait::async_trait]
-impl Work for WorkSetA {
-    fn path(&self) -> &'static str {
-        return "/set_a";
-    }
-
-    async fn do_work(&self, context: &mut Context) -> Result<(), String> {
-        R::write_ok(&mut context.response);
-        let a = context.request.query.get("a")[0].to_string();
-        context.session.set("a", &a).await;
-        return Ok(());
-    }
-}
-
-struct WorkGetA;
-#[async_trait::async_trait]
-impl Work for WorkGetA {
-    fn path(&self) -> &'static str {
-        return "/get_a";
-    }
-
-    async fn do_work(&self, context: &mut Context) -> Result<(), String> {
-        R::write_ok(&mut context.response);
-        let a = context.session.get("a").await;
-        context.response.body = a.as_bytes().to_vec();
-        return Ok(());
-    }
-}
-
 struct WorkFirst;
 #[async_trait::async_trait]
 impl Work for WorkFirst {
@@ -86,7 +57,6 @@ impl Work for WorkFirst {
 #[tokio::test]
 pub async fn test_first_work() {
     use iceyee_net::http::server::BasicAuthFilter;
-    use iceyee_net::http::server::Filter;
 
     println!("");
 
