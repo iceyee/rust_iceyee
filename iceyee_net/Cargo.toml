@@ -10,7 +10,7 @@ version = "1.0.0"
 edition = "2021"
 
 description = "Net Protocol."
-keywords = ["http", "http client", "http server"]
+keywords = ["http", "httpclient", "httpserver"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_net/"

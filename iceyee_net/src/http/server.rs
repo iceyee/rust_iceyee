@@ -382,7 +382,11 @@ impl FileRouter {
 #[async_trait::async_trait]
 impl Filter for FileRouter {
     async fn rule(&self, context: &mut Context) -> bool {
-        let path: String = self.root.clone() + &context.request.path;
+        let path: String = if context.request.path == "/" {
+            self.root.clone() + "/index.html"
+        } else {
+            self.root.clone() + &context.request.path
+        };
         match tokio::fs::metadata(&path).await {
             Ok(_) => {
                 return true;
@@ -394,7 +398,11 @@ impl Filter for FileRouter {
     }
 
     async fn do_filter(&self, context: &mut Context) -> Result<bool, String> {
-        let mut path: String = self.root.clone() + &context.request.path;
+        let mut path: String = if context.request.path == "/" {
+            self.root.clone() + "/index.html"
+        } else {
+            self.root.clone() + &context.request.path
+        };
         if path.contains("..") {
             R::write_status(&mut context.response, Status::Forbidden);
             return Ok(true);
