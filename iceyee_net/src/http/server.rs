@@ -545,7 +545,6 @@ impl HttpServer {
     {
         use iceyee_random::Random;
         use std::io::ErrorKind as StdIoErrorKind;
-        use std::io::Write;
         use std::net::IpAddr;
         use tokio::net::TcpListener as TokioTcpListener;
 
@@ -627,17 +626,19 @@ impl HttpServer {
         tokio::signal::ctrl_c().await.unwrap();
         server.stop_server.store(true, SeqCst);
         TokioTcpStream::connect(address).await?;
-        drop(server);
         listener_future.await.unwrap();
-        println!("");
         println!("---- 退出服务端. ----");
-        println!("---- 等待60秒. ----");
-        for x in 0..61 {
+        return Ok(());
+    }
+
+    pub async fn wait_60_secs() {
+        use std::io::Write;
+
+        for x in 1..61 {
+            iceyee_datetime::sleep(1_000).await;
             print!("{x}.");
             std::io::stdout().flush().unwrap();
-            iceyee_datetime::sleep(1_000).await;
         }
-        return Ok(());
     }
 }
 
