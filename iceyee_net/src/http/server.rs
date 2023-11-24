@@ -812,6 +812,9 @@ async fn process_tcp(
                     match work.do_work(&mut context).await {
                         Ok(()) => {}
                         Err(e) => {
+                            close = true;
+                            context.e_message = Some(e);
+                            work.on_error(&mut context).await;
                             context
                                 .logger
                                 .debug(
@@ -819,9 +822,6 @@ async fn process_tcp(
                                         .as_str(),
                                 )
                                 .await;
-                            close = true;
-                            context.e_message = Some(e);
-                            work.on_error(&mut context).await;
                         }
                     };
                 }
@@ -835,13 +835,13 @@ async fn process_tcp(
             match file_router.do_filter(&mut context).await {
                 Ok(_) => {}
                 Err(e) => {
+                    close = true;
+                    context.e_message = Some(e);
+                    file_router.on_error(&mut context).await;
                     context
                         .logger
                         .debug(("\n".to_string() + context.e_message.as_ref().unwrap()).as_str())
                         .await;
-                    close = true;
-                    context.e_message = Some(e);
-                    file_router.on_error(&mut context).await;
                 }
             }
         }
@@ -853,14 +853,14 @@ async fn process_tcp(
                     Ok(true) => continue,
                     Ok(false) => break,
                     Err(e) => {
+                        close = true;
+                        context.e_message = Some(e);
                         context
                             .logger
                             .debug(
                                 ("\n".to_string() + context.e_message.as_ref().unwrap()).as_str(),
                             )
                             .await;
-                        close = true;
-                        context.e_message = Some(e);
                         if !filter.on_error(&mut context).await {
                             break;
                         }
