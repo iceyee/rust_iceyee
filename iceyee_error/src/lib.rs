@@ -138,7 +138,7 @@ where
     T: StdError,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        f.write_str(format!("{}", &self.e).as_str())?;
+        f.write_str(self.e.to_string().as_str())?;
         return Ok(());
     }
 }
