@@ -329,15 +329,12 @@ impl Timer {
 
 impl Drop for Timer {
     fn drop(&mut self) {
-        let is_stop = self.is_stop.clone();
+        self.is_stop.store(true, Ordering::SeqCst);
         let thread_handles = self.thread_handles.clone();
         tokio::task::spawn(async move {
-            is_stop.store(true, Ordering::SeqCst);
+            let mut thread_handles = thread_handles.lock().await;
             loop {
-                match {
-                    let handle = thread_handles.lock().await.pop();
-                    handle
-                } {
+                match thread_handles.pop() {
                     Some(handle) => handle.await.unwrap(),
                     None => break,
                 }
