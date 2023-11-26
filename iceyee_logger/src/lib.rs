@@ -30,7 +30,7 @@ pub static mut DEFAULT: Option<String> = None;
 /// [Info](Level::Info),
 /// [Warn](Level::Warn),
 /// [Error](Level::Error),
-/// ), 默认[Debug](Level::Debug).
+/// ).
 #[derive(Clone, Debug)]
 pub enum Level {
     Debug,
