@@ -32,12 +32,11 @@ impl Random {
 
     /// 取一个随机数.
     pub fn next() -> usize {
-        let mut seed: u64 = SEED.with(|seed_2| {
-            if seed_2.get() == 0 {
-                // 如果是0(未初始化), 则执行初始化.
+        let mut seed: u64 = SEED.with(|seed| {
+            if seed.get() == 0 {
                 init();
             }
-            seed_2.get()
+            seed.get()
         });
         const TABLE: [u64; 32] = [
             0x59763CEA1457DFC5,
@@ -78,7 +77,7 @@ impl Random {
             seed ^= TABLE[x];
             seed = ((seed as u128) + (TABLE[x + 16] as u128)) as u64;
         }
-        SEED.with(|seed_2| seed_2.set(seed));
+        SEED.with(|s| s.set(seed));
         return seed as usize;
     }
 }
@@ -87,20 +86,21 @@ impl Random {
 
 fn init() {
     use std::time::SystemTime;
-    let id: u64 = get_thread_id() as u64;
-    let time_2: u64 = SystemTime::now()
+
+    let id: u64 = get_thread_id();
+    let time: u64 = SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64;
     let seed: u64 = id & 0xFFFF;
     let seed: u64 = (seed << 48) | (seed << 32) | (seed << 16) | (seed << 0);
-    let seed: u64 = seed ^ time_2;
-    SEED.with(|seed_2| seed_2.set(seed));
+    let seed: u64 = seed ^ time;
+    SEED.with(|s| s.set(seed));
     return;
 }
 
 // 线程id.
-fn get_thread_id() -> i64 {
+fn get_thread_id() -> u64 {
     #[cfg(target_os = "linux")]
     unsafe {
         // pthread_t pthread_self(void);
@@ -109,7 +109,7 @@ fn get_thread_id() -> i64 {
         extern "C" {
             fn pthread_self() -> c_ulong;
         }
-        return pthread_self() as i64;
+        return pthread_self();
     }
     #[cfg(target_os = "windows")]
     unsafe {
@@ -118,6 +118,6 @@ fn get_thread_id() -> i64 {
         extern "C" {
             fn GetCurrentThreadId() -> c_ulong;
         }
-        return GetCurrentThreadId() as i64;
+        return GetCurrentThreadId();
     }
 }

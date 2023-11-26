@@ -28,6 +28,7 @@ pub fn test_random() {
         print!("{}:{},   ", x, counter[x]);
         assert!(900 < counter[x] && counter[x] < 1100);
     }
+
     println!("");
     // 测试固定种子.
     Random::set_seed(0xFFFF);
