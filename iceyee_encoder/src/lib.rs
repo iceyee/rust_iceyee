@@ -43,7 +43,29 @@ impl std::error::Error for Base64Error {}
 /// Error.
 ///
 /// - @see [HexEncoder]
-pub type HexError = Base64Error;
+#[derive(Debug, Clone)]
+pub enum HexError {
+    InvalidLength(usize),
+    UnexpectedCharacter(char),
+}
+
+impl std::fmt::Display for HexError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Self::InvalidLength(length) => {
+                f.write_str(format!("HexError, 无效的长度, length={}.", length).as_str())?;
+            }
+            Self::UnexpectedCharacter(character) => {
+                f.write_str(
+                    format!("HexError, 出现未预期字符, character={}.", character).as_str(),
+                )?;
+            }
+        }
+        return Ok(());
+    }
+}
+
+impl std::error::Error for HexError {}
 
 /// Error.
 ///
