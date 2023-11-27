@@ -17,13 +17,20 @@
 //! Filter
 //! ```
 
+pub mod component;
+
 // Use.
 
-use crate::http::Request;
-use crate::http::Response;
+pub use crate::http::Request;
+pub use crate::http::Response;
+pub use crate::http::Status;
+pub use iceyee_logger::Level;
+
+use crate::http::server::component::FileRouter;
+use crate::http::server::component::FilterHost;
 use iceyee_logger::Logger;
+use serde::Serialize;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::io::Error as StdIoError;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
@@ -32,23 +39,33 @@ use tokio::net::TcpStream as TokioTcpStream;
 use tokio::net::ToSocketAddrs;
 use tokio::sync::Mutex as TokioMutex;
 use tokio::sync::RwLock as TokioRwLock;
-
-pub use crate::http::Status;
-pub use iceyee_logger::Level;
-
 // Enum.
 
 // Trait.
 
+/// 过滤器.
+///
+/// # Example
 /// ```
 /// use iceyee_net::http::server::Context;
 /// use iceyee_net::http::server::Filter;
 ///
 /// #[async_trait::async_trait]
 /// pub trait Filter: Send + Sync {
-///     async fn rule(&self, _context: &mut Context) -> bool;
-///     async fn do_filter(&self, _context: &mut Context) -> Result<bool, String>;
-///     async fn on_error(&self, _context: &mut Context) -> bool;
+///     async fn rule(&self, context: &mut Context) -> bool;
+///     async fn do_filter(&self, context: &mut Context) -> Result<bool, String>;
+///     async fn on_error(&self, context: &mut Context) -> bool {
+///         let body: String = context.e_message.as_ref().unwrap().clone();
+///         R::write_status(
+///             &mut context.response,
+///             Status::InternalServerError(Some(body)),
+///         );
+///         context
+///             .logger
+///             .error(context.e_message.as_ref().unwrap())
+///             .await;
+///         return false;
+///     }
 /// }
 /// ```
 /// @see [Context]
@@ -66,21 +83,28 @@ pub use iceyee_logger::Level;
 /// @see [Work]
 #[async_trait::async_trait]
 pub trait Filter: Send + Sync {
-    async fn rule(&self, _context: &mut Context) -> bool {
+    /// 默认true.
+    async fn rule(&self, context: &mut Context) -> bool {
+        let _ = context;
         return true;
     }
 
-    async fn do_filter(&self, _context: &mut Context) -> Result<bool, String> {
-        return Ok(true);
-    }
+    async fn do_filter(&self, context: &mut Context) -> Result<bool, String>;
 
-    async fn on_error(&self, _context: &mut Context) -> bool {
-        R::write_status(&mut _context.response, Status::InternalServerError);
-        _context.response.body = _context.e_message.as_ref().unwrap().as_bytes().to_vec();
+    async fn on_error(&self, context: &mut Context) -> bool {
+        let body: String = context.e_message.as_ref().unwrap().clone();
+        R::write_status(
+            &mut context.response,
+            Status::InternalServerError(Some(body)),
+        );
+        context
+            .logger
+            .error(context.e_message.as_ref().unwrap())
+            .await;
         return false;
     }
 
-    fn to_arc(self) -> Arc<dyn Filter>
+    fn wrap(self) -> Arc<dyn Filter>
     where
         Self: Sized + 'static,
     {
@@ -88,16 +112,30 @@ pub trait Filter: Send + Sync {
     }
 }
 
+/// 干活的.
+///
+/// # Example
 /// ```
 /// use iceyee_net::http::server::Context;
 /// use iceyee_net::http::server::Work;
 ///
 /// #[async_trait::async_trait]
 /// pub trait Work: Send + Sync {
-///     fn method(&self) -> &'static str;
-///     fn path(&self) -> &'static str;
-///     async fn do_work(&self, _context: &mut Context) -> Result<(), String>;
-///     async fn on_error(&self, _context: &mut Context);
+///     fn method(&self) -> String;
+///     fn path(&self) -> String;
+///     async fn do_work(&self, context: &mut Context) -> Result<(), String>;
+///     async fn on_error(&self, context: &mut Context) -> bool {
+///         let body: String = context.e_message.as_ref().unwrap().clone();
+///         R::write_status(
+///             &mut context.response,
+///             Status::InternalServerError(Some(body)),
+///         );
+///         context
+///             .logger
+///             .error(context.e_message.as_ref().unwrap())
+///             .await;
+///         return;
+///     }
 /// }
 /// ```
 /// @see [Context]
@@ -115,22 +153,29 @@ pub trait Filter: Send + Sync {
 /// @see [Filter]
 #[async_trait::async_trait]
 pub trait Work: Send + Sync {
-    fn method(&self) -> &'static str {
-        return "GET";
+    /// 默认GET.
+    fn method(&self) -> String {
+        return "GET".to_string();
     }
 
-    fn path(&self) -> &'static str;
+    fn path(&self) -> String;
 
-    async fn do_work(&self, _context: &mut Context) -> Result<(), String> {
-        return Ok(());
-    }
+    async fn do_work(&self, context: &mut Context) -> Result<(), String>;
 
-    async fn on_error(&self, _context: &mut Context) {
-        R::write_status(&mut _context.response, Status::InternalServerError);
+    async fn on_error(&self, context: &mut Context) {
+        let body: String = context.e_message.as_ref().unwrap().clone();
+        R::write_status(
+            &mut context.response,
+            Status::InternalServerError(Some(body)),
+        );
+        context
+            .logger
+            .error(context.e_message.as_ref().unwrap())
+            .await;
         return;
     }
 
-    fn to_arc(self) -> Arc<dyn Work>
+    fn wrap(self) -> Arc<dyn Work>
     where
         Self: Sized + 'static,
     {
@@ -140,9 +185,62 @@ pub trait Work: Send + Sync {
 
 // Struct.
 
+/// 一般用于[Response]返回的json对象.
+#[derive(Clone, Debug, Serialize)]
+pub struct ResponseObject<T>
+where
+    T: Serialize,
+{
+    pub success: bool,
+    pub message: String,
+    pub data: T,
+}
+
+impl<T> std::default::Default for ResponseObject<T>
+where
+    T: Serialize + Default,
+{
+    fn default() -> Self {
+        return ResponseObject {
+            success: true,
+            message: "OK".to_string(),
+            data: Default::default(),
+        };
+    }
+}
+
+/// 服务器分配给请求的一个id.
+#[derive(Clone, Debug)]
+pub struct Id {
+    number: usize,
+    counter: usize,
+}
+
+impl Id {
+    fn new() -> Id {
+        use iceyee_random::Random;
+
+        return Id {
+            number: Random::next(),
+            counter: 0,
+        };
+    }
+
+    fn add(&mut self) -> &mut Self {
+        self.counter += 1;
+        return self;
+    }
+}
+
+impl std::fmt::Display for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        return write!(f, "{} {}", self.number, self.counter);
+    }
+}
+
 pub type Cookies = HashMap<String, String>;
 
-/// 会话, 以键值的方式存储用户数据.
+/// 会话, 以键值的方式存储用户数据, 内部包含有读写锁.
 #[derive(Clone)]
 pub struct Session {
     this: Arc<TokioRwLock<HashMap<String, String>>>,
@@ -171,278 +269,23 @@ impl Session {
     }
 }
 
+/// 全局会话, 范围比[Session]大, 被所有会话共用.
+pub type GlobalSession = Session;
+
 /// 上下文.
 ///
 /// @see [Filter]
 ///
 /// @see [Work]
 pub struct Context {
+    pub id: Id,
     pub logger: Arc<Logger>,
     pub request: Request,
     pub response: Response,
     pub cookies: Cookies,
     pub session: Session,
+    pub global_session: GlobalSession,
     pub e_message: Option<String>,
-}
-
-/// 简单的用户认证.
-#[derive(Clone, Debug)]
-pub struct BasicAuthFilter {
-    auth_string_s: HashSet<String>,
-}
-
-impl BasicAuthFilter {
-    pub fn new(user: &str, password: &str) -> Self {
-        let this = Self {
-            auth_string_s: HashSet::new(),
-        };
-        return this.add(user, password);
-    }
-
-    pub fn add(mut self, user: &str, password: &str) -> Self {
-        use iceyee_encoder::Base64Encoder;
-
-        let auth: String = user.to_string() + ":" + password;
-        let auth: String = Base64Encoder::encode(auth.as_bytes().to_vec());
-        self.auth_string_s.insert(auth);
-        return self;
-    }
-}
-
-#[async_trait::async_trait]
-impl Filter for BasicAuthFilter {
-    async fn rule(&self, context: &mut Context) -> bool {
-        if context.request.path == "/favicon.ico" {
-            return false;
-        } else {
-            return true;
-        }
-    }
-
-    async fn do_filter(&self, context: &mut Context) -> Result<bool, String> {
-        // Authorization
-        let auth: String = match context.request.header.get("Authorization") {
-            Some(auth) => {
-                if !auth.starts_with("Basic ") {
-                    "".to_string()
-                } else {
-                    auth.to_string().split_off(6)
-                }
-            }
-            None => "".to_string(),
-        };
-        if self.auth_string_s.contains(&auth) {
-            return Ok(true);
-        } else {
-            R::write_status(&mut context.response, Status::Unauthorized);
-            context.response.header.insert(
-                "WWW-Authenticate".to_string(),
-                vec!["Basic realm=\"Realm\"".to_string()],
-            );
-            return Ok(false);
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-struct HostFilter {
-    full_hosts: HashSet<String>,
-    usual_hosts: HashSet<String>,
-}
-
-impl HostFilter {
-    pub fn new() -> HostFilter {
-        let mut host_filter = HostFilter {
-            full_hosts: HashSet::new(),
-            usual_hosts: HashSet::new(),
-        };
-        host_filter.full_hosts.insert("127.0.0.1".to_string());
-        host_filter.full_hosts.insert("localhost".to_string());
-        return host_filter;
-    }
-
-    pub fn add_full(&mut self, host: &str) {
-        self.full_hosts.insert(host.to_string());
-        return;
-    }
-
-    pub fn add_usual(&mut self, host: &str) {
-        self.usual_hosts.insert(host.to_string());
-        return;
-    }
-}
-
-#[async_trait::async_trait]
-impl Filter for HostFilter {
-    async fn do_filter(&self, context: &mut Context) -> Result<bool, String> {
-        // 如果有端口, 则截掉端口部分.
-        let host: Option<String> = context.request.header.get("Host").map(|host| {
-            if host.contains(":") {
-                host.splitn(2, ":").next().unwrap().to_string()
-            } else {
-                host.to_string()
-            }
-        });
-        let auth: bool = match host {
-            Some(host) => {
-                if self.full_hosts.contains(&host) {
-                    // 如果全匹配.
-                    return Ok(true);
-                } else if !host.contains(".") {
-                    // 如果没有二级域名.
-                    false
-                } else {
-                    // 如果有二级域名 | 截掉前面的二级域名, 然后匹配.
-                    let a001 = host.clone();
-                    let mut a001 = a001.splitn(2, ".");
-                    a001.next();
-                    let a002 = ".".to_string() + a001.next().unwrap();
-                    self.usual_hosts.contains(&a002)
-                }
-            }
-            None => false,
-        };
-        if !auth {
-            R::write_status(&mut context.response, Status::Forbidden);
-        }
-        return Ok(auth);
-    }
-}
-
-#[derive(Clone, Debug)]
-struct FileRouter {
-    root: String,
-    map: HashMap<String, String>,
-}
-
-impl FileRouter {
-    pub fn new(root: &str) -> FileRouter {
-        let mut this = FileRouter {
-            root: root.to_string(),
-            map: HashMap::new(),
-        };
-        for (key, value) in [
-            ("", "text/plain"),
-            (".3gp", "audio/3gpp"),
-            (".7z", "application/x-7z-compressed"),
-            (".ar", "application/x-archive"),
-            (".asp", "application/x-asp"),
-            (".avi", "video/avi"),
-            (".avi", "video/x-msvideo"),
-            (".bmp", "image/bmp"),
-            (".css", "text/css"),
-            (".doc", "application/msword"),
-            (".exe", "application/x-ms-dos-executable"),
-            (".gif", "image/gif"),
-            (".html", "text/html"),
-            (".ico", "image/ico"),
-            (".img", "application/x-raw-disk-image"),
-            (".ini", "text/plain"),
-            (".iso", "application/x-cd-image"),
-            (".jar", "application/x-java-archive"),
-            (".java", "text/x-java,text/x-java-source"),
-            (".jpeg", "image/jpeg"),
-            (".jpg", "image/jpeg"),
-            (".js", "application/javascript"),
-            (".json", "application/json"),
-            (".json", "application/json"),
-            (".log", "text/plain"),
-            (".lua", "text/x-lua"),
-            (".m3u8", "audio/m3u"),
-            (".mp3", "audio/mpeg"),
-            (".mp4", "video/mp4"),
-            (".pdf", "application/pdf"),
-            (".png", "image/png"),
-            (".ppt", "application/vnd.ms-powerpoint"),
-            (".py", "text/x-python"),
-            (".rar", "application/x-rar-compressed"),
-            (".sh", "text/x-sh"),
-            (".sql", "text/x-sql"),
-            (".svg", "image/svg"),
-            (".tar", "application/x-tar"),
-            (".txt", "text/plain"),
-            (".wav", "audio/wav"),
-            (".xls", "application/vnd.ms-excel"),
-            (".zip", "application/zip"),
-        ] {
-            this.map.insert(key.to_string(), value.to_string());
-        }
-        return this;
-    }
-
-    fn map_suffix_to_type(&self, s: &str) -> String {
-        if self.map.contains_key(s) {
-            return self.map.get(s).unwrap().to_string();
-        } else {
-            return "text/plain".to_string();
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl Filter for FileRouter {
-    async fn rule(&self, context: &mut Context) -> bool {
-        let path: String = if context.request.path == "/" {
-            self.root.clone() + "/index.html"
-        } else {
-            self.root.clone() + &context.request.path
-        };
-        match tokio::fs::metadata(&path).await {
-            Ok(_) => {
-                return true;
-            }
-            Err(_) => {
-                return false;
-            }
-        }
-    }
-
-    async fn do_filter(&self, context: &mut Context) -> Result<bool, String> {
-        let mut path: String = if context.request.path == "/" {
-            self.root.clone() + "/index.html"
-        } else {
-            self.root.clone() + &context.request.path
-        };
-        if path.contains("..") {
-            R::write_status(&mut context.response, Status::Forbidden);
-            return Ok(true);
-        }
-        let metadata = tokio::fs::metadata(&path)
-            .await
-            .map_err(|e| e.to_string())?;
-        if metadata.is_symlink() {
-            path = tokio::fs::read_link(&path)
-                .await
-                .map_err(|e| e.to_string())?
-                .to_str()
-                .unwrap()
-                .to_string();
-        }
-        if metadata.is_dir() {
-            R::write_status(&mut context.response, Status::BadRequest);
-        } else {
-            context.response.status_code = 200;
-            context.response.status = "OK".to_string();
-            context.response.body = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
-            let suffix: String = match path.rfind(".") {
-                Some(index) => path.clone().split_off(index),
-                None => "".to_string(),
-            };
-            context.response.header.insert(
-                "Content-Type".to_string(),
-                vec![self.map_suffix_to_type(&suffix)],
-            );
-        }
-        return Ok(true);
-    }
-
-    async fn on_error(&self, context: &mut Context) -> bool {
-        context
-            .logger
-            .error(context.e_message.as_ref().unwrap())
-            .await;
-        return true;
-    }
 }
 
 /// Http服务端.
@@ -453,12 +296,14 @@ impl Filter for FileRouter {
 #[derive(Clone)]
 pub struct HttpServer {
     stop_server: Arc<AtomicBool>,
+    session_timeout: i64,
+    logger: Option<Arc<Logger>>,
     filters_before_work: Vec<Arc<dyn Filter>>,
     works: HashMap<String, Vec<(String, Arc<dyn Work>)>>,
     filters_after_work: Vec<Arc<dyn Filter>>,
     sessions: Arc<TokioMutex<HashMap<String, Session>>>,
-    logger: Option<Arc<Logger>>,
-    host_filter: HostFilter,
+    global_session: GlobalSession,
+    filter_host: FilterHost,
     file_router: Option<FileRouter>,
 }
 
@@ -469,21 +314,33 @@ impl HttpServer {
     pub fn new() -> Self {
         let mut server = HttpServer {
             stop_server: Arc::new(AtomicBool::new(false)),
+            session_timeout: 1_000 * 60 * 60,
+            logger: None,
             filters_before_work: Vec::new(),
             works: HashMap::new(),
             filters_after_work: Vec::new(),
             sessions: Arc::new(TokioMutex::new(HashMap::new())),
-            logger: None,
-            host_filter: HostFilter::new(),
+            global_session: Session::new(),
+            filter_host: FilterHost::new(),
             file_router: None,
         };
         server
             .filters_before_work
-            .push(server.host_filter.clone().to_arc());
+            .push(server.filter_host.clone().wrap());
         return server;
     }
 
-    /// 文件根目录.
+    /// 会话超时间隔, 会话不活跃超过一定时间会被释放, 单位:分钟, 默认一小时.
+    pub fn set_session_timeout(mut self, t: usize) -> Self {
+        self.session_timeout = 1_000 * 60 * t as i64;
+        return self;
+    }
+
+    /// 静态文件根目录.
+    ///
+    /// # Panic
+    ///
+    /// root是'/'.
     pub fn set_root(mut self, root: &str) -> Self {
         let mut root = root.to_string();
         while 1 < root.len() && root.ends_with("/") {
@@ -505,9 +362,9 @@ impl HttpServer {
     /// 'iceyee.cn'则需要完全匹配iceyee.cn.
     pub fn add_host(mut self, host: &str) -> Self {
         if host.starts_with(".") {
-            self.host_filter.add_usual(host);
+            self.filter_host.add_usual(host);
         } else {
-            self.host_filter.add_full(host);
+            self.filter_host.add_full(host);
         }
         return self;
     }
@@ -543,7 +400,6 @@ impl HttpServer {
     where
         A: ToSocketAddrs,
     {
-        use iceyee_random::Random;
         use std::io::ErrorKind as StdIoErrorKind;
         use std::net::IpAddr;
         use tokio::net::TcpListener as TokioTcpListener;
@@ -554,58 +410,55 @@ impl HttpServer {
         let listener: TokioTcpListener = TokioTcpListener::bind(address_and_port).await?;
         let address = listener.local_addr()?;
         let server = Arc::new(self);
+        tokio::task::spawn(Self::clean_expired_session(server.clone()));
         let logger = server.logger.as_ref().unwrap().clone();
         let server_clone = server.clone();
         let logger_clone = logger.clone();
+        let exit_counter: Arc<usize> = Arc::new(0);
+        let exit_counter_clone = exit_counter.clone();
         let listener_future = tokio::task::spawn(async move {
             while !server_clone.stop_server.load(SeqCst) {
                 let server = server_clone.clone();
                 let logger = logger_clone.clone();
+                let exit_counter = exit_counter_clone.clone();
                 match listener.accept().await {
                     Ok((tcp, address)) => {
-                        let id = Random::next();
-                        let mut counter: usize = 0;
                         if server.stop_server.load(SeqCst) {
                             break;
                         }
                         tokio::task::spawn(async move {
+                            #[allow(unused_variables)]
+                            let exit_counter = exit_counter;
+                            let mut id: Id = Id::new();
                             let ip = match address.ip() {
                                 IpAddr::V4(ip) => ipv4_to_string(ip),
                                 IpAddr::V6(ip) => ipv6_to_string(ip),
                             };
-                            logger
-                                .debug(format!("建立连接, {ip}, {id}.").as_str())
-                                .await;
+                            let message: String = format!("建立连接, {ip}, {id}.");
+                            logger.debug(&message).await;
                             let tcp = Arc::new(tcp);
                             loop {
-                                counter += 1;
+                                id.add();
                                 let server = server.clone();
                                 let tcp = tcp.clone();
-                                match process_tcp(server, tcp, id, &mut counter).await {
+                                match process_tcp(server, tcp, id.clone()).await {
                                     Ok(true) => continue,
                                     Ok(false) => {
-                                        logger
-                                            .debug(format!("正常断开连接, {ip}, {id}.").as_str())
-                                            .await;
+                                        let message: String = format!("正常断开连接, {ip}, {id}.");
+                                        logger.debug(&message).await;
                                         break;
                                     }
                                     Err(e) => {
                                         match e.kind() {
                                             StdIoErrorKind::TimedOut => {
-                                                logger
-                                                    .debug(
-                                                        format!("超时断开连接, {ip}, {id}.")
-                                                            .as_str(),
-                                                    )
-                                                    .await
+                                                let message: String =
+                                                    format!("超时断开连接, {ip}, {id}.");
+                                                logger.debug(&message).await;
                                             }
                                             _ => {
-                                                logger
-                                                    .debug(
-                                                        format!("异常断开连接, {ip}, {id}.")
-                                                            .as_str(),
-                                                    )
-                                                    .await;
+                                                let message: String =
+                                                    format!("异常断开连接, {ip}, {id}.");
+                                                logger.debug(&message).await;
                                                 logger.error(e.to_string().as_str()).await;
                                             }
                                         }
@@ -624,21 +477,57 @@ impl HttpServer {
         });
         println!("---- 输入[Ctrl+C]停止. ----");
         tokio::signal::ctrl_c().await.unwrap();
+        println!("---- 退出服务端. ----");
         server.stop_server.store(true, SeqCst);
         TokioTcpStream::connect(address).await?;
         listener_future.await.unwrap();
-        println!("---- 退出服务端. ----");
+        println!("---- 等待所有TCP处理完毕. ----");
+        while 1 < Arc::strong_count(&exit_counter) {
+            iceyee_datetime::sleep(100).await;
+        }
+        println!("---- DONE. ----");
         return Ok(());
     }
 
-    pub async fn wait_60_secs() {
-        use std::io::Write;
+    pub async fn wait_one_second() {
+        iceyee_datetime::sleep(1_000).await;
+        return;
+    }
 
-        for x in 1..61 {
+    async fn clean_expired_session(server: Arc<HttpServer>) {
+        use iceyee_datetime::DateTime;
+
+        while !server.stop_server.load(SeqCst) {
             iceyee_datetime::sleep(1_000).await;
-            print!("{x}.");
-            std::io::stdout().flush().unwrap();
+            let sleep = tokio::task::spawn(iceyee_datetime::sleep(1_000 * 60 * 60));
+            let now: i64 = DateTime::now();
+            let mut sessions = server.sessions.lock().await;
+            let mut expired_session_id: Vec<String> = Vec::new();
+            for (id, session) in sessions.iter() {
+                let expired_time: i64 = session
+                    .get("expired_time")
+                    .await
+                    .parse::<i64>()
+                    .unwrap_or(0);
+                if expired_time < now {
+                    expired_session_id.push(id.clone());
+                }
+            }
+            for id in &expired_session_id {
+                sessions.remove(id);
+            }
+            let message: String = format!(
+                "清理不活跃会话{}个, 剩余会话{}个.",
+                expired_session_id.len(),
+                sessions.len()
+            );
+            server.logger.as_ref().unwrap().info(&message).await;
+            drop(sessions);
+            while !server.stop_server.load(SeqCst) && !sleep.is_finished() {
+                iceyee_datetime::sleep(100).await;
+            }
         }
+        return;
     }
 }
 
@@ -647,19 +536,21 @@ pub struct R;
 
 impl R {
     pub fn write_ok(response: &mut Response) {
-        Self::write_status(response, Status::OK);
+        Self::write_status(response, Status::OK(None));
         return;
     }
 
     pub fn write_status(response: &mut Response, status: Status) {
         response.status_code = status.clone().into();
-        response.status = status.clone().to_string();
+        response.status = status.default_string();
         response.body = status.clone().to_string().as_bytes().to_vec();
         response
             .header
             .insert("Content-Type".to_string(), vec!["text/plain".to_string()]);
         match status {
-            Status::MovedPermanently(link) | Status::MovedTemporarily(link) => {
+            Status::Created(link)
+            | Status::MovedPermanently(link)
+            | Status::MovedTemporarily(link) => {
                 response.header.insert("Location".to_string(), vec![link]);
             }
             _ => {}
@@ -732,20 +623,23 @@ fn new_session_id() -> String {
 async fn process_tcp(
     server: Arc<HttpServer>,
     mut tcp: Arc<TokioTcpStream>,
-    id: usize,
-    counter: &mut usize,
+    id: Id,
 ) -> Result<bool, StdIoError> {
+    use iceyee_datetime::DateTime;
     use tokio::io::AsyncWriteExt;
 
     let mut close = false;
     let request: Request = Request::read_from(unsafe { Arc::get_mut_unchecked(&mut tcp) }).await?;
-    let a001 = format!("\n{id} {counter}\n>>>\n{}", request.to_string());
-    server.logger.as_ref().unwrap().debug(&a001).await;
+    let message = format!(">>> {}, {}, {}", id, request.method, request.path);
+    server.logger.as_ref().unwrap().info(&message).await;
+    let mut message = format!("\n{id}\n>>>\n{}", request.to_string());
+    match String::from_utf8(request.body.clone()) {
+        Ok(s) => message.push_str(&s),
+        Err(_) => message.push_str("[not utf-8.]"),
+    }
+    server.logger.as_ref().unwrap().debug(&message).await;
     let mut response: Response = Response::new();
-    let status: Status = Status::NotFound;
-    response.status_code = status.clone().into();
-    response.status = status.clone().to_string();
-    response.body = status.clone().to_string().as_bytes().to_vec();
+    R::write_ok(&mut response);
     response
         .header
         .insert("Content-Type".to_string(), vec!["text/plain".to_string()]);
@@ -774,12 +668,18 @@ async fn process_tcp(
         sessions.get(&session_id).unwrap().clone()
     };
     drop(sessions);
+    let expired_time: i64 = DateTime::now() + server.session_timeout;
+    session
+        .set("expired_time", expired_time.to_string().as_str())
+        .await;
     let mut context: Context = Context {
+        id: id.clone(),
         logger: server.logger.as_ref().unwrap().clone(),
         request: request,
         response: response,
         cookies: cookies,
         session: session,
+        global_session: server.global_session.clone(),
         e_message: None,
     };
     let mut stop = false;
@@ -815,13 +715,6 @@ async fn process_tcp(
                             close = true;
                             context.e_message = Some(e);
                             work.on_error(&mut context).await;
-                            context
-                                .logger
-                                .debug(
-                                    ("\n".to_string() + context.e_message.as_ref().unwrap())
-                                        .as_str(),
-                                )
-                                .await;
                         }
                     };
                 }
@@ -829,7 +722,7 @@ async fn process_tcp(
         }
     }
     if !stop && !done && server.file_router.is_some() {
-        // 不匹配.
+        // Work不匹配.
         let file_router = server.file_router.as_ref().unwrap();
         if file_router.rule(&mut context).await {
             match file_router.do_filter(&mut context).await {
@@ -838,10 +731,6 @@ async fn process_tcp(
                     close = true;
                     context.e_message = Some(e);
                     file_router.on_error(&mut context).await;
-                    context
-                        .logger
-                        .debug(("\n".to_string() + context.e_message.as_ref().unwrap()).as_str())
-                        .await;
                 }
             }
         }
@@ -855,12 +744,6 @@ async fn process_tcp(
                     Err(e) => {
                         close = true;
                         context.e_message = Some(e);
-                        context
-                            .logger
-                            .debug(
-                                ("\n".to_string() + context.e_message.as_ref().unwrap()).as_str(),
-                            )
-                            .await;
                         if !filter.on_error(&mut context).await {
                             break;
                         }
@@ -934,8 +817,13 @@ async fn process_tcp(
         }
     }
     // 输出.
-    let a001 = format!("\n{id} {counter}\n<<<\n{}", context.response.to_string());
-    server.logger.as_ref().unwrap().debug(&a001).await;
+    let message = format!(
+        "<<< {}, {}, {}",
+        id, context.response.status_code, context.response.status
+    );
+    server.logger.as_ref().unwrap().info(&message).await;
+    let message = format!("\n{id}\n<<<\n{}", context.response.to_string());
+    server.logger.as_ref().unwrap().debug(&message).await;
     unsafe { Arc::get_mut_unchecked(&mut tcp) }
         .write_all(context.response.to_string().as_bytes())
         .await?;

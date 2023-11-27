@@ -10,6 +10,9 @@
 pub mod client;
 pub mod server;
 
+pub use serde_json::from_str;
+pub use serde_json::to_string;
+
 use std::collections::HashMap;
 use std::error::Error as StdError;
 use std::io::Error as StdIoError;
@@ -56,42 +59,42 @@ use tokio::io::AsyncReadExt;
 /// 503 Service Unavailable
 #[derive(Clone, Debug)]
 pub enum Status {
-    OK,
-    Created,
-    Accepted,
+    OK(Option<String>),
+    Created(String),
+    Accepted(Option<String>),
     NoContent,
     MovedPermanently(String),
     MovedTemporarily(String),
-    NotModified,
-    BadRequest,
-    Unauthorized,
-    Forbidden,
-    NotFound,
-    InternalServerError,
-    NotImplemented,
-    BadGateway,
-    ServiceUnavailable,
+    NotModified(Option<String>),
+    BadRequest(Option<String>),
+    Unauthorized(Option<String>),
+    Forbidden(Option<String>),
+    NotFound(Option<String>),
+    InternalServerError(Option<String>),
+    NotImplemented(Option<String>),
+    BadGateway(Option<String>),
+    ServiceUnavailable(Option<String>),
     UnkownStatusCode,
 }
 
 impl From<u64> for Status {
     fn from(value: u64) -> Self {
         match value {
-            200 => Self::OK,
-            201 => Self::Created,
-            202 => Self::Accepted,
+            200 => Self::OK(None),
+            201 => Self::Created("".to_string()),
+            202 => Self::Accepted(None),
             204 => Self::NoContent,
             301 => Self::MovedPermanently("".to_string()),
             302 => Self::MovedTemporarily("".to_string()),
-            304 => Self::NotModified,
-            400 => Self::BadRequest,
-            401 => Self::Unauthorized,
-            403 => Self::Forbidden,
-            404 => Self::NotFound,
-            500 => Self::InternalServerError,
-            501 => Self::NotImplemented,
-            502 => Self::BadGateway,
-            503 => Self::ServiceUnavailable,
+            304 => Self::NotModified(None),
+            400 => Self::BadRequest(None),
+            401 => Self::Unauthorized(None),
+            403 => Self::Forbidden(None),
+            404 => Self::NotFound(None),
+            500 => Self::InternalServerError(None),
+            501 => Self::NotImplemented(None),
+            502 => Self::BadGateway(None),
+            503 => Self::ServiceUnavailable(None),
             _ => Self::UnkownStatusCode,
         }
     }
@@ -100,21 +103,21 @@ impl From<u64> for Status {
 impl Into<u64> for Status {
     fn into(self) -> u64 {
         return match self {
-            Self::OK => 200,
-            Self::Created => 201,
-            Self::Accepted => 202,
+            Self::OK(_) => 200,
+            Self::Created(_) => 201,
+            Self::Accepted(_) => 202,
             Self::NoContent => 204,
             Self::MovedPermanently(_) => 301,
             Self::MovedTemporarily(_) => 302,
-            Self::NotModified => 304,
-            Self::BadRequest => 400,
-            Self::Unauthorized => 401,
-            Self::Forbidden => 403,
-            Self::NotFound => 404,
-            Self::InternalServerError => 500,
-            Self::NotImplemented => 501,
-            Self::BadGateway => 502,
-            Self::ServiceUnavailable => 503,
+            Self::NotModified(_) => 304,
+            Self::BadRequest(_) => 400,
+            Self::Unauthorized(_) => 401,
+            Self::Forbidden(_) => 403,
+            Self::NotFound(_) => 404,
+            Self::InternalServerError(_) => 500,
+            Self::NotImplemented(_) => 501,
+            Self::BadGateway(_) => 502,
+            Self::ServiceUnavailable(_) => 503,
             Self::UnkownStatusCode => 0,
         };
     }
@@ -122,22 +125,46 @@ impl Into<u64> for Status {
 
 impl ToString for Status {
     fn to_string(&self) -> String {
+        let default_string: String = self.default_string();
         return match self {
-            Self::OK => "OK".to_string(),
-            Self::Created => "Created".to_string(),
-            Self::Accepted => "Accepted".to_string(),
+            Self::OK(s) => s.as_ref().unwrap_or(&default_string).clone(),
+            Self::Created(s) => s.clone(),
+            Self::Accepted(s) => s.as_ref().unwrap_or(&default_string).clone(),
+            Self::NoContent => "".to_string(),
+            Self::NotModified(s) => s.as_ref().unwrap_or(&default_string).clone(),
+            Self::BadRequest(s) => s.as_ref().unwrap_or(&default_string).clone(),
+            Self::Unauthorized(s) => s.as_ref().unwrap_or(&default_string).clone(),
+            Self::Forbidden(s) => s.as_ref().unwrap_or(&default_string).clone(),
+            Self::NotFound(s) => s.as_ref().unwrap_or(&default_string).clone(),
+            Self::InternalServerError(s) => s.as_ref().unwrap_or(&default_string).clone(),
+            Self::NotImplemented(s) => s.as_ref().unwrap_or(&default_string).clone(),
+            Self::BadGateway(s) => s.as_ref().unwrap_or(&default_string).clone(),
+            Self::ServiceUnavailable(s) => s.as_ref().unwrap_or(&default_string).clone(),
+            Self::MovedPermanently(s) => s.clone(),
+            Self::MovedTemporarily(s) => s.clone(),
+            Self::UnkownStatusCode => "Unkown Status Code".to_string(),
+        };
+    }
+}
+
+impl Status {
+    pub fn default_string(&self) -> String {
+        return match self {
+            Self::OK(_) => "OK".to_string(),
+            Self::Created(_) => "Created".to_string(),
+            Self::Accepted(_) => "Accepted".to_string(),
             Self::NoContent => "No Content".to_string(),
             Self::MovedPermanently(_) => "Moved Permanently".to_string(),
             Self::MovedTemporarily(_) => "Moved Temporarily".to_string(),
-            Self::NotModified => "Not Modified".to_string(),
-            Self::BadRequest => "Bad Request".to_string(),
-            Self::Unauthorized => "Unauthorized".to_string(),
-            Self::Forbidden => "Forbidden".to_string(),
-            Self::NotFound => "Not Found".to_string(),
-            Self::InternalServerError => "Internal Server Error".to_string(),
-            Self::NotImplemented => "Not Implemented".to_string(),
-            Self::BadGateway => "Bad Gateway".to_string(),
-            Self::ServiceUnavailable => "Service Unavailable".to_string(),
+            Self::NotModified(_) => "Not Modified".to_string(),
+            Self::BadRequest(_) => "Bad Request".to_string(),
+            Self::Unauthorized(_) => "Unauthorized".to_string(),
+            Self::Forbidden(_) => "Forbidden".to_string(),
+            Self::NotFound(_) => "Not Found".to_string(),
+            Self::InternalServerError(_) => "Internal Server Error".to_string(),
+            Self::NotImplemented(_) => "Not Implemented".to_string(),
+            Self::BadGateway(_) => "Bad Gateway".to_string(),
+            Self::ServiceUnavailable(_) => "Service Unavailable".to_string(),
             Self::UnkownStatusCode => "Unkown Status Code".to_string(),
         };
     }
@@ -596,7 +623,7 @@ impl Url {
 }
 
 #[derive(Clone, Debug)]
-pub(in crate::http) struct Buffer {
+struct Buffer {
     pub block: [u8; 0xFFFF],
     pub length: usize,
 }
@@ -738,7 +765,7 @@ impl Request {
                     {
                         Ok(length) => length?,
                         Err(_) => {
-                            Err(StdIoError::new(StdIoErrorKind::TimedOut, "tcp读超时."))?;
+                            Err(StdIoError::new(StdIoErrorKind::TimedOut, "Request读超时."))?;
                             0
                         }
                     };

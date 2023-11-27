@@ -8,9 +8,10 @@
 
 //! 客户端接口.
 
+pub use crate::http::Request;
+pub use crate::http::Response;
+
 use crate::http::Args;
-use crate::http::Request;
-use crate::http::Response;
 use crate::http::Url;
 use crate::http::UrlError;
 use std::io::Error as StdIoError;

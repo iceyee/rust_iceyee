@@ -23,7 +23,7 @@ pub fn test_status() {
         200, 201, 202, 204, 301, 302, 304, 400, 401, 403, 404, 500, 501, 502, 503, 119,
     ] {
         let status: Status = Status::from(x);
-        println!("{} {}", status.to_string(), Into::<u64>::into(status));
+        println!("{} {}", status.default_string(), Into::<u64>::into(status));
     }
     return;
 }
