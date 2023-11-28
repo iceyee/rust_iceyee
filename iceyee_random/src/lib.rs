@@ -109,7 +109,7 @@ fn get_thread_id() -> u64 {
         extern "C" {
             fn pthread_self() -> c_ulong;
         }
-        return pthread_self();
+        return pthread_self() as u64;
     }
     #[cfg(target_os = "windows")]
     unsafe {
@@ -118,6 +118,6 @@ fn get_thread_id() -> u64 {
         extern "C" {
             fn GetCurrentThreadId() -> c_ulong;
         }
-        return GetCurrentThreadId();
+        return GetCurrentThreadId() as u64;
     }
 }
