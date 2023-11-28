@@ -436,7 +436,7 @@ impl HttpServer {
                             };
                             let message: String = format!("建立连接, {ip}, {id}.");
                             logger.debug(&message).await;
-                            let tcp = Arc::new(tcp);
+                            let mut tcp = Arc::new(tcp);
                             loop {
                                 id.add();
                                 let server = server.clone();
@@ -463,6 +463,16 @@ impl HttpServer {
                                             }
                                         }
                                         break;
+                                    }
+                                }
+                            }
+                            // 关闭连接.
+                            {
+                                use tokio::io::AsyncWriteExt;
+                                match Arc::get_mut(&mut tcp).unwrap().shutdown().await {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        logger.error(e.to_string().as_str()).await;
                                     }
                                 }
                             }
