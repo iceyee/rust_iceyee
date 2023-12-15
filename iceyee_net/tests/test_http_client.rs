@@ -196,7 +196,7 @@ pub async fn test_httpclient_socks5_proxy() {
 pub async fn test_httpclient_repeated_use() {
     use iceyee_net::http::client::HttpClient;
     use iceyee_net::http::client::HttpProxy;
-    use iceyee_net::http::client::NoProxy;
+    
     use iceyee_net::http::client::Proxy;
 
     println!("");

@@ -11,6 +11,7 @@
 #![feature(io_error_more)]
 
 pub mod http;
+pub mod smtp;
 
 // Use.
 

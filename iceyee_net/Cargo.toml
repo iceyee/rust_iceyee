@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_net"
-version = "2.0.1"
+version = "3.0.0"
 edition = "2021"
 
 description = "Net Protocol."

@@ -493,7 +493,7 @@ impl HttpServer {
         listener_future.await.unwrap();
         println!("---- 等待所有TCP处理完毕. ----");
         while 1 < Arc::strong_count(&exit_counter) {
-            iceyee_datetime::sleep(100).await;
+            iceyee_datetime::sleep(200).await;
         }
         println!("---- DONE. ----");
         return Ok(());
@@ -534,7 +534,7 @@ impl HttpServer {
             server.logger.as_ref().unwrap().info(&message).await;
             drop(sessions);
             while !server.stop_server.load(SeqCst) && !sleep.is_finished() {
-                iceyee_datetime::sleep(100).await;
+                iceyee_datetime::sleep(200).await;
             }
         }
         return;
