@@ -131,7 +131,7 @@ impl Timer {
             if x.len() == 0 {
                 return Err(TimerError::InvalidFormat);
             }
-            for y in x.split(',') {
+            for y in x.split([',', '，']) {
                 if y.len() == 0 {
                     return Err(TimerError::InvalidFormat);
                 }
@@ -282,13 +282,13 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let sl = tokio::task::spawn(Timer::sleep(delay));
             while !is_stop.load(Ordering::SeqCst) && !sl.is_finished() {
-                Timer::sleep(50).await;
+                Self::sleep(200).await;
             }
             while !is_stop.load(Ordering::SeqCst) {
                 let sl = tokio::task::spawn(Timer::sleep(period));
                 f().await;
                 while !is_stop.load(Ordering::SeqCst) && !sl.is_finished() {
-                    Timer::sleep(50).await;
+                    Self::sleep(200).await;
                 }
             }
         });
@@ -309,13 +309,13 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let sl = tokio::task::spawn(Self::sleep(delay));
             while !is_stop.load(Ordering::SeqCst) && !sl.is_finished() {
-                Self::sleep(50).await;
+                Self::sleep(200).await;
             }
             while !is_stop.load(Ordering::SeqCst) {
                 f().await;
                 let sl = tokio::task::spawn(Self::sleep(period));
                 while !is_stop.load(Ordering::SeqCst) && !sl.is_finished() {
-                    Self::sleep(50).await;
+                    Self::sleep(200).await;
                 }
             }
         });
