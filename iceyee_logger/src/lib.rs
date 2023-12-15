@@ -107,7 +107,7 @@ impl Logger {
         // 更新时间.
         Self::update_time(time.clone()).await;
         let time_clone = time.clone();
-        timer.schedule_execute_before(0, 10, move || Self::update_time(time_clone.clone()));
+        timer.schedule_execute_before(0, 100, move || Self::update_time(time_clone.clone()));
         let level: Level = level.unwrap_or(Level::Debug);
         let (warn_file, error_file) = if !project_name.is_none() {
             let project_name: &str = project_name.unwrap();
@@ -246,19 +246,21 @@ impl Logger {
         // println!("{warn_file_to}");
         // println!("{error_file_from}");
         // println!("{error_file_to}");
+        let mut warn_file = warn_file.lock().await;
+        let mut error_file = error_file.lock().await;
         tokio::fs::rename(&warn_file_from, &warn_file_to)
             .await
             .unwrap();
         tokio::fs::rename(&error_file_from, &error_file_to)
             .await
             .unwrap();
-        *warn_file.lock().await = OpenOptions::new()
+        *warn_file = OpenOptions::new()
             .create(true)
             .write(true)
             .open(warn_file_from)
             .await
             .unwrap();
-        *error_file.lock().await = OpenOptions::new()
+        *error_file = OpenOptions::new()
             .create(true)
             .write(true)
             .open(error_file_from)

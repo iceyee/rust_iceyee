@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_logger"
-version = "3.0.1"
+version = "3.0.2"
 edition = "2021"
 
 description = "Logger."
