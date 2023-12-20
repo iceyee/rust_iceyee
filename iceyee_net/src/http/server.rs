@@ -49,6 +49,7 @@ use tokio::sync::RwLock as TokioRwLock;
 /// ```
 /// use iceyee_net::http::server::Context;
 /// use iceyee_net::http::server::Filter;
+/// use iceyee_net::http::server::R;
 ///
 /// #[async_trait::async_trait]
 /// pub trait Filter: Send + Sync {
@@ -118,13 +119,14 @@ pub trait Filter: Send + Sync {
 /// ```
 /// use iceyee_net::http::server::Context;
 /// use iceyee_net::http::server::Work;
+/// use iceyee_net::http::server::R;
 ///
 /// #[async_trait::async_trait]
 /// pub trait Work: Send + Sync {
 ///     fn method(&self) -> String;
 ///     fn path(&self) -> String;
 ///     async fn do_work(&self, context: &mut Context) -> Result<(), String>;
-///     async fn on_error(&self, context: &mut Context) -> bool {
+///     async fn on_error(&self, context: &mut Context) {
 ///         let body: String = context.e_message.as_ref().unwrap().clone();
 ///         R::write_status(
 ///             &mut context.response,

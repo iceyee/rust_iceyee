@@ -14,6 +14,8 @@ pub use crate::http::Response;
 use crate::http::Args;
 use crate::http::Url;
 use crate::http::UrlError;
+use serde::Deserialize;
+use serde::Serialize;
 use std::io::Error as StdIoError;
 use std::io::ErrorKind as StdIoErrorKind;
 use std::pin::Pin;
@@ -55,6 +57,56 @@ pub trait Proxy: AsyncRead + AsyncWrite + Unpin {
 }
 
 // Struct.
+
+/// 代理的相关信息.
+///
+/// proxy_type的取值范围["NO","HTTP","SOCKS5"].
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ProxyInformation {
+    pub proxy_type: String,
+    pub host: String,
+    pub port: u16,
+    pub auth: String,
+}
+
+impl ProxyInformation {
+    pub fn to_proxy(
+        &self,
+        target_host: &str,
+        target_port: u16,
+        using_ssl: bool,
+    ) -> Arc<TokioMutex<Box<dyn Proxy + Send + Sync>>>
+    where
+        Self: Sized + Send + Sync + 'static,
+    {
+        let auth: Option<&str> = if self.auth.len() == 0 {
+            None
+        } else {
+            Some(&self.auth)
+        };
+        return match self.proxy_type.as_str() {
+            "HTTP" => HttpProxy::new(
+                target_host,
+                target_port,
+                using_ssl,
+                &self.host,
+                self.port,
+                auth,
+            )
+            .wrap(),
+            "SOCKS5" => Socks5Proxy::new(
+                target_host,
+                target_port,
+                using_ssl,
+                &self.host,
+                self.port,
+                auth,
+            )
+            .wrap(),
+            "NO" | _ => NoProxy::new(target_host, target_port, using_ssl).wrap(),
+        };
+    }
+}
 
 /// 不使用代理.
 #[derive(Debug)]
