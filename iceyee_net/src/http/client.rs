@@ -719,6 +719,11 @@ impl HttpClient {
         };
     }
 
+    pub fn set_method(mut self, s: &str) -> Self {
+        self.request.method = s.to_string();
+        return self;
+    }
+
     pub fn set_url(mut self, s: &str) -> Result<Self, UrlError> {
         let url: Url = Url::new(s)?;
         self.request
@@ -752,8 +757,8 @@ impl HttpClient {
         return Ok(self);
     }
 
-    pub fn set_method(mut self, s: &str) -> Self {
-        self.request.method = s.to_string();
+    pub fn add_parameter(mut self, key: &str, value: &str) -> Self {
+        self.request.query.add(key, value);
         return self;
     }
 
