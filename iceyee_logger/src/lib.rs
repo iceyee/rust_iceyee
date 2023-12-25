@@ -271,7 +271,10 @@ impl Logger {
 }
 
 impl Logger {
-    async fn print(&self, message: &str, level: Level) {
+    async fn print<S>(&self, message: S, level: Level)
+    where
+        S: AsRef<str>,
+    {
         use tokio::io::AsyncWriteExt;
         use tokio::io::Stdout;
         static STDOUT: Mutex<Option<Stdout>> = Mutex::const_new(None);
@@ -285,6 +288,7 @@ impl Logger {
             return;
         }
         let time: String = unsafe { (*self.time.load(Ordering::SeqCst)).clone() };
+        let message: &str = message.as_ref();
         match level {
             Level::Debug | Level::Info => {
                 let message: String = format!(
@@ -356,25 +360,37 @@ impl Logger {
     }
 
     /// Debug.
-    pub async fn debug(&self, message: &str) {
+    pub async fn debug<S>(&self, message: S)
+    where
+        S: AsRef<str>,
+    {
         Self::print(self, message, Level::Debug).await;
         return;
     }
 
     /// Info.
-    pub async fn info(&self, message: &str) {
+    pub async fn info<S>(&self, message: S)
+    where
+        S: AsRef<str>,
+    {
         Self::print(self, message, Level::Info).await;
         return;
     }
 
     /// Warn.
-    pub async fn warn(&self, message: &str) {
+    pub async fn warn<S>(&self, message: S)
+    where
+        S: AsRef<str>,
+    {
         Self::print(self, message, Level::Warn).await;
         return;
     }
 
     /// Error.
-    pub async fn error(&self, message: &str) {
+    pub async fn error<S>(&self, message: S)
+    where
+        S: AsRef<str>,
+    {
         Self::print(self, message, Level::Error).await;
         return;
     }

@@ -90,7 +90,6 @@ pub async fn test_logger_project_2() {
     use iceyee_logger::Logger;
     use iceyee_timer::Timer;
     use std::sync::Arc;
-    use tokio::sync::Mutex;
     println!("");
     let logger: Logger = Logger::new(
         Some(Level::Info),
@@ -102,14 +101,14 @@ pub async fn test_logger_project_2() {
     logger.info("hello world.").await;
     logger.warn("hello world.").await;
     logger.error("hello world.").await;
-    let logger: Arc<Mutex<Logger>> = Arc::new(Mutex::new(logger));
+    let logger: Arc<Logger> = Arc::new(logger);
     let logger_clone = logger.clone();
     tokio::task::spawn(async move {
+        let logger = logger_clone.clone();
         let mut counter: usize = 0;
         loop {
             counter += 1;
             let message = counter.to_string();
-            let logger = logger_clone.lock().await;
             logger.debug(message.as_str()).await;
             logger.info(message.as_str()).await;
             logger.warn(message.as_str()).await;
@@ -118,6 +117,7 @@ pub async fn test_logger_project_2() {
         }
     });
     Timer::sleep(10_000).await;
+    logger.info("测试String".to_string()).await;
     drop(logger);
     Timer::sleep(2_000).await;
     println!("");
