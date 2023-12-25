@@ -9,6 +9,7 @@ name = "iceyee_sleep"
 version = "4.0.0"
 edition = "2021"
 
+description = "only a sleep() function."
 keywords = ["iceyee", "sleep"]
 license = "Apache-2.0"
 
