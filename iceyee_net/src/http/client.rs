@@ -724,7 +724,10 @@ impl HttpClient {
         return self;
     }
 
-    pub fn set_url(mut self, s: &str) -> Result<Self, UrlError> {
+    pub fn set_url<S>(mut self, s: &str) -> Result<Self, UrlError>
+    where
+        S: AsRef<str>,
+    {
         let url: Url = Url::new(s)?;
         self.request
             .header

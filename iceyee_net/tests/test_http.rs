@@ -96,6 +96,7 @@ pub fn test_url_and_args() {
     args.add("你好", "1");
     args.add("你好", "2");
     args.add("我好", "他好");
+    args.add("k", "PrW4rLRM-K40GMA77lYUD+fvXc8=");
     println!("{}", args.to_string());
     let args: Args = Args::parse(args.to_string().as_str());
     println!("{:#?}", args);
@@ -117,6 +118,8 @@ pub async fn test_request() {
     request
         .header
         .insert("Header2".to_string(), "Value2".to_string());
+    request.query.add("k", "PrW4rLRM-K40GMA77lYUD+fvXc8=");
+    request.query.add("q", "PrW4rLRM-K40GMA77lYUD+fvXc8=");
     println!("{}", request.to_string());
     let s: &str = "\
 GET / HTTP/1.1\r\n\

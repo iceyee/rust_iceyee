@@ -314,7 +314,11 @@ pub struct Url {
 }
 
 impl Url {
-    pub fn new(value: &str) -> Result<Self, UrlError> {
+    pub fn new<S>(value: S) -> Result<Self, UrlError>
+    where
+        S: AsRef<str>,
+    {
+        let value: &str = value.as_ref();
         let link: Arc<String> = Arc::new(value.to_string());
         let mut state: State = State::Protocol;
         let value: &[u8] = value.as_bytes();
