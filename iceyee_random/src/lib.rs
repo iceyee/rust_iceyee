@@ -7,6 +7,7 @@
 // Use.
 
 use std::cell::Cell;
+use std::time::SystemTime;
 
 thread_local! {
     static SEED: Cell<u64> = Cell::new(0);
@@ -20,7 +21,7 @@ thread_local! {
 
 /// 随机数.
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Random;
 
 impl Random {
@@ -84,9 +85,8 @@ impl Random {
 
 // Function.
 
+// 初始化种子.
 fn init() {
-    use std::time::SystemTime;
-
     let id: u64 = get_thread_id();
     let time: u64 = SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -99,7 +99,7 @@ fn init() {
     return;
 }
 
-// 线程id.
+// 取线程id.
 fn get_thread_id() -> u64 {
     #[cfg(target_os = "linux")]
     unsafe {
