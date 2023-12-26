@@ -10,7 +10,7 @@ version = "4.0.0"
 edition = "2021"
 
 description = "about time."
-keywords = ["iceyee", "datetime", "date", "time", "timer", "sleep"]
+keywords = ["iceyee", "datetime", "time", "timer", "sleep"]
 license = "Apache-2.0"
 repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_datetime/"
 
