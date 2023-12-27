@@ -16,7 +16,7 @@ use std::string::FromUtf8Error;
 /// Error.
 ///
 /// - @see [Base64Encoder]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Base64Error {
     InvalidLength(usize),
     UnexpectedCharacter(char),
@@ -43,7 +43,7 @@ impl std::error::Error for Base64Error {}
 /// Error.
 ///
 /// - @see [HexEncoder]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum HexError {
     InvalidLength(usize),
     UnexpectedCharacter(char),
@@ -70,7 +70,7 @@ impl std::error::Error for HexError {}
 /// Error.
 ///
 /// - @see [UrlEncoder]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UrlError {
     InvalidFormat,
     FromUtf8Error(FromUtf8Error),
@@ -102,7 +102,7 @@ pub struct Base64Encoder;
 
 impl Base64Encoder {
     /// 编码.
-    pub fn encode(input: Vec<u8>) -> String {
+    pub fn encode(input: &Vec<u8>) -> String {
         let input_length: usize = input.len();
         if input_length == 0 {
             return "".to_string();
@@ -178,7 +178,8 @@ impl Base64Encoder {
     ///
     /// - @exception [Base64Error::InvalidLength] 无效的长度.
     /// - @exception [Base64Error::UnexpectedCharacter] 出现未预期的字符.
-    pub fn decode(input: String) -> Result<Vec<u8>, Base64Error> {
+    pub fn decode(input: &str) -> Result<Vec<u8>, Base64Error> {
+        let input: String = input.to_string();
         const TABLE: [u8; 0x100] = [
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -272,7 +273,7 @@ pub struct HexEncoder;
 
 impl HexEncoder {
     /// 编码.
-    pub fn encode(input: Vec<u8>) -> String {
+    pub fn encode(input: &Vec<u8>) -> String {
         static TABLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
         ];
@@ -290,7 +291,8 @@ impl HexEncoder {
     ///
     /// - @exception [HexError::InvalidLength] 无效的长度.
     /// - @exception [HexError::UnexpectedCharacter] 出现未预期的字符.
-    pub fn decode(input: String) -> Result<Vec<u8>, HexError> {
+    pub fn decode(input: &str) -> Result<Vec<u8>, HexError> {
+        let input: String = input.to_string();
         let length: usize = input.len();
         if length % 2 != 0 {
             return Err(HexError::InvalidLength(length));
@@ -355,7 +357,7 @@ impl HexEncoder {
     ///
     /// - @exception [HexError::InvalidLength] 长度超过16.
     /// - @exception [HexError::UnexpectedCharacter] 出现未预期的字符.
-    pub fn decode_number(input: String) -> Result<u64, HexError> {
+    pub fn decode_number(input: &str) -> Result<u64, HexError> {
         let v1: &[u8] = input.as_bytes();
         if 16 < v1.len() {
             // 长度过长.
@@ -394,7 +396,11 @@ impl UrlEncoder {
     /// 编码.
     ///
     /// - @exception 没有异常.
-    pub fn encode(input: String) -> String {
+    pub fn encode<S>(input: S) -> String
+    where
+        S: AsRef<str>,
+    {
+        let input: String = input.as_ref().to_string();
         static TABLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
         ];
@@ -420,7 +426,11 @@ impl UrlEncoder {
     ///
     /// - @exception [UrlError::InvalidFormat] 错误的格式.
     /// - @exception [UrlError::FromUtf8Error] 解码后的内容不是UTF-8编码.
-    pub fn decode(cipher: String) -> Result<String, UrlError> {
+    pub fn decode<S>(cipher: S) -> Result<String, UrlError>
+    where
+        S: AsRef<str>,
+    {
+        let cipher: String = cipher.as_ref().to_string();
         enum Status {
             Normal,
             High,
