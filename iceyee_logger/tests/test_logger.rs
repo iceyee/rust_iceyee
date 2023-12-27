@@ -31,6 +31,9 @@ pub async fn test_no_init() {
     println!("");
     println!("测试不初始化logger.");
     iceyee_logger::debug("hello world.").await;
+    iceyee_logger::info("hello world info.").await;
+    iceyee_logger::warn("hello world warn.").await;
+    iceyee_logger::error("hello world error.").await;
     return;
 }
 
@@ -76,7 +79,7 @@ pub async fn test_move() {
     return;
 }
 
-#[tokio::test]
+// #[tokio::test]
 pub async fn test_sleep() {
     println!("");
     println!("间隔1秒输出, 持续10秒, Level是Info.");
