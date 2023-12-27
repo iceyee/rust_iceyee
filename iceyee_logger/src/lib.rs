@@ -9,31 +9,39 @@
 
 // Use.
 
-use iceyee_timer::Timer;
+use iceyee_time::DateTime;
+use iceyee_time::Timer;
 use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::SystemTime;
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
+use tokio::io::AsyncWriteExt;
+use tokio::io::Stdout;
 use tokio::sync::Mutex;
+
+static LOGGER: Mutex<Option<Logger>> = Mutex::const_new(None);
 
 /// $HOME
 pub static mut HOME: Option<String> = None;
 
 /// $HOME/.iceyee_log
-pub static mut DEFAULT: Option<String> = None;
+pub static mut DEFAULT_TARGET: Option<String> = None;
 
 // Enum.
 
-/// 日志等级, 从低到高分别是(
+/// 日志等级, 从低到高分别是
 /// [Debug](Level::Debug),
 /// [Info](Level::Info),
 /// [Warn](Level::Warn),
-/// [Error](Level::Error),
-/// ).
-#[derive(Clone, Debug)]
+/// [Error](Level::Error)
+/// .
+/// 默认[Info](Level::Info).
+#[derive(Clone, Debug, Default)]
 pub enum Level {
     Debug,
+    #[default]
     Info,
     Warn,
     Error,
@@ -78,195 +86,310 @@ impl ToString for Level {
 // Struct.
 
 /// 日志.
-#[derive(Clone, Debug)]
-pub struct Logger {
-    #[allow(dead_code)]
-    timer: Timer,
+#[allow(dead_code)]
+#[derive(Debug)]
+struct Logger {
+    timer: Option<Timer>,
     time: Arc<AtomicPtr<String>>,
     level: Level,
-    warn_file: Option<Arc<Mutex<File>>>,
-    error_file: Option<Arc<Mutex<File>>>,
+    project_name: Option<String>,
+    target_directory: Option<String>,
+    warn_file: Arc<Mutex<Option<File>>>,
+    error_file: Arc<Mutex<Option<File>>>,
+}
+
+impl std::clone::Clone for Logger {
+    // 克隆不带timer.
+    fn clone(&self) -> Self {
+        return Logger {
+            timer: None,
+            time: self.time.clone(),
+            level: self.level.clone(),
+            project_name: self.project_name.clone(),
+            target_directory: self.target_directory.clone(),
+            warn_file: self.warn_file.clone(),
+            error_file: self.error_file.clone(),
+        };
+    }
 }
 
 impl Logger {
-    /// new.
-    ///
-    /// project_name不为空, 才是有效的, 否则只会把信息输出到stdout, 而不会保存在文件中.
-    ///
-    /// - @param level 默认Debug.
-    /// - @param project_name 项目名.
-    /// - @param target_directory 把日志保存在哪一个目录, 默认[HOME].
-    pub async fn new(
-        level: Option<Level>,
-        project_name: Option<&str>,
-        target_directory: Option<&str>,
-    ) -> Self {
-        let mut timer = Timer::new();
-        static mut EMPTY_STRING: String = String::new();
-        let time: Arc<AtomicPtr<String>> = Arc::new(AtomicPtr::new(unsafe { &mut EMPTY_STRING }));
-        // 更新时间.
-        Self::update_time(time.clone()).await;
-        let time_clone = time.clone();
-        timer.schedule_execute_before(0, 100, move || Self::update_time(time_clone.clone()));
-        let level: Level = level.unwrap_or(Level::Debug);
-        let (warn_file, error_file) = if !project_name.is_none() {
-            let project_name: &str = project_name.unwrap();
-            let target_directory_: String;
-            let target_directory: &str = if target_directory.is_none() {
-                target_directory_ = unsafe { DEFAULT.as_ref() }.unwrap().clone();
-                target_directory_.as_str()
-            } else {
-                target_directory.unwrap()
-            };
-            if project_name.len() == 0 || target_directory.len() == 0 {
-                panic!("project_name和target_directory不能长度为0.");
-            }
-            let (warn_file, error_file) = Self::create(project_name, target_directory).await;
-            let (warn_file, error_file) = (
-                Arc::new(Mutex::new(warn_file)),
-                Arc::new(Mutex::new(error_file)),
-            );
-            // 更新缓存.
-            let (warn_file_clone, error_file_clone) = (warn_file.clone(), error_file.clone());
-            timer.schedule_execute_before(60_000, 60_000, move || {
-                Self::flush(warn_file_clone.clone(), error_file_clone.clone())
-            });
-            // 文件管理.
-            let project_name_clone: String = project_name.to_string();
-            let target_directory_clone: String = target_directory.to_string();
-            let (warn_file_clone, error_file_clone) = (warn_file.clone(), error_file.clone());
-            timer
-                .schedule_pattern("50 59 23 * * *", move || {
-                    Self::manage(
-                        project_name_clone.clone(),
-                        target_directory_clone.clone(),
-                        warn_file_clone.clone(),
-                        error_file_clone.clone(),
-                    )
-                })
-                .unwrap();
-            (Some(warn_file), Some(error_file))
-        } else {
-            (None, None)
-        };
-        return Self {
-            timer: timer,
-            time: time,
-            level: level,
-            warn_file: warn_file,
-            error_file: error_file,
-        };
-    }
-
-    #[deprecated(since = "2.0.0", note = "see iceyee_timer::Timer::stop().")]
-    pub async fn stop(&mut self) {
-        // self.timer.stop().await;
-        return;
-    }
-
     // 更新时间.
-    async fn update_time(time: Arc<AtomicPtr<String>>) {
-        use iceyee_datetime::DateTime;
+    pub async fn update_time(logger: Logger) {
         static mut SWITCH: usize = 0;
         static mut TIMES: [String; 2] = [String::new(), String::new()];
         unsafe {
             SWITCH = (SWITCH + 1) % 2;
             TIMES[SWITCH] = DateTime::new().to_string();
-            time.store(&mut TIMES[SWITCH], Ordering::SeqCst);
+            logger.time.store(&mut TIMES[SWITCH], Ordering::SeqCst);
             return;
         }
     }
 
     // 创建目录文件.
-    async fn create(project_name: &str, target_directory: &str) -> (File, File) {
-        let path: String = target_directory.to_string() + "/" + project_name;
-        if let Err(_) = tokio::fs::create_dir_all(&path).await {}
-        let warn_file: String = path.clone() + "/" + project_name + "_warn.log";
-        let error_file: String = path.clone() + "/" + project_name + "_error.log";
+    pub async fn create_file(logger: Logger) -> (Option<File>, Option<File>) {
+        if logger.project_name.is_none()
+            || logger
+                .project_name
+                .as_ref()
+                .expect("iceyee_logger/lib.rs 665")
+                .trim()
+                .len()
+                == 0
+        {
+            return (None, None);
+        }
+        let project_name: String = logger
+            .project_name
+            .expect("iceyee_logger/lib.rs 713")
+            .trim()
+            .to_string();
+        let target_directory: String = match logger.target_directory {
+            Some(target_directory) => {
+                if target_directory.trim().len() != 0 {
+                    target_directory.trim().to_string()
+                } else {
+                    unsafe {
+                        DEFAULT_TARGET
+                            .as_ref()
+                            .expect("iceyee_logger/lib.rs 521")
+                            .clone()
+                    }
+                }
+            }
+            None => unsafe {
+                DEFAULT_TARGET
+                    .as_ref()
+                    .expect("iceyee_logger/lib.rs 289")
+                    .clone()
+            },
+        };
+        let path: String = target_directory.clone() + "/" + &project_name;
+        let _ = tokio::fs::create_dir_all(&path).await;
+        let warn_file: String = path.clone() + "/" + &project_name + "_warn.log";
+        let error_file: String = path.clone() + "/" + &project_name + "_error.log";
         let warn_file: File = OpenOptions::new()
             .create(true)
             .append(true)
             .open(warn_file)
             .await
-            .unwrap();
+            .expect("iceyee_logger/lib.rs 217");
         let error_file: File = OpenOptions::new()
             .create(true)
             .append(true)
             .open(error_file)
             .await
-            .unwrap();
-        return (warn_file, error_file);
+            .expect("iceyee_logger/lib.rs 505");
+        return (Some(warn_file), Some(error_file));
     }
 
     // 刷新缓存.
-    async fn flush(warn_file: Arc<Mutex<File>>, error_file: Arc<Mutex<File>>) {
-        use tokio::io::AsyncWriteExt;
-        warn_file.lock().await.flush().await.unwrap();
-        error_file.lock().await.flush().await.unwrap();
+    pub async fn flush(logger: Logger) {
+        let mut warn_file = logger.warn_file.lock().await;
+        if warn_file.is_some() {
+            warn_file
+                .as_mut()
+                .expect("iceyee_logger/lib.rs 353")
+                .flush()
+                .await
+                .expect("iceyee_logger/lib.rs 961");
+        }
+        drop(warn_file);
+        let mut error_file = logger.error_file.lock().await;
+        if error_file.is_some() {
+            error_file
+                .as_mut()
+                .expect("iceyee_logger/lib.rs 529")
+                .flush()
+                .await
+                .expect("iceyee_logger/lib.rs 257");
+        }
+        drop(error_file);
         return;
     }
 
     // 文件管理.
-    async fn manage(
-        project_name: String,
-        target_directory: String,
-        warn_file: Arc<Mutex<File>>,
-        error_file: Arc<Mutex<File>>,
-    ) {
-        use iceyee_datetime::DateTime;
-        use std::time::SystemTime;
-        use tokio::io::AsyncWriteExt;
-        let path: String = target_directory.to_string() + "/" + project_name.as_str();
-        let mut dirs = tokio::fs::read_dir(&path).await.unwrap();
-        // 删除.
+    pub async fn manage(logger: Logger) {
+        if logger.project_name.is_none()
+            || logger
+                .project_name
+                .as_ref()
+                .expect("iceyee_logger/lib.rs 345")
+                .trim()
+                .len()
+                == 0
+        {
+            return;
+        }
+        let project_name: String = logger
+            .project_name
+            .expect("iceyee_logger/lib.rs 993")
+            .trim()
+            .to_string();
+        let target_directory: String = match logger.target_directory {
+            Some(target_directory) => {
+                if target_directory.trim().len() != 0 {
+                    target_directory.trim().to_string()
+                } else {
+                    unsafe {
+                        DEFAULT_TARGET
+                            .as_ref()
+                            .expect("iceyee_logger/lib.rs 401")
+                            .clone()
+                    }
+                }
+            }
+            None => unsafe {
+                DEFAULT_TARGET
+                    .as_ref()
+                    .expect("iceyee_logger/lib.rs 769")
+                    .clone()
+            },
+        };
+        let path: String = target_directory.clone() + "/" + &project_name;
+        let mut dirs = tokio::fs::read_dir(&path)
+            .await
+            .expect("iceyee_logger/lib.rs 297");
+        // 删除两个月前的文件.
         while let Ok(Some(entry)) = dirs.next_entry().await {
-            let t = entry.metadata().await.unwrap().modified().unwrap();
-            if 1 * 60 * 60 * 24 * 45 < SystemTime::now().duration_since(t).unwrap().as_secs() {
+            let t = entry
+                .metadata()
+                .await
+                .expect("iceyee_logger/lib.rs 185")
+                .modified()
+                .expect("iceyee_logger/lib.rs 633");
+            if 1 * 60 * 60 * 24 * 60
+                < SystemTime::now()
+                    .duration_since(t)
+                    .expect("iceyee_logger/lib.rs 841")
+                    .as_secs()
+            {
                 tokio::fs::remove_file(entry.path().as_path())
                     .await
-                    .unwrap();
+                    .expect("iceyee_logger/lib.rs 009");
             }
         }
-        // 刷新缓存.
-        warn_file.lock().await.flush().await.unwrap();
-        error_file.lock().await.flush().await.unwrap();
+        // 刷新缓存, 然后关闭文件.
+        let mut warn_file = logger.warn_file.lock().await;
+        if warn_file.is_some() {
+            warn_file
+                .as_mut()
+                .expect("iceyee_logger/lib.rs 337")
+                .flush()
+                .await
+                .expect("iceyee_logger/lib.rs 025");
+        }
+        *warn_file = None;
+        // drop(warn_file);
+        let mut error_file = logger.error_file.lock().await;
+        if error_file.is_some() {
+            error_file
+                .as_mut()
+                .expect("iceyee_logger/lib.rs 273")
+                .flush()
+                .await
+                .expect("iceyee_logger/lib.rs 281");
+        }
+        *error_file = None;
+        // drop(error_file);
         // 重命名.
-        let datetime: DateTime = DateTime::new();
-        let date = format!(
-            "{}_{:02}_{:02}",
+        let t: i64 = iceyee_time::now() - 1_000 * 60 * 60 * 1;
+        let datetime: DateTime = DateTime::from((t, None));
+        let date: String = format!(
+            "_{}_{:02}_{:02}",
             datetime.year, datetime.month, datetime.day
         );
-        let warn_file_from: String = path.clone() + "/" + project_name.as_str() + "_warn.log";
-        let error_file_from: String = path.clone() + "/" + project_name.as_str() + "_error.log";
+        let warn_file_from: String = path.clone() + "/" + &project_name + "_warn.log";
+        let error_file_from: String = path.clone() + "/" + &project_name + "_error.log";
         let warn_file_to: String =
-            path.clone() + "/" + project_name.as_str() + "_warn_" + date.as_str() + ".log";
+            path.clone() + "/" + &project_name + "_warn" + date.as_str() + ".log";
         let error_file_to: String =
-            path.clone() + "/" + project_name.as_str() + "_error_" + date.as_str() + ".log";
+            path.clone() + "/" + &project_name + "_error" + date.as_str() + ".log";
         // println!("{warn_file_from}");
         // println!("{warn_file_to}");
         // println!("{error_file_from}");
         // println!("{error_file_to}");
-        let mut warn_file = warn_file.lock().await;
-        let mut error_file = error_file.lock().await;
         tokio::fs::rename(&warn_file_from, &warn_file_to)
             .await
-            .unwrap();
+            .expect("iceyee_logger/lib.rs 249");
         tokio::fs::rename(&error_file_from, &error_file_to)
             .await
-            .unwrap();
-        *warn_file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(warn_file_from)
-            .await
-            .unwrap();
-        *error_file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(error_file_from)
-            .await
-            .unwrap();
+            .expect("iceyee_logger/lib.rs 377");
+        *warn_file = Some(
+            OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open(warn_file_from)
+                .await
+                .expect("iceyee_logger/lib.rs 865"),
+        );
+        *error_file = Some(
+            OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open(error_file_from)
+                .await
+                .expect("iceyee_logger/lib.rs 913"),
+        );
         return;
+    }
+}
+
+impl Logger {
+    pub async fn new(
+        level: Level,
+        project_name: Option<&str>,
+        target_directory: Option<&str>,
+    ) -> Self {
+        let timer = Timer::new();
+        static mut EMPTY_STRING: String = String::new();
+        let time: Arc<AtomicPtr<String>> = Arc::new(AtomicPtr::new(unsafe { &mut EMPTY_STRING }));
+        let this: Logger = Logger {
+            timer: Some(timer),
+            time: time,
+            level: level,
+            project_name: project_name.map(|x| x.to_string()),
+            target_directory: target_directory.map(|x| x.to_string()),
+            warn_file: Arc::new(Mutex::new(None)),
+            error_file: Arc::new(Mutex::new(None)),
+        };
+        // 更新时间.
+        Self::update_time(this.clone()).await;
+        let this_clone = this.clone();
+        this.timer
+            .as_ref()
+            .expect("iceyee_logger/lib.rs 721")
+            .schedule_execute_before(1, 1, move |_| Self::update_time(this_clone.clone()));
+        let (warn_file, error_file) = Self::create_file(this.clone()).await;
+        *this.warn_file.lock().await = warn_file;
+        *this.error_file.lock().await = error_file;
+        // 更新缓存.
+        let this_clone = this.clone();
+        this.timer
+            .as_ref()
+            .expect("iceyee_logger/lib.rs 489")
+            .schedule_execute_before(0, 60_000, move |_| Self::flush(this_clone.clone()));
+        // 文件管理.
+        {
+            let this_clone = this.clone();
+            this.timer
+                .as_ref()
+                .expect("iceyee_logger/lib.rs 417")
+                .schedule_pattern("57 59 23 * * *", move |_| Self::manage(this_clone.clone()));
+        }
+        // {
+        //     let datetime: DateTime = DateTime::from((iceyee_time::now() + 10_000, None));
+        //     let pattern: String = format!(
+        //         "{} {} {} * * *",
+        //         datetime.second, datetime.minute, datetime.hour
+        //     );
+        //     let this_clone = this.clone();
+        //     this.timer
+        //         .as_ref()
+        //         .expect("iceyee_logger/lib.rs 705")
+        //         .schedule_pattern(&pattern, move |_| Self::manage(this_clone.clone()));
+        // }
+        return this;
     }
 }
 
@@ -275,91 +398,81 @@ impl Logger {
     where
         S: AsRef<str>,
     {
-        use tokio::io::AsyncWriteExt;
-        use tokio::io::Stdout;
         static STDOUT: Mutex<Option<Stdout>> = Mutex::const_new(None);
         let mut stdout = STDOUT.lock().await;
         if stdout.is_none() {
             *stdout = Some(tokio::io::stdout());
         }
-        let a: usize = level.clone().into();
-        let b: usize = self.level.clone().into();
-        if a < b {
+        let x: usize = level.clone().into();
+        let y: usize = self.level.clone().into();
+        if x < y {
             return;
         }
-        let time: String = unsafe { (*self.time.load(Ordering::SeqCst)).clone() };
-        let message: &str = message.as_ref();
+        // let time: String = unsafe { (*self.time.load(Ordering::SeqCst)).clone() };
+        let time: String = unsafe {
+            self.time
+                .load(Ordering::SeqCst)
+                .as_ref()
+                .expect("iceyee_logger/lib.rs 553")
+                .clone()
+        };
+        let message: String = message.as_ref().replace("\n", "\n    ");
         match level {
             Level::Debug | Level::Info => {
-                let message: String = format!(
-                    "\n{} {} # {}\n",
-                    time,
-                    level.to_string(),
-                    message.replace("\n", "\n    ")
-                );
+                let message: String = format!("\n{} {} # {}\n", time, level.to_string(), message);
                 stdout
                     .as_mut()
-                    .unwrap()
+                    .expect("iceyee_logger/lib.rs 161")
                     .write_all(message.as_bytes())
                     .await
-                    .unwrap();
+                    .expect("iceyee_logger/lib.rs 729");
                 drop(stdout);
             }
             Level::Warn => {
-                let message: String = format!(
-                    "\n{} {} # {}\n",
-                    time,
-                    level.to_string(),
-                    message.replace("\n", "\n    ")
-                );
+                let message: String = format!("\n{} {} # {}\n", time, level.to_string(), message);
                 stdout
                     .as_mut()
-                    .unwrap()
+                    .expect("iceyee_logger/lib.rs 457")
                     .write_all(message.as_bytes())
                     .await
-                    .unwrap();
+                    .expect("iceyee_logger/lib.rs 545");
                 drop(stdout);
-                if self.warn_file.is_some() {
-                    self.warn_file
-                        .as_ref()
-                        .unwrap()
-                        .lock()
-                        .await
+                let mut warn_file = self.warn_file.lock().await;
+                if warn_file.is_some() {
+                    warn_file
+                        .as_mut()
+                        .expect("iceyee_logger/lib.rs 193")
                         .write_all(message.as_bytes())
                         .await
-                        .unwrap();
+                        .expect("iceyee_logger/lib.rs 601");
                 }
+                drop(warn_file);
             }
             Level::Error => {
-                let message: String = format!(
-                    "\n{} {} # \n    {}\n",
-                    time,
-                    level.to_string(),
-                    message.replace("\n", "\n    ")
-                );
+                let message: String =
+                    format!("\n{} {} # \n    {}\n", time, level.to_string(), message);
                 stdout
                     .as_mut()
-                    .unwrap()
+                    .expect("iceyee_logger/lib.rs 969")
                     .write_all(message.as_bytes())
                     .await
-                    .unwrap();
+                    .expect("iceyee_logger/lib.rs 497");
                 drop(stdout);
-                if self.error_file.is_some() {
-                    self.error_file
-                        .as_ref()
-                        .unwrap()
-                        .lock()
-                        .await
+                let mut error_file = self.error_file.lock().await;
+                if error_file.is_some() {
+                    error_file
+                        .as_mut()
+                        .expect("iceyee_logger/lib.rs 385")
                         .write_all(message.as_bytes())
                         .await
-                        .unwrap();
+                        .expect("iceyee_logger/lib.rs 833");
                 }
+                drop(error_file);
             }
         }
         return;
     }
 
-    /// Debug.
     pub async fn debug<S>(&self, message: S)
     where
         S: AsRef<str>,
@@ -368,7 +481,6 @@ impl Logger {
         return;
     }
 
-    /// Info.
     pub async fn info<S>(&self, message: S)
     where
         S: AsRef<str>,
@@ -377,7 +489,6 @@ impl Logger {
         return;
     }
 
-    /// Warn.
     pub async fn warn<S>(&self, message: S)
     where
         S: AsRef<str>,
@@ -386,7 +497,6 @@ impl Logger {
         return;
     }
 
-    /// Error.
     pub async fn error<S>(&self, message: S)
     where
         S: AsRef<str>,
@@ -400,16 +510,94 @@ impl Logger {
 
 #[allow(dead_code)]
 #[ctor::ctor]
-fn init() {
+fn init_global() {
     #[cfg(target_os = "linux")]
     unsafe {
-        DEFAULT = Some(std::env::var("HOME").unwrap() + "/.iceyee_log");
-        HOME = Some(std::env::var("HOME").unwrap());
+        DEFAULT_TARGET =
+            Some(std::env::var("HOME").expect("iceyee_logger/lib.rs 041") + "/.iceyee_log");
+        HOME = Some(std::env::var("HOME").expect("iceyee_logger/lib.rs 209"));
     }
     #[cfg(target_os = "windows")]
     unsafe {
-        DEFAULT = Some(std::env::var("USERPROFILE").unwrap() + "\\.iceyee_log");
-        HOME = Some(std::env::var("USERPROFILE").unwrap());
+        DEFAULT_TARGET =
+            Some(std::env::var("USERPROFILE").expect("iceyee_logger/lib.rs 537") + "\\.iceyee_log");
+        HOME = Some(std::env::var("USERPROFILE").expect("iceyee_logger/lib.rs 225"));
     }
     return;
+}
+
+/// 初始化, 建议在程序开始的时候使用.
+pub async fn init(level: Level, project_name: Option<&str>, target_directory: Option<&str>) {
+    *LOGGER.lock().await = Some(Logger::new(level, project_name, target_directory).await);
+    return;
+}
+
+// /// 刷新缓存, 建议在程序结束的时候使用.
+// pub async fn flush() {
+//     Logger::flush(
+//         LOGGER
+//             .lock()
+//             .await
+//             .as_ref()
+//             .expect("LOGGER未初始化")
+//             .clone(),
+//     )
+//     .await;
+//     return;
+// }
+
+/// Debug.
+pub async fn debug<S>(message: S)
+where
+    S: AsRef<str>,
+{
+    return LOGGER
+        .lock()
+        .await
+        .as_ref()
+        .expect("LOGGER未初始化")
+        .debug(message)
+        .await;
+}
+
+/// Info.
+pub async fn info<S>(message: S)
+where
+    S: AsRef<str>,
+{
+    return LOGGER
+        .lock()
+        .await
+        .as_ref()
+        .expect("LOGGER未初始化")
+        .info(message)
+        .await;
+}
+
+/// Warn.
+pub async fn warn<S>(message: S)
+where
+    S: AsRef<str>,
+{
+    return LOGGER
+        .lock()
+        .await
+        .as_ref()
+        .expect("LOGGER未初始化")
+        .warn(message)
+        .await;
+}
+
+/// Error.
+pub async fn error<S>(message: S)
+where
+    S: AsRef<str>,
+{
+    return LOGGER
+        .lock()
+        .await
+        .as_ref()
+        .expect("LOGGER未初始化")
+        .error(message)
+        .await;
 }
