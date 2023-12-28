@@ -102,7 +102,7 @@ pub struct Base64Encoder;
 
 impl Base64Encoder {
     /// 编码.
-    pub fn encode(input: &Vec<u8>) -> String {
+    pub fn encode(input: &[u8]) -> String {
         let input_length: usize = input.len();
         if input_length == 0 {
             return "".to_string();
@@ -273,7 +273,7 @@ pub struct HexEncoder;
 
 impl HexEncoder {
     /// 编码.
-    pub fn encode(input: &Vec<u8>) -> String {
+    pub fn encode(input: &[u8]) -> String {
         static TABLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
         ];
