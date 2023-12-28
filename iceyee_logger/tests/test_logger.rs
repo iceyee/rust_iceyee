@@ -34,6 +34,8 @@ pub async fn test_no_init() {
     iceyee_logger::info("hello world info.").await;
     iceyee_logger::warn("hello world warn.").await;
     iceyee_logger::error("hello world error.").await;
+    iceyee_logger::error_2("hello world error.", "second").await;
+    iceyee_logger::error_3("hello world error.", "second", "third").await;
     return;
 }
 

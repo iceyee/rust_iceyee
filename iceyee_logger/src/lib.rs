@@ -504,6 +504,27 @@ impl Logger {
         Self::print(self, message, Level::Error).await;
         return;
     }
+
+    pub async fn error_2<S1, S2>(&self, s1: S1, s2: S2)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+    {
+        let message: String = format!("{} {}", s1.as_ref(), s2.as_ref());
+        Self::print(self, message, Level::Error).await;
+        return;
+    }
+
+    pub async fn error_3<S1, S2, S3>(&self, s1: S1, s2: S2, s3: S3)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+        S3: AsRef<str>,
+    {
+        let message: String = format!("{} {} {}", s1.as_ref(), s2.as_ref(), s3.as_ref());
+        Self::print(self, message, Level::Error).await;
+        return;
+    }
 }
 
 // Function.
@@ -607,5 +628,40 @@ where
         .as_ref()
         .expect("iceyee_logger/lib.rs 137")
         .error(message)
+        .await;
+}
+
+/// Error.
+pub async fn error_2<S1, S2>(s1: S1, s2: S2)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 137")
+        .error_2(s1, s2)
+        .await;
+}
+
+/// Error.
+pub async fn error_3<S1, S2, S3>(s1: S1, s2: S2, s3: S3)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    S3: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 137")
+        .error_3(s1, s2, s3)
         .await;
 }
