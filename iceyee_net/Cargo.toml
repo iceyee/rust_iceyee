@@ -6,25 +6,22 @@
 #                                                   
 [package]
 name = "iceyee_net"
-version = "3.2.1"
+version = "4.0.0"
 edition = "2021"
 
 description = "Net Protocol."
 keywords = ["http", "httpclient", "httpserver"]
 license = "Apache-2.0"
-readme = "README.md"
 repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_net/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 async-compression = { version = "0.4", features = ["all"] }
-async-trait = "=0.1"
-iceyee_datetime = "3"
-iceyee_encoder = "3"
-iceyee_error = "3"
-iceyee_logger = "3"
-iceyee_random = "3"
+iceyee_encoder = "4"
+iceyee_logger = "4"
+iceyee_random = "4"
+iceyee_time = "4"
 native-tls = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

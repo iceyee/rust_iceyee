@@ -57,7 +57,7 @@ use tokio::io::AsyncReadExt;
 /// 502 Bad Gateway
 ///
 /// 503 Service Unavailable
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Status {
     OK(Option<String>),
     Created(String),
@@ -77,8 +77,8 @@ pub enum Status {
     UnkownStatusCode,
 }
 
-impl From<u64> for Status {
-    fn from(value: u64) -> Self {
+impl From<u16> for Status {
+    fn from(value: u16) -> Self {
         match value {
             200 => Self::OK(None),
             201 => Self::Created("".to_string()),
@@ -100,8 +100,8 @@ impl From<u64> for Status {
     }
 }
 
-impl Into<u64> for Status {
-    fn into(self) -> u64 {
+impl Into<u16> for Status {
+    fn into(self) -> u16 {
         return match self {
             Self::OK(_) => 200,
             Self::Created(_) => 201,
@@ -175,7 +175,7 @@ impl Status {
 // Struct.
 
 /// Url参数.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Args {
     hm: HashMap<String, Vec<String>>,
     empty_vec: Vec<String>,
@@ -206,13 +206,6 @@ impl ToString for Args {
 }
 
 impl Args {
-    pub fn new() -> Args {
-        return Args {
-            hm: HashMap::new(),
-            empty_vec: Vec::new(),
-        };
-    }
-
     pub fn add(&mut self, key: &str, value: &str) {
         if !self.hm.contains_key(key) {
             self.hm.insert(key.to_string(), Vec::new());
@@ -236,7 +229,7 @@ impl Args {
     pub fn parse(s: &str) -> Args {
         use iceyee_encoder::UrlEncoder;
 
-        let mut args: Args = Args::new();
+        let mut args: Args = Args::default();
         for x in s.split(['?', '&']) {
             if !x.contains('=') {
                 continue;
@@ -303,7 +296,7 @@ impl StdError for UrlError {}
 /// 统一资源定位器, Uniform Resource Locator.
 ///
 /// http_URL = "http:" "//" host \[ ":" port \] \[ abs_path \]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Url {
     pub protocol: String,
     pub host: String,
@@ -679,11 +672,8 @@ impl Buffer {
 /// \[body\]
 #[derive(Clone, Debug)]
 pub struct Request {
-    pub use_ssl: bool,
     pub method: String,
     pub version: String,
-    pub host: String,
-    pub port: u16,
     pub path: String,
     pub query: Args,
     pub fragment: Option<String>,
@@ -691,17 +681,14 @@ pub struct Request {
     pub body: Vec<u8>,
 }
 
-impl Request {
-    pub fn new() -> Self {
-        return Self {
-            use_ssl: false,
+impl std::default::Default for Request {
+    fn default() -> Self {
+        return Request {
             method: "GET".to_string(),
-            version: "HTTP/1.1".to_string(),
-            host: "localhost".to_string(),
-            port: 80,
             path: "/".to_string(),
-            query: Args::new(),
+            query: Args::default(),
             fragment: None,
+            version: "HTTP/1.1".to_string(),
             header: HashMap::new(),
             body: Vec::new(),
         };
@@ -738,7 +725,9 @@ impl ToString for Request {
 
 impl Request {
     /// 解析数据.
-    pub async fn read_from<R>(mut input: R) -> Result<Request, StdIoError>
+    ///
+    /// - @param timeout 超时, 可选, 默认1分钟.
+    pub async fn read_from<R>(mut input: R, timeout: Option<usize>) -> Result<Request, StdIoError>
     where
         R: AsyncRead + Unpin,
     {
@@ -753,26 +742,32 @@ impl Request {
             BodySpace,
             Body,
         }
-        let mut request: Request = Request::new();
+        let mut request: Request = Request::default();
         let mut state: State = State::MethodSpace;
         let mut buffer: Buffer = Buffer::new();
         let mut bytes: Vec<u8> = Vec::new();
         let mut needed: usize = 1;
+        let timeout: usize = timeout.unwrap_or(60_000);
         'A: while 0 < needed {
             while needed <= 0xFFF && buffer.length < needed
                 || 0xFFF <= needed && buffer.length < 0xFFF
             {
                 let mut buf: [u8; 0xFFF] = [0; 0xFFF];
-                let length: usize =
-                    match tokio::time::timeout(Duration::from_millis(60_000), input.read(&mut buf))
-                        .await
-                    {
-                        Ok(length) => length?,
-                        Err(_) => {
-                            Err(StdIoError::new(StdIoErrorKind::TimedOut, "Request读超时."))?;
-                            0
-                        }
-                    };
+                let length: usize = match tokio::time::timeout(
+                    Duration::from_millis(timeout as u64),
+                    input.read(&mut buf),
+                )
+                .await
+                {
+                    Ok(length) => length?,
+                    Err(_) => {
+                        Err(StdIoError::new(StdIoErrorKind::TimedOut, ""))?;
+                        0
+                    }
+                };
+                if length == 0 {
+                    Err(StdIoError::new(StdIoErrorKind::UnexpectedEof, ""))?;
+                }
                 buffer.extend(&buf, length);
             }
             let mut x: usize = 0;
@@ -980,15 +975,15 @@ impl Request {
 #[derive(Clone, Debug)]
 pub struct Response {
     pub version: String,
-    pub status_code: u64,
+    pub status_code: u16,
     pub status: String,
     pub header: HashMap<String, Vec<String>>,
     pub body: Vec<u8>,
 }
 
-impl Response {
-    pub fn new() -> Self {
-        return Self {
+impl std::default::Default for Response {
+    fn default() -> Self {
+        return Response {
             version: "HTTP/1.1".to_string(),
             status_code: 200,
             status: "OK".to_string(),
@@ -1024,7 +1019,9 @@ impl ToString for Response {
 
 impl Response {
     /// 解析数据.
-    pub async fn read_from<R>(mut input: R) -> Result<Response, StdIoError>
+    ///
+    /// - @param timeout 超时, 可选, 默认1分钟.
+    pub async fn read_from<R>(mut input: R, timeout: Option<usize>) -> Result<Response, StdIoError>
     where
         R: AsyncRead + Unpin,
     {
@@ -1043,26 +1040,32 @@ impl Response {
             ChunkSpace,
             ChunkEnd,
         }
-        let mut response: Response = Response::new();
+        let mut response: Response = Response::default();
         let mut state: State = State::VersionSpace;
         let mut buffer: Buffer = Buffer::new();
         let mut bytes: Vec<u8> = Vec::new();
         let mut needed: usize = 1;
+        let timeout: usize = timeout.unwrap_or(60_000);
         'A: loop {
             while needed <= 0xFFF && buffer.length < needed
                 || 0xFFF <= needed && buffer.length < 0xFFF
             {
                 let mut buf: [u8; 0xFFF] = [0; 0xFFF];
-                let length: usize =
-                    match tokio::time::timeout(Duration::from_millis(60_000), input.read(&mut buf))
-                        .await
-                    {
-                        Ok(length) => length?,
-                        Err(_) => {
-                            Err(StdIoError::new(StdIoErrorKind::TimedOut, "tcp读超时."))?;
-                            0
-                        }
-                    };
+                let length: usize = match tokio::time::timeout(
+                    Duration::from_millis(timeout as u64),
+                    input.read(&mut buf),
+                )
+                .await
+                {
+                    Ok(length) => length?,
+                    Err(_) => {
+                        Err(StdIoError::new(StdIoErrorKind::TimedOut, ""))?;
+                        0
+                    }
+                };
+                if length == 0 {
+                    Err(StdIoError::new(StdIoErrorKind::UnexpectedEof, ""))?;
+                }
                 buffer.extend(&buf, length);
             }
             let mut x: usize = 0;
@@ -1115,7 +1118,7 @@ impl Response {
                                         "String::from_utf8().",
                                     )
                                 })?
-                                .parse::<u64>()
+                                .parse::<u16>()
                                 .map_err(|_| {
                                     StdIoError::new(
                                         std::io::ErrorKind::InvalidData,

@@ -13,8 +13,11 @@ use crate::http::server::Context;
 use crate::http::server::Filter;
 use crate::http::server::R;
 use crate::http::Status;
+use iceyee_encoder::Base64Encoder;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::future::Future;
+use std::pin::Pin;
 
 // Enum.
 
@@ -52,40 +55,47 @@ impl FilterHost {
     }
 }
 
-#[async_trait::async_trait]
 impl Filter for FilterHost {
-    async fn do_filter(&self, context: &mut Context) -> Result<bool, String> {
-        // 如果有端口, 则截掉端口部分.
-        let host: Option<String> = context.request.header.get("Host").map(|host| {
-            if host.contains(":") {
-                host.splitn(2, ":").next().unwrap().to_string()
-            } else {
-                host.to_string()
-            }
-        });
-        let auth: bool = match host {
-            Some(host) => {
-                if self.full_hosts.contains(&host) {
-                    // 如果全匹配.
-                    return Ok(true);
-                } else if !host.contains(".") {
-                    // 如果没有二级域名.
-                    false
+    fn do_filter<'a, 'b>(
+        &'a self,
+        context: &'b mut Context,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, String>> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async move {
+            // 如果有端口, 则截掉端口部分.
+            let host: Option<String> = context.request.header.get("Host").map(|host| {
+                if host.contains(":") {
+                    host.splitn(2, ":").next().unwrap().to_string()
                 } else {
-                    // 如果有二级域名 | 截掉前面的二级域名, 然后匹配.
-                    let a001 = host.clone();
-                    let mut a001 = a001.splitn(2, ".");
-                    a001.next();
-                    let a002 = ".".to_string() + a001.next().unwrap();
-                    self.usual_hosts.contains(&a002)
+                    host.to_string()
                 }
+            });
+            let auth: bool = match host {
+                Some(host) => {
+                    if self.full_hosts.contains(&host) {
+                        // 如果全匹配.
+                        return Ok(true);
+                    } else if !host.contains(".") {
+                        // 如果没有二级域名.
+                        false
+                    } else {
+                        // 如果有二级域名 | 截掉前面的二级域名, 然后匹配.
+                        let a001 = host.clone();
+                        let mut a001 = a001.splitn(2, ".");
+                        a001.next();
+                        let a002 = ".".to_string() + a001.next().unwrap();
+                        self.usual_hosts.contains(&a002)
+                    }
+                }
+                None => false,
+            };
+            if !auth {
+                R::write_status(&mut context.response, Status::Forbidden(None));
             }
-            None => false,
-        };
-        if !auth {
-            R::write_status(&mut context.response, Status::Forbidden(None));
-        }
-        return Ok(auth);
+            return Ok(auth);
+        });
     }
 }
 
@@ -159,86 +169,105 @@ impl FileRouter {
     }
 }
 
-#[async_trait::async_trait]
 impl Filter for FileRouter {
-    async fn rule(&self, context: &mut Context) -> bool {
-        let path: String = if context.request.path == "/" {
-            self.root.clone() + "/index.html"
-        } else {
-            self.root.clone() + &context.request.path
-        };
-        match tokio::fs::metadata(&path).await {
-            Ok(_) => {
-                return true;
-            }
-            Err(_) => {
-                R::write_status(&mut context.response, Status::NotFound(None));
-                return false;
-            }
-        }
-    }
-
-    async fn do_filter(&self, context: &mut Context) -> Result<bool, String> {
-        let mut path: String = if context.request.path == "/" {
-            self.root.clone() + "/index.html"
-        } else {
-            self.root.clone() + &context.request.path
-        };
-        if path.contains("..") {
-            R::write_status(
-                &mut context.response,
-                Status::Forbidden(Some("禁止访问上级目录".to_string())),
-            );
-            return Ok(true);
-        }
-        let metadata = tokio::fs::metadata(&path)
-            .await
-            .map_err(|e| e.to_string())?;
-        if metadata.is_symlink() {
-            path = tokio::fs::read_link(&path)
-                .await
-                .map_err(|e| e.to_string())?
-                .to_str()
-                .unwrap()
-                .to_string();
-        }
-        if metadata.is_dir() {
-            R::write_status(
-                &mut context.response,
-                Status::BadRequest(Some("目标路径是个目录".to_string())),
-            );
-        } else {
-            context.response.status_code = 200;
-            context.response.status = "OK".to_string();
-            context.response.body = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
-            let suffix: String = match path.rfind(".") {
-                Some(index) => path.clone().split_off(index),
-                None => "".to_string(),
+    fn rule<'a, 'b>(
+        &'a self,
+        context: &'b mut Context,
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async move {
+            let path: String = if context.request.path == "/" {
+                self.root.clone() + "/index.html"
+            } else {
+                self.root.clone() + &context.request.path
             };
-            context.response.header.insert(
-                "Content-Type".to_string(),
-                vec![self.map_suffix_to_type(&suffix)],
-            );
-        }
-        return Ok(true);
+            match tokio::fs::metadata(&path).await {
+                Ok(_) => {
+                    return true;
+                }
+                Err(_) => {
+                    R::write_status(&mut context.response, Status::NotFound(None));
+                    return false;
+                }
+            }
+        });
     }
 
-    async fn on_error(&self, context: &mut Context) -> bool {
-        let body: String = context.e_message.as_ref().unwrap().clone();
-        R::write_status(
-            &mut context.response,
-            Status::InternalServerError(Some(body)),
-        );
-        context
-            .logger
-            .error(context.e_message.as_ref().unwrap())
-            .await;
-        return true;
+    fn do_filter<'a, 'b>(
+        &'a self,
+        context: &'b mut Context,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, String>> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async move {
+            let mut path: String = if context.request.path == "/" {
+                self.root.clone() + "/index.html"
+            } else {
+                self.root.clone() + &context.request.path
+            };
+            if path.contains("..") {
+                R::write_status(
+                    &mut context.response,
+                    Status::Forbidden(Some("禁止访问上级目录".to_string())),
+                );
+                return Ok(true);
+            }
+            let metadata = tokio::fs::metadata(&path)
+                .await
+                .map_err(|e| e.to_string())?;
+            if metadata.is_symlink() {
+                path = tokio::fs::read_link(&path)
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+            }
+            if metadata.is_dir() {
+                R::write_status(
+                    &mut context.response,
+                    Status::BadRequest(Some("目标路径是个目录".to_string())),
+                );
+            } else {
+                context.response.status_code = 200;
+                context.response.status = "OK".to_string();
+                context.response.body = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
+                let suffix: String = match path.rfind(".") {
+                    Some(index) => path.clone().split_off(index),
+                    None => "".to_string(),
+                };
+                context.response.header.insert(
+                    "Content-Type".to_string(),
+                    vec![self.map_suffix_to_type(&suffix)],
+                );
+            }
+            return Ok(true);
+        });
+    }
+
+    fn on_error<'a, 'b>(
+        &'a self,
+        context: &'b mut Context,
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async {
+            let body: String = context.e_message.as_ref().unwrap().clone();
+            R::write_status(
+                &mut context.response,
+                Status::InternalServerError(Some(body.clone())),
+            );
+            iceyee_logger::error_2(context.id.to_string(), body.clone()).await;
+            return true;
+        });
     }
 }
 
 /// 简单的用户认证.
-#[derive(Clone, Debug)]
 pub struct FilterBasicAuth {
     auth_string_s: HashSet<String>,
 }
@@ -252,52 +281,64 @@ impl FilterBasicAuth {
     }
 
     pub fn add(mut self, user: &str, password: &str) -> Self {
-        use iceyee_encoder::Base64Encoder;
-
         let auth: String = user.to_string() + ":" + password;
-        let auth: String = Base64Encoder::encode(auth.as_bytes().to_vec());
+        let auth: String = Base64Encoder::encode(auth.as_bytes());
         self.auth_string_s.insert(auth);
         return self;
     }
 }
 
-#[async_trait::async_trait]
 impl Filter for FilterBasicAuth {
-    async fn rule(&self, context: &mut Context) -> bool {
-        if context.request.path == "/favicon.ico" {
-            return false;
-        } else {
-            return true;
-        }
+    fn rule<'a, 'b>(
+        &'a self,
+        context: &'b mut Context,
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async {
+            if context.request.path == "/favicon.ico" {
+                return false;
+            } else {
+                return true;
+            }
+        });
     }
 
-    async fn do_filter(&self, context: &mut Context) -> Result<bool, String> {
-        // Authorization
-        let auth: String = match context.request.header.get("Authorization") {
-            Some(auth) => {
-                if !auth.starts_with("Basic ") {
-                    "".to_string()
-                } else {
-                    auth.to_string().split_off(6)
+    fn do_filter<'a, 'b>(
+        &'a self,
+        context: &'b mut Context,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, String>> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async {
+            // Authorization
+            let auth: String = match context.request.header.get("Authorization") {
+                Some(auth) => {
+                    if !auth.starts_with("Basic ") {
+                        "".to_string()
+                    } else {
+                        auth.to_string().split_off(6)
+                    }
                 }
+                None => "".to_string(),
+            };
+            if self.auth_string_s.contains(&auth) {
+                return Ok(true);
+            } else {
+                R::write_status(&mut context.response, Status::Unauthorized(None));
+                context.response.header.insert(
+                    "WWW-Authenticate".to_string(),
+                    vec!["Basic realm=\"Realm\"".to_string()],
+                );
+                return Ok(false);
             }
-            None => "".to_string(),
-        };
-        if self.auth_string_s.contains(&auth) {
-            return Ok(true);
-        } else {
-            R::write_status(&mut context.response, Status::Unauthorized(None));
-            context.response.header.insert(
-                "WWW-Authenticate".to_string(),
-                vec!["Basic realm=\"Realm\"".to_string()],
-            );
-            return Ok(false);
-        }
+        });
     }
 }
 
 /// CORS.
-#[derive(Clone, Debug)]
 pub struct FilterCORS {
     allow_origin: Option<String>,
     allow_methods: Option<String>,
@@ -329,27 +370,34 @@ impl FilterCORS {
     }
 }
 
-#[async_trait::async_trait]
 impl Filter for FilterCORS {
-    async fn do_filter(&self, context: &mut Context) -> Result<bool, String> {
-        if self.allow_origin.is_some() {
-            context.response.header.insert(
-                "Access-Control-Allow-Origin".to_string(),
-                vec![self.allow_origin.as_ref().unwrap().clone()],
-            );
-        }
-        if self.allow_methods.is_some() {
-            context.response.header.insert(
-                "Access-Control-Allow-Methods".to_string(),
-                vec![self.allow_methods.as_ref().unwrap().clone()],
-            );
-        }
-        if self.allow_headers.is_some() {
-            context.response.header.insert(
-                "Access-Control-Allow-Headers".to_string(),
-                vec![self.allow_headers.as_ref().unwrap().clone()],
-            );
-        }
-        return Ok(true);
+    fn do_filter<'a, 'b>(
+        &'a self,
+        context: &'b mut Context,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, String>> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async {
+            if self.allow_origin.is_some() {
+                context.response.header.insert(
+                    "Access-Control-Allow-Origin".to_string(),
+                    vec![self.allow_origin.as_ref().unwrap().clone()],
+                );
+            }
+            if self.allow_methods.is_some() {
+                context.response.header.insert(
+                    "Access-Control-Allow-Methods".to_string(),
+                    vec![self.allow_methods.as_ref().unwrap().clone()],
+                );
+            }
+            if self.allow_headers.is_some() {
+                context.response.header.insert(
+                    "Access-Control-Allow-Headers".to_string(),
+                    vec![self.allow_headers.as_ref().unwrap().clone()],
+                );
+            }
+            return Ok(true);
+        });
     }
 }
