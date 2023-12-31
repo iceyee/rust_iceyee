@@ -21,7 +21,7 @@ use iceyee_encoder::UrlError;
 pub fn test_url_encoder() {
     println!("");
     println!("Url编码.");
-    let table = [(" 1_1 ", "+1%5F1+")];
+    let table = [(" 1_1 ", "+1_1+")];
     println!("测试encode功能.");
     for (x, y) in table {
         println!("{x} <encode> {y}");

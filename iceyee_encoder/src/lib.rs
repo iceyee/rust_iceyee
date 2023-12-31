@@ -409,8 +409,7 @@ impl UrlEncoder {
         for x in input {
             if *x == b' ' {
                 output.push('+');
-            // } else if x.is_ascii_alphanumeric() || "$-_.".contains(*x as char) {
-            } else if x.is_ascii_alphanumeric() {
+            } else if x.is_ascii_alphanumeric() || "$-_.".contains(*x as char) {
                 output.push(*x as char);
             } else {
                 let high: u8 = (*x >> 4) & 0x0F;
