@@ -114,7 +114,7 @@ impl Base64Encoder {
             _ => panic!(""),
         };
         const TABLE: &[u8] =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-".as_bytes();
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".as_bytes();
         let mut output: Vec<u8> = Vec::with_capacity(input_length * 2 + 1);
         let m: usize = valid_length / 4;
         for x in 0..m {
