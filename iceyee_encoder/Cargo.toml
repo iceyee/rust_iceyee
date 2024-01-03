@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_encoder"
-version = "4.1.2"
+version = "4.1.3"
 edition = "2021"
 
 description = "Base64Encoder, HexEncoder, UrlEncoder."

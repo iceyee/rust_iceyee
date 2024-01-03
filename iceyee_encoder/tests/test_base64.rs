@@ -41,6 +41,7 @@ pub fn test_base64_encoder() {
         );
     }
     println!("测试异常输入.");
+    Base64Encoder::decode("/234").expect("test_base64.rs 033");
     assert_eq!(
         Base64Encoder::decode("12345"),
         Err(Base64Error::InvalidLength(5)),
