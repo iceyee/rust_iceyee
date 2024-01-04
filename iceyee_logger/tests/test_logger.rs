@@ -26,13 +26,19 @@ pub async fn init_test() {
     return;
 }
 
-// #[tokio::test]
+#[tokio::test]
 pub async fn test_no_init() {
     println!("");
     println!("测试不初始化logger.");
     iceyee_logger::debug("hello world.").await;
+    iceyee_logger::debug_2("hello world debug.", "second").await;
+    iceyee_logger::debug_3("hello world debug.", "second", "third").await;
     iceyee_logger::info("hello world info.").await;
+    iceyee_logger::info_2("hello world info.", "second").await;
+    iceyee_logger::info_3("hello world info.", "second", "third").await;
     iceyee_logger::warn("hello world warn.").await;
+    iceyee_logger::warn_2("hello world warn.", "second").await;
+    iceyee_logger::warn_3("hello world warn.", "second", "third").await;
     iceyee_logger::error("hello world error.").await;
     iceyee_logger::error_2("hello world error.", "second").await;
     iceyee_logger::error_3("hello world error.", "second", "third").await;

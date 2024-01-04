@@ -481,6 +481,27 @@ impl Logger {
         return;
     }
 
+    pub async fn debug_2<S1, S2>(&self, s1: S1, s2: S2)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+    {
+        let message: String = format!("{} {}", s1.as_ref(), s2.as_ref());
+        Self::print(self, message, Level::Debug).await;
+        return;
+    }
+
+    pub async fn debug_3<S1, S2, S3>(&self, s1: S1, s2: S2, s3: S3)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+        S3: AsRef<str>,
+    {
+        let message: String = format!("{} {} {}", s1.as_ref(), s2.as_ref(), s3.as_ref());
+        Self::print(self, message, Level::Debug).await;
+        return;
+    }
+
     pub async fn info<S>(&self, message: S)
     where
         S: AsRef<str>,
@@ -489,10 +510,52 @@ impl Logger {
         return;
     }
 
+    pub async fn info_2<S1, S2>(&self, s1: S1, s2: S2)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+    {
+        let message: String = format!("{} {}", s1.as_ref(), s2.as_ref());
+        Self::print(self, message, Level::Info).await;
+        return;
+    }
+
+    pub async fn info_3<S1, S2, S3>(&self, s1: S1, s2: S2, s3: S3)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+        S3: AsRef<str>,
+    {
+        let message: String = format!("{} {} {}", s1.as_ref(), s2.as_ref(), s3.as_ref());
+        Self::print(self, message, Level::Info).await;
+        return;
+    }
+
     pub async fn warn<S>(&self, message: S)
     where
         S: AsRef<str>,
     {
+        Self::print(self, message, Level::Warn).await;
+        return;
+    }
+
+    pub async fn warn_2<S1, S2>(&self, s1: S1, s2: S2)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+    {
+        let message: String = format!("{} {}", s1.as_ref(), s2.as_ref());
+        Self::print(self, message, Level::Warn).await;
+        return;
+    }
+
+    pub async fn warn_3<S1, S2, S3>(&self, s1: S1, s2: S2, s3: S3)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+        S3: AsRef<str>,
+    {
+        let message: String = format!("{} {} {}", s1.as_ref(), s2.as_ref(), s3.as_ref());
         Self::print(self, message, Level::Warn).await;
         return;
     }
@@ -583,6 +646,41 @@ where
         .await;
 }
 
+/// Debug.
+pub async fn debug_2<S1, S2>(s1: S1, s2: S2)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 137")
+        .debug_2(s1, s2)
+        .await;
+}
+
+/// Debug.
+pub async fn debug_3<S1, S2, S3>(s1: S1, s2: S2, s3: S3)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    S3: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 137")
+        .debug_3(s1, s2, s3)
+        .await;
+}
+
 /// Info.
 pub async fn info<S>(message: S)
 where
@@ -599,6 +697,41 @@ where
         .await;
 }
 
+/// Info.
+pub async fn info_2<S1, S2>(s1: S1, s2: S2)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 137")
+        .info_2(s1, s2)
+        .await;
+}
+
+/// Info.
+pub async fn info_3<S1, S2, S3>(s1: S1, s2: S2, s3: S3)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    S3: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 137")
+        .info_3(s1, s2, s3)
+        .await;
+}
+
 /// Warn.
 pub async fn warn<S>(message: S)
 where
@@ -612,6 +745,41 @@ where
         .as_ref()
         .expect("iceyee_logger/lib.rs 809")
         .warn(message)
+        .await;
+}
+
+/// Warn.
+pub async fn warn_2<S1, S2>(s1: S1, s2: S2)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 137")
+        .warn_2(s1, s2)
+        .await;
+}
+
+/// Warn.
+pub async fn warn_3<S1, S2, S3>(s1: S1, s2: S2, s3: S3)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    S3: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 137")
+        .warn_3(s1, s2, s3)
         .await;
 }
 
