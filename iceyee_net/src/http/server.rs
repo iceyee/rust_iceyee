@@ -234,7 +234,7 @@ pub trait Work: Send + Sync {
     /// {
     ///     return Box::pin(async {
     ///         println!("hello world.");
-    ///         return;
+    ///         return Ok(());
     ///     });
     /// }
     /// ```

@@ -57,13 +57,23 @@ pub trait Proxy: AsyncRead + AsyncWrite + Send + Sync + Unpin {
     /// 是否已关闭.
     fn is_closed(&self) -> bool;
 
-    /// 将自己打包.
-    fn wrap(self) -> Arc<TokioMutex<Box<dyn Proxy>>>
+    /// 封装代理.
+    fn wrap(self) -> WrapProxy
     where
         Self: Sized + 'static,
     {
-        return Arc::new(TokioMutex::new(Box::new(self)));
+        return WrapProxy {
+            proxy: Arc::new(TokioMutex::new(Box::new(self))),
+        };
     }
+
+    // /// 将自己打包.
+    // fn wrap(self) -> Arc<TokioMutex<Box<dyn Proxy>>>
+    // where
+    //     Self: Sized + 'static,
+    // {
+    //     return Arc::new(TokioMutex::new(Box::new(self)));
+    // }
 }
 
 // Struct.
@@ -80,7 +90,7 @@ pub struct ProxyInformation {
 }
 
 impl ProxyInformation {
-    pub fn to_proxy(&self) -> Arc<TokioMutex<Box<dyn Proxy>>>
+    pub fn to_proxy(&self) -> WrapProxy
     where
         Self: Sized + 'static,
     {
@@ -94,6 +104,23 @@ impl ProxyInformation {
             "SOCKS5" => Socks5Proxy::new(&self.host, self.port, auth).wrap(),
             "NO" | _ => NoProxy::new().wrap(),
         };
+    }
+}
+
+/// 封装代理.
+#[derive(Clone)]
+pub struct WrapProxy {
+    pub proxy: Arc<TokioMutex<Box<dyn Proxy>>>,
+}
+
+impl Drop for WrapProxy {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.proxy) == 1 {
+            let proxy = self.proxy.clone();
+            tokio::task::spawn(async move {
+                proxy.lock().await.close().await;
+            });
+        }
     }
 }
 
@@ -994,10 +1021,7 @@ impl HttpClient {
         return Ok(response);
     }
 
-    pub async fn send(
-        mut self,
-        mut proxy: Option<Arc<TokioMutex<Box<dyn Proxy>>>>,
-    ) -> Result<Response, StdIoError> {
+    pub async fn send(mut self, mut proxy: Option<WrapProxy>) -> Result<Response, StdIoError> {
         self.log.lock().await.push_str("\r\n---- Start ----\r\n");
         if self.url.is_none() {
             Err(StdIoError::new(StdIoErrorKind::Other, "未设置url."))?;
@@ -1007,7 +1031,7 @@ impl HttpClient {
         }
         let stamp: i64 = iceyee_time::now();
         let proxy = proxy.unwrap();
-        let mut proxy = proxy.lock().await;
+        let mut proxy = proxy.proxy.lock().await;
         let r = match self.send_001(&mut proxy).await {
             Ok(response) => Ok(response),
             Err(e) => {
