@@ -761,12 +761,15 @@ impl Request {
                 {
                     Ok(length) => length?,
                     Err(_) => {
-                        Err(StdIoError::new(StdIoErrorKind::TimedOut, ""))?;
+                        Err(StdIoError::new(StdIoErrorKind::TimedOut, "TimedOut"))?;
                         0
                     }
                 };
                 if length == 0 {
-                    Err(StdIoError::new(StdIoErrorKind::UnexpectedEof, ""))?;
+                    Err(StdIoError::new(
+                        StdIoErrorKind::UnexpectedEof,
+                        "UnexpectedEof",
+                    ))?;
                 }
                 buffer.extend(&buf, length);
             }
@@ -1059,12 +1062,15 @@ impl Response {
                 {
                     Ok(length) => length?,
                     Err(_) => {
-                        Err(StdIoError::new(StdIoErrorKind::TimedOut, ""))?;
+                        Err(StdIoError::new(StdIoErrorKind::TimedOut, "TimedOut"))?;
                         0
                     }
                 };
                 if length == 0 {
-                    Err(StdIoError::new(StdIoErrorKind::UnexpectedEof, ""))?;
+                    Err(StdIoError::new(
+                        StdIoErrorKind::UnexpectedEof,
+                        "UnexpectedEof",
+                    ))?;
                 }
                 buffer.extend(&buf, length);
             }
