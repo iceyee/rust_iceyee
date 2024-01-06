@@ -1060,6 +1060,24 @@ impl HttpClient {
         }
         return r;
     }
+
+    /// 等效于如下代码.
+    /// ```
+    /// HttpClient::new()
+    ///     .set_verbose(false)
+    ///     .set_url::<&str>(url)
+    ///     .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?
+    ///     .send(None)
+    ///     .await;
+    /// ```
+    pub async fn get(url: &str) -> Result<Response, StdIoError> {
+        return HttpClient::new()
+            .set_verbose(false)
+            .set_url::<&str>(url)
+            .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?
+            .send(None)
+            .await;
+    }
 }
 
 // Function.

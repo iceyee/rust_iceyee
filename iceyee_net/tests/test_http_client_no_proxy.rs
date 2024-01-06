@@ -35,6 +35,11 @@ pub async fn test_httpclient_no_proxy() {
         .send(None)
         .await
         .expect("test_http_client_no_proxy.rs 321");
+    // let response = HttpClient::get(url)
+    //     .await
+    //     .expect("test_http_client_no_proxy.rs 137");
+    // let body = String::from_utf8(response.body.clone()).expect("test_http_client_no_proxy.rs 377");
+    // println!("{body}");
 }
 
 // #[tokio::test]
