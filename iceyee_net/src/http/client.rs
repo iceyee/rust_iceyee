@@ -1075,6 +1075,7 @@ impl HttpClient {
             .set_verbose(false)
             .set_url::<&str>(url)
             .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?
+            .set_header("Connection", "close")
             .send(None)
             .await;
     }
