@@ -36,8 +36,8 @@ pub async fn test_timer_drop() {
     println!("定时2, 初始延迟1秒, 间隔1秒, schedule_execute_after");
     println!("主线等5秒.");
     println!("当前时间戳{}", iceyee_time::now_seconds());
-    timer.schedule_execute_before(1_000, 1_000, |_| Executor(1).execute());
-    timer.schedule_execute_after(1_000, 1_000, |_| Executor(2).execute());
+    timer.schedule_execute_before(1_000, 1_000, |_| Box::pin(Executor(1).execute()));
+    timer.schedule_execute_after(1_000, 1_000, |_| Box::pin(Executor(2).execute()));
     iceyee_time::sleep(5_000).await;
     println!("主线等待结束");
     {
@@ -84,8 +84,8 @@ pub async fn test_timer_restart() {
     println!("定时2, 初始延迟1秒, 间隔1秒, schedule_execute_after");
     println!("主线等5秒.");
     println!("当前时间戳{}", iceyee_time::now_seconds());
-    timer.schedule_execute_before(1_000, 1_000, |_| Executor(1).execute());
-    timer.schedule_execute_after(1_000, 1_000, |_| Executor(2).execute());
+    timer.schedule_execute_before(1_000, 1_000, |_| Box::pin(Executor(1).execute()));
+    timer.schedule_execute_after(1_000, 1_000, |_| Box::pin(Executor(2).execute()));
     iceyee_time::sleep(5_000).await;
     println!("主线等待结束");
     println!("主动stop.");
@@ -98,8 +98,8 @@ pub async fn test_timer_restart() {
     println!("定时2, 初始延迟1秒, 间隔1秒, schedule_execute_after");
     println!("主线等5秒.");
     println!("当前时间戳{}", iceyee_time::now_seconds());
-    timer.schedule_execute_before(1_000, 1_000, |_| Executor(1).execute());
-    timer.schedule_execute_after(1_000, 1_000, |_| Executor(2).execute());
+    timer.schedule_execute_before(1_000, 1_000, |_| Box::pin(Executor(1).execute()));
+    timer.schedule_execute_after(1_000, 1_000, |_| Box::pin(Executor(2).execute()));
     iceyee_time::sleep(5_000).await;
     println!("主线等待结束");
     println!("不调用stop, 而是直接drop.");
@@ -119,7 +119,7 @@ pub async fn test_timer_pattern() {
     println!("定时1, * * * * * *");
     println!("主线等5秒.");
     println!("当前时间戳{}", iceyee_time::now_seconds());
-    timer.schedule_pattern("* * * * * *", |_| Executor(1).execute());
+    timer.schedule_pattern("* * * * * *", |_| Box::pin(Executor(1).execute()));
     iceyee_time::sleep(5_000).await;
     println!("主线等待结束");
     println!("不调用stop, 而是直接drop.");

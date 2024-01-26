@@ -9,6 +9,7 @@
 use std::cmp::Ordering as CmpOrdering;
 use std::cmp::PartialOrd;
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
@@ -470,11 +471,9 @@ impl Timer {
     ///
     /// - @param pattern "秒 分 时 日 月 周几", "second minute hour day month weekday", 可以参考linux的crontab.
     /// - @param f 任务, 参数是stop标志, 表示是否已经发出停止的信号.
-    pub fn schedule_pattern<'a, 'b, F1, F2>(&'a self, pattern: &str, mut f: F1) -> bool
+    pub fn schedule_pattern<F>(&self, pattern: &str, mut f: F) -> bool
     where
-        F1: FnMut(Arc<AtomicBool>) -> F2 + Send + 'static,
-        F2: Future<Output = ()> + Send + 'b,
-        'a: 'b,
+        F: FnMut(Arc<AtomicBool>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + 'static,
     {
         // 1 解析.
         // 在'*'可能有'/', 即SLASH.
@@ -670,11 +669,9 @@ impl Timer {
     /// - @param delay 初始延迟, 单位:毫秒.
     /// - @param period 每轮任务的时间间隔, 单位:毫秒.
     /// - @param f 任务, 参数是stop标志, 表示是否已经发出停止的信号.
-    pub fn schedule_execute_before<'a, 'b, F1, F2>(&'a self, delay: usize, period: usize, mut f: F1)
+    pub fn schedule_execute_before<F>(&self, delay: usize, period: usize, mut f: F)
     where
-        F1: FnMut(Arc<AtomicBool>) -> F2 + Send + 'static,
-        F2: Future<Output = ()> + Send + 'b,
-        'a: 'b,
+        F: FnMut(Arc<AtomicBool>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + 'static,
     {
         let task_number_clone = self.task_number.clone();
         let stop_flag_clone: Arc<AtomicBool> = self.stop_flag.clone();
@@ -710,11 +707,9 @@ impl Timer {
     /// - @param delay 初始延迟, 单位:毫秒.
     /// - @param period 每轮任务的时间间隔, 单位:毫秒.
     /// - @param f 任务, 参数是stop标志, 表示是否已经发出停止的信号.
-    pub fn schedule_execute_after<'a, 'b, F1, F2>(&'a self, delay: usize, period: usize, mut f: F1)
+    pub fn schedule_execute_after<F>(&self, delay: usize, period: usize, mut f: F)
     where
-        F1: FnMut(Arc<AtomicBool>) -> F2 + Send + 'static,
-        F2: Future<Output = ()> + Send + 'b,
-        'a: 'b,
+        F: FnMut(Arc<AtomicBool>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + 'static,
     {
         let task_number_clone = self.task_number.clone();
         let stop_flag_clone: Arc<AtomicBool> = self.stop_flag.clone();
