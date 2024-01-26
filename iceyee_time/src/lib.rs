@@ -470,10 +470,11 @@ impl Timer {
     ///
     /// - @param pattern "秒 分 时 日 月 周几", "second minute hour day month weekday", 可以参考linux的crontab.
     /// - @param f 任务, 参数是stop标志, 表示是否已经发出停止的信号.
-    pub fn schedule_pattern<F1, F2>(&self, pattern: &str, mut f: F1) -> bool
+    pub fn schedule_pattern<'a, 'b, F1, F2>(&'a self, pattern: &str, mut f: F1) -> bool
     where
         F1: FnMut(Arc<AtomicBool>) -> F2 + Send + 'static,
-        F2: Future<Output = ()> + Send + 'static,
+        F2: Future<Output = ()> + Send + 'b,
+        'a: 'b,
     {
         // 1 解析.
         // 在'*'可能有'/', 即SLASH.
@@ -669,10 +670,11 @@ impl Timer {
     /// - @param delay 初始延迟, 单位:毫秒.
     /// - @param period 每轮任务的时间间隔, 单位:毫秒.
     /// - @param f 任务, 参数是stop标志, 表示是否已经发出停止的信号.
-    pub fn schedule_execute_before<F1, F2>(&self, delay: usize, period: usize, mut f: F1)
+    pub fn schedule_execute_before<'a, 'b, F1, F2>(&'a self, delay: usize, period: usize, mut f: F1)
     where
         F1: FnMut(Arc<AtomicBool>) -> F2 + Send + 'static,
-        F2: Future<Output = ()> + Send + 'static,
+        F2: Future<Output = ()> + Send + 'b,
+        'a: 'b,
     {
         let task_number_clone = self.task_number.clone();
         let stop_flag_clone: Arc<AtomicBool> = self.stop_flag.clone();
@@ -708,10 +710,11 @@ impl Timer {
     /// - @param delay 初始延迟, 单位:毫秒.
     /// - @param period 每轮任务的时间间隔, 单位:毫秒.
     /// - @param f 任务, 参数是stop标志, 表示是否已经发出停止的信号.
-    pub fn schedule_execute_after<F1, F2>(&self, delay: usize, period: usize, mut f: F1)
+    pub fn schedule_execute_after<'a, 'b, F1, F2>(&'a self, delay: usize, period: usize, mut f: F1)
     where
         F1: FnMut(Arc<AtomicBool>) -> F2 + Send + 'static,
-        F2: Future<Output = ()> + Send + 'static,
+        F2: Future<Output = ()> + Send + 'b,
+        'a: 'b,
     {
         let task_number_clone = self.task_number.clone();
         let stop_flag_clone: Arc<AtomicBool> = self.stop_flag.clone();
