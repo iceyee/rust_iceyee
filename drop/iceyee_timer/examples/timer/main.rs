@@ -16,7 +16,7 @@
 
 // Function.
 
-// #[tokio::test]
+#[tokio::test]
 pub async fn test_schedule_pattern_1() {
     use iceyee_datetime::DateTime;
     use iceyee_timer::Timer;
@@ -25,9 +25,14 @@ pub async fn test_schedule_pattern_1() {
     println!("{}", DateTime::now());
     let mut timer: Timer = Timer::new();
 
+    let a001: String = "hello world.".to_string();
     timer
-        .schedule_pattern("* * * * * *", || async {
-            println!("{}", DateTime::new().to_string());
+        .schedule_pattern("* * * * * *", move || {
+            let a001 = a001.clone();
+            async move {
+                println!("{}", DateTime::new().to_string());
+                println!("{a001}");
+            }
         })
         .unwrap();
     Timer::sleep(3333).await;

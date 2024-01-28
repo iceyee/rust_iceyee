@@ -44,7 +44,7 @@ impl std::error::Error for TimerError {}
 
 // Struct.
 
-/// 时钟, 精度50ms ~ 100ms.
+/// 时钟, 精度200ms ~ 400ms.
 
 #[derive(Clone, Debug)]
 pub struct Timer {
@@ -272,7 +272,7 @@ impl Timer {
         return Ok(());
     }
 
-    /// 定时任务, 任务执行的同时等待.
+    /// 定时任务, 任务执行的同时等待, 时间单位:毫秒.
     pub fn schedule_execute_before<F1, F2>(&mut self, delay: u64, period: u64, mut f: F1)
     where
         F1: FnMut() -> F2 + Send + 'static,
@@ -299,7 +299,7 @@ impl Timer {
         return;
     }
 
-    /// 定时任务, 在任务执行完成后等待.
+    /// 定时任务, 在任务执行完成后等待, 时间单位:毫秒.
     pub fn schedule_execute_after<F1, F2>(&mut self, delay: u64, period: u64, mut f: F1)
     where
         F1: FnMut() -> F2 + Send + 'static,
