@@ -12,7 +12,7 @@
 use iceyee_time::DateTime;
 use iceyee_time::Timer;
 use std::sync::atomic::AtomicPtr;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::fs::File;
@@ -22,12 +22,6 @@ use tokio::io::Stdout;
 use tokio::sync::Mutex;
 
 static LOGGER: Mutex<Option<Logger>> = Mutex::const_new(None);
-
-/// $HOME
-pub static mut HOME: Option<String> = None;
-
-/// $HOME/.iceyee_log
-pub static mut DEFAULT_TARGET: Option<String> = None;
 
 // Enum.
 
@@ -121,7 +115,7 @@ impl Logger {
         unsafe {
             SWITCH = (SWITCH + 1) % 2;
             TIMES[SWITCH] = DateTime::new().to_string();
-            logger.time.store(&mut TIMES[SWITCH], Ordering::SeqCst);
+            logger.time.store(&mut TIMES[SWITCH], SeqCst);
             return;
         }
     }
@@ -132,7 +126,7 @@ impl Logger {
             || logger
                 .project_name
                 .as_ref()
-                .expect("iceyee_logger/lib.rs 825")
+                .expect("iceyee_logger/lib.rs 833")
                 .trim()
                 .len()
                 == 0
@@ -141,7 +135,7 @@ impl Logger {
         }
         let project_name: String = logger
             .project_name
-            .expect("iceyee_logger/lib.rs 073")
+            .expect("iceyee_logger/lib.rs 041")
             .trim()
             .to_string();
         let target_directory: String = match logger.target_directory {
@@ -149,20 +143,10 @@ impl Logger {
                 if target_directory.trim().len() != 0 {
                     target_directory.trim().to_string()
                 } else {
-                    unsafe {
-                        DEFAULT_TARGET
-                            .as_ref()
-                            .expect("iceyee_logger/lib.rs 081")
-                            .clone()
-                    }
+                    default_target()
                 }
             }
-            None => unsafe {
-                DEFAULT_TARGET
-                    .as_ref()
-                    .expect("iceyee_logger/lib.rs 049")
-                    .clone()
-            },
+            None => default_target(),
         };
         let path: String = target_directory.clone() + "/" + &project_name;
         let _ = tokio::fs::create_dir_all(&path).await;
@@ -173,13 +157,13 @@ impl Logger {
             .append(true)
             .open(warn_file)
             .await
-            .expect("iceyee_logger/lib.rs 177");
+            .expect("iceyee_logger/lib.rs 225");
         let error_file: File = OpenOptions::new()
             .create(true)
             .append(true)
             .open(error_file)
             .await
-            .expect("iceyee_logger/lib.rs 665");
+            .expect("iceyee_logger/lib.rs 473");
         return (Some(warn_file), Some(error_file));
     }
 
@@ -189,20 +173,20 @@ impl Logger {
         if warn_file.is_some() {
             warn_file
                 .as_mut()
-                .expect("iceyee_logger/lib.rs 713")
+                .expect("iceyee_logger/lib.rs 481")
                 .flush()
                 .await
-                .expect("iceyee_logger/lib.rs 521");
+                .expect("iceyee_logger/lib.rs 449");
         }
         drop(warn_file);
         let mut error_file = logger.error_file.lock().await;
         if error_file.is_some() {
             error_file
                 .as_mut()
-                .expect("iceyee_logger/lib.rs 289")
+                .expect("iceyee_logger/lib.rs 577")
                 .flush()
                 .await
-                .expect("iceyee_logger/lib.rs 217");
+                .expect("iceyee_logger/lib.rs 065");
         }
         drop(error_file);
         return;
@@ -214,7 +198,7 @@ impl Logger {
             || logger
                 .project_name
                 .as_ref()
-                .expect("iceyee_logger/lib.rs 505")
+                .expect("iceyee_logger/lib.rs 113")
                 .trim()
                 .len()
                 == 0
@@ -223,7 +207,7 @@ impl Logger {
         }
         let project_name: String = logger
             .project_name
-            .expect("iceyee_logger/lib.rs 353")
+            .expect("iceyee_logger/lib.rs 921")
             .trim()
             .to_string();
         let target_directory: String = match logger.target_directory {
@@ -231,42 +215,32 @@ impl Logger {
                 if target_directory.trim().len() != 0 {
                     target_directory.trim().to_string()
                 } else {
-                    unsafe {
-                        DEFAULT_TARGET
-                            .as_ref()
-                            .expect("iceyee_logger/lib.rs 961")
-                            .clone()
-                    }
+                    default_target()
                 }
             }
-            None => unsafe {
-                DEFAULT_TARGET
-                    .as_ref()
-                    .expect("iceyee_logger/lib.rs 529")
-                    .clone()
-            },
+            None => default_target(),
         };
         let path: String = target_directory.clone() + "/" + &project_name;
         let mut dirs = tokio::fs::read_dir(&path)
             .await
-            .expect("iceyee_logger/lib.rs 257");
+            .expect("iceyee_logger/lib.rs 905");
         // 删除两个月前的文件.
         while let Ok(Some(entry)) = dirs.next_entry().await {
             let t = entry
                 .metadata()
                 .await
-                .expect("iceyee_logger/lib.rs 345")
+                .expect("iceyee_logger/lib.rs 753")
                 .modified()
-                .expect("iceyee_logger/lib.rs 993");
+                .expect("iceyee_logger/lib.rs 361");
             if 1 * 60 * 60 * 24 * 60
                 < SystemTime::now()
                     .duration_since(t)
-                    .expect("iceyee_logger/lib.rs 401")
+                    .expect("iceyee_logger/lib.rs 929")
                     .as_secs()
             {
                 tokio::fs::remove_file(entry.path().as_path())
                     .await
-                    .expect("iceyee_logger/lib.rs 769");
+                    .expect("iceyee_logger/lib.rs 657");
             }
         }
         // 刷新缓存, 然后关闭文件.
@@ -274,10 +248,10 @@ impl Logger {
         if warn_file.is_some() {
             warn_file
                 .as_mut()
-                .expect("iceyee_logger/lib.rs 297")
+                .expect("iceyee_logger/lib.rs 745")
                 .flush()
                 .await
-                .expect("iceyee_logger/lib.rs 185");
+                .expect("iceyee_logger/lib.rs 393");
         }
         *warn_file = None;
         // drop(warn_file);
@@ -285,10 +259,10 @@ impl Logger {
         if error_file.is_some() {
             error_file
                 .as_mut()
-                .expect("iceyee_logger/lib.rs 633")
+                .expect("iceyee_logger/lib.rs 177")
                 .flush()
                 .await
-                .expect("iceyee_logger/lib.rs 841");
+                .expect("iceyee_logger/lib.rs 665");
         }
         *error_file = None;
         // drop(error_file);
@@ -311,17 +285,17 @@ impl Logger {
         // println!("{error_file_to}");
         tokio::fs::rename(&warn_file_from, &warn_file_to)
             .await
-            .expect("iceyee_logger/lib.rs 009");
+            .expect("iceyee_logger/lib.rs 713");
         tokio::fs::rename(&error_file_from, &error_file_to)
             .await
-            .expect("iceyee_logger/lib.rs 337");
+            .expect("iceyee_logger/lib.rs 521");
         *warn_file = Some(
             OpenOptions::new()
                 .create(true)
                 .write(true)
                 .open(warn_file_from)
                 .await
-                .expect("iceyee_logger/lib.rs 025"),
+                .expect("iceyee_logger/lib.rs 289"),
         );
         *error_file = Some(
             OpenOptions::new()
@@ -329,7 +303,7 @@ impl Logger {
                 .write(true)
                 .open(error_file_from)
                 .await
-                .expect("iceyee_logger/lib.rs 273"),
+                .expect("iceyee_logger/lib.rs 217"),
         );
         return;
     }
@@ -358,7 +332,7 @@ impl Logger {
         let this_clone = this.clone();
         this.timer
             .as_ref()
-            .expect("iceyee_logger/lib.rs 281")
+            .expect("iceyee_logger/lib.rs 505")
             .schedule_execute_before(1, 1, move |_| Self::update_time(this_clone.clone()));
         let (warn_file, error_file) = Self::create_file(this.clone()).await;
         *this.warn_file.lock().await = warn_file;
@@ -367,14 +341,14 @@ impl Logger {
         let this_clone = this.clone();
         this.timer
             .as_ref()
-            .expect("iceyee_logger/lib.rs 249")
+            .expect("iceyee_logger/lib.rs 353")
             .schedule_execute_before(0, 60_000, move |_| Self::flush(this_clone.clone()));
         // 文件管理.
         {
             let this_clone = this.clone();
             this.timer
                 .as_ref()
-                .expect("iceyee_logger/lib.rs 377")
+                .expect("iceyee_logger/lib.rs 961")
                 .schedule_pattern("57 59 23 * * *", move |_| Self::manage(this_clone.clone()));
         }
         // {
@@ -386,7 +360,7 @@ impl Logger {
         //     let this_clone = this.clone();
         //     this.timer
         //         .as_ref()
-        //         .expect("iceyee_logger/lib.rs 865")
+        //         .expect("iceyee_logger/lib.rs 529")
         //         .schedule_pattern(&pattern, move |_| Self::manage(this_clone.clone()));
         // }
         return this;
@@ -408,12 +382,12 @@ impl Logger {
         if x < y {
             return;
         }
-        // let time: String = unsafe { (*self.time.load(Ordering::SeqCst)).clone() };
+        // let time: String = unsafe { (*self.time.load(SeqCst)).clone() };
         let time: String = unsafe {
             self.time
-                .load(Ordering::SeqCst)
+                .load(SeqCst)
                 .as_ref()
-                .expect("iceyee_logger/lib.rs 913")
+                .expect("iceyee_logger/lib.rs 257")
                 .clone()
         };
         let message: String = message.as_ref().replace("\n", "\n    ");
@@ -422,29 +396,29 @@ impl Logger {
                 let message: String = format!("\n{} {} # {}\n", time, level.to_string(), message);
                 stdout
                     .as_mut()
-                    .expect("iceyee_logger/lib.rs 721")
+                    .expect("iceyee_logger/lib.rs 345")
                     .write_all(message.as_bytes())
                     .await
-                    .expect("iceyee_logger/lib.rs 489");
+                    .expect("iceyee_logger/lib.rs 993");
                 drop(stdout);
             }
             Level::Warn => {
                 let message: String = format!("\n{} {} # {}\n", time, level.to_string(), message);
                 stdout
                     .as_mut()
-                    .expect("iceyee_logger/lib.rs 417")
+                    .expect("iceyee_logger/lib.rs 401")
                     .write_all(message.as_bytes())
                     .await
-                    .expect("iceyee_logger/lib.rs 705");
+                    .expect("iceyee_logger/lib.rs 769");
                 drop(stdout);
                 let mut warn_file = self.warn_file.lock().await;
                 if warn_file.is_some() {
                     warn_file
                         .as_mut()
-                        .expect("iceyee_logger/lib.rs 553")
+                        .expect("iceyee_logger/lib.rs 297")
                         .write_all(message.as_bytes())
                         .await
-                        .expect("iceyee_logger/lib.rs 161");
+                        .expect("iceyee_logger/lib.rs 185");
                 }
                 drop(warn_file);
             }
@@ -453,19 +427,19 @@ impl Logger {
                     format!("\n{} {} # \n    {}\n", time, level.to_string(), message);
                 stdout
                     .as_mut()
-                    .expect("iceyee_logger/lib.rs 729")
+                    .expect("iceyee_logger/lib.rs 633")
                     .write_all(message.as_bytes())
                     .await
-                    .expect("iceyee_logger/lib.rs 457");
+                    .expect("iceyee_logger/lib.rs 841");
                 drop(stdout);
                 let mut error_file = self.error_file.lock().await;
                 if error_file.is_some() {
                     error_file
                         .as_mut()
-                        .expect("iceyee_logger/lib.rs 545")
+                        .expect("iceyee_logger/lib.rs 009")
                         .write_all(message.as_bytes())
                         .await
-                        .expect("iceyee_logger/lib.rs 193");
+                        .expect("iceyee_logger/lib.rs 337");
                 }
                 drop(error_file);
             }
@@ -497,7 +471,25 @@ impl Logger {
         S2: AsRef<str>,
         S3: AsRef<str>,
     {
-        let message: String = format!("{} {} {}", s1.as_ref(), s2.as_ref(), s3.as_ref());
+        let message: String = format!("{} {} {}", s1.as_ref(), s2.as_ref(), s3.as_ref(),);
+        Self::print(self, message, Level::Debug).await;
+        return;
+    }
+
+    pub async fn debug_4<S1, S2, S3, S4>(&self, s1: S1, s2: S2, s3: S3, s4: S4)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+        S3: AsRef<str>,
+        S4: AsRef<str>,
+    {
+        let message: String = format!(
+            "{} {} {} {}",
+            s1.as_ref(),
+            s2.as_ref(),
+            s3.as_ref(),
+            s4.as_ref()
+        );
         Self::print(self, message, Level::Debug).await;
         return;
     }
@@ -526,7 +518,25 @@ impl Logger {
         S2: AsRef<str>,
         S3: AsRef<str>,
     {
-        let message: String = format!("{} {} {}", s1.as_ref(), s2.as_ref(), s3.as_ref());
+        let message: String = format!("{} {} {}", s1.as_ref(), s2.as_ref(), s3.as_ref(),);
+        Self::print(self, message, Level::Info).await;
+        return;
+    }
+
+    pub async fn info_4<S1, S2, S3, S4>(&self, s1: S1, s2: S2, s3: S3, s4: S4)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+        S3: AsRef<str>,
+        S4: AsRef<str>,
+    {
+        let message: String = format!(
+            "{} {} {} {}",
+            s1.as_ref(),
+            s2.as_ref(),
+            s3.as_ref(),
+            s4.as_ref()
+        );
         Self::print(self, message, Level::Info).await;
         return;
     }
@@ -560,6 +570,24 @@ impl Logger {
         return;
     }
 
+    pub async fn warn_4<S1, S2, S3, S4>(&self, s1: S1, s2: S2, s3: S3, s4: S4)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+        S3: AsRef<str>,
+        S4: AsRef<str>,
+    {
+        let message: String = format!(
+            "{} {} {} {}",
+            s1.as_ref(),
+            s2.as_ref(),
+            s3.as_ref(),
+            s4.as_ref()
+        );
+        Self::print(self, message, Level::Warn).await;
+        return;
+    }
+
     pub async fn error<S>(&self, message: S)
     where
         S: AsRef<str>,
@@ -588,47 +616,57 @@ impl Logger {
         Self::print(self, message, Level::Error).await;
         return;
     }
+
+    pub async fn error_4<S1, S2, S3, S4>(&self, s1: S1, s2: S2, s3: S3, s4: S4)
+    where
+        S1: AsRef<str>,
+        S2: AsRef<str>,
+        S3: AsRef<str>,
+        S4: AsRef<str>,
+    {
+        let message: String = format!(
+            "{} {} {} {}",
+            s1.as_ref(),
+            s2.as_ref(),
+            s3.as_ref(),
+            s4.as_ref()
+        );
+        Self::print(self, message, Level::Error).await;
+        return;
+    }
 }
 
 // Function.
 
-#[allow(dead_code)]
-#[ctor::ctor]
-fn init_global() {
+/// 日志的默认路径.
+pub fn default_target() -> String {
     #[cfg(target_os = "linux")]
-    unsafe {
-        DEFAULT_TARGET =
-            Some(std::env::var("HOME").expect("iceyee_logger/lib.rs 601") + "/.iceyee_log");
-        HOME = Some(std::env::var("HOME").expect("iceyee_logger/lib.rs 969"));
+    {
+        return std::env::var("HOME").expect("iceyee_logger/lib.rs 025") + "/.iceyee_log";
     }
     #[cfg(target_os = "windows")]
-    unsafe {
-        DEFAULT_TARGET =
-            Some(std::env::var("USERPROFILE").expect("iceyee_logger/lib.rs 497") + "\\.iceyee_log");
-        HOME = Some(std::env::var("USERPROFILE").expect("iceyee_logger/lib.rs 385"));
+    {
+        return std::env::var("USERPROFILE").expect("iceyee_logger/lib.rs 273") + "\\.iceyee_log";
     }
-    return;
 }
 
-/// 初始化, 建议在程序开始的时候使用.
+/// 用户主目录.
+pub fn home() -> String {
+    #[cfg(target_os = "linux")]
+    {
+        return std::env::var("HOME").expect("iceyee_logger/lib.rs 281");
+    }
+    #[cfg(target_os = "windows")]
+    {
+        return std::env::var("USERPROFILE").expect("iceyee_logger/lib.rs 249");
+    }
+}
+
+/// 初始化.
 pub async fn init(level: Level, project_name: Option<&str>, target_directory: Option<&str>) {
     *LOGGER.lock().await = Some(Logger::new(level, project_name, target_directory).await);
     return;
 }
-
-// /// 刷新缓存, 建议在程序结束的时候使用.
-// pub async fn flush() {
-//     Logger::flush(
-//         LOGGER
-//             .lock()
-//             .await
-//             .as_ref()
-//             .expect("LOGGER未初始化")
-//             .clone(),
-//     )
-//     .await;
-//     return;
-// }
 
 /// Debug.
 pub async fn debug<S>(message: S)
@@ -641,7 +679,7 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 433")
+        .expect("iceyee_logger/lib.rs 865")
         .debug(message)
         .await;
 }
@@ -658,7 +696,7 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 137")
+        .expect("iceyee_logger/lib.rs 913")
         .debug_2(s1, s2)
         .await;
 }
@@ -676,8 +714,44 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 137")
+        .expect("iceyee_logger/lib.rs 721")
         .debug_3(s1, s2, s3)
+        .await;
+}
+
+/// Debug.
+pub async fn debug_4<S1, S2, S3, S4>(s1: S1, s2: S2, s3: S3, s4: S4)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    S3: AsRef<str>,
+    S4: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 489")
+        .debug_4(s1, s2, s3, s4)
+        .await;
+}
+
+/// Debug.
+pub async fn debug_object<S>(prompt: S, object: &impl std::fmt::Debug)
+where
+    S: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    let message: String = format!("{} {:?}", prompt.as_ref(), object);
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 377")
+        .debug(message)
         .await;
 }
 
@@ -692,7 +766,7 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 641")
+        .expect("iceyee_logger/lib.rs 417")
         .info(message)
         .await;
 }
@@ -709,7 +783,7 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 137")
+        .expect("iceyee_logger/lib.rs 705")
         .info_2(s1, s2)
         .await;
 }
@@ -727,11 +801,46 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 137")
+        .expect("iceyee_logger/lib.rs 553")
         .info_3(s1, s2, s3)
         .await;
 }
 
+/// Info.
+pub async fn info_4<S1, S2, S3, S4>(s1: S1, s2: S2, s3: S3, s4: S4)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    S3: AsRef<str>,
+    S4: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 161")
+        .info_4(s1, s2, s3, s4)
+        .await;
+}
+
+/// Info.
+pub async fn info_object<S>(prompt: S, object: &impl std::fmt::Debug)
+where
+    S: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    let message: String = format!("{} {:?}", prompt.as_ref(), object);
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 377")
+        .info(message)
+        .await;
+}
 /// Warn.
 pub async fn warn<S>(message: S)
 where
@@ -743,7 +852,7 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 809")
+        .expect("iceyee_logger/lib.rs 729")
         .warn(message)
         .await;
 }
@@ -760,7 +869,7 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 137")
+        .expect("iceyee_logger/lib.rs 457")
         .warn_2(s1, s2)
         .await;
 }
@@ -778,8 +887,44 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 137")
+        .expect("iceyee_logger/lib.rs 545")
         .warn_3(s1, s2, s3)
+        .await;
+}
+
+/// Warn.
+pub async fn warn_4<S1, S2, S3, S4>(s1: S1, s2: S2, s3: S3, s4: S4)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    S3: AsRef<str>,
+    S4: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 193")
+        .warn_4(s1, s2, s3, s4)
+        .await;
+}
+
+/// Warn.
+pub async fn warn_object<S>(prompt: S, object: &impl std::fmt::Debug)
+where
+    S: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    let message: String = format!("{} {:?}", prompt.as_ref(), object);
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 377")
+        .warn(message)
         .await;
 }
 
@@ -794,7 +939,7 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 137")
+        .expect("iceyee_logger/lib.rs 601")
         .error(message)
         .await;
 }
@@ -811,7 +956,7 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 137")
+        .expect("iceyee_logger/lib.rs 969")
         .error_2(s1, s2)
         .await;
 }
@@ -829,7 +974,43 @@ where
     }
     return logger
         .as_ref()
-        .expect("iceyee_logger/lib.rs 137")
+        .expect("iceyee_logger/lib.rs 497")
         .error_3(s1, s2, s3)
+        .await;
+}
+
+/// Error.
+pub async fn error_4<S1, S2, S3, S4>(s1: S1, s2: S2, s3: S3, s4: S4)
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    S3: AsRef<str>,
+    S4: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 385")
+        .error_4(s1, s2, s3, s4)
+        .await;
+}
+
+/// Error.
+pub async fn error_object<S>(prompt: S, object: &impl std::fmt::Debug)
+where
+    S: AsRef<str>,
+{
+    let mut logger = LOGGER.lock().await;
+    if logger.is_none() {
+        *logger = Some(Logger::new(Level::default(), None, None).await);
+    }
+    let message: String = format!("{} {:?}", prompt.as_ref(), object);
+    return logger
+        .as_ref()
+        .expect("iceyee_logger/lib.rs 377")
+        .error(message)
         .await;
 }
