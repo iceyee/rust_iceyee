@@ -5,9 +5,10 @@
 // **************************************************
 //
 
-//! - @see [tokio](../tokio/index.html)
+//! - @see [iceyee_logger](../iceyee_logger/index.html)
 //! - @see [iceyee_time](../iceyee_time/index.html)
 //! - @see [thirtyfour](../thirtyfour/index.html)
+//! - @see [tokio](../tokio/index.html)
 
 // Use.
 
@@ -36,15 +37,15 @@ pub async fn chrome(driver_url: Option<&str>, headless: bool) -> WebDriverResult
     if headless {
         options.set_headless()?;
     }
-    println!("打开浏览器.");
-    println!("{options:?}");
+    iceyee_logger::info("打开浏览器.").await;
+    iceyee_logger::info_object("", &options).await;
     let driver: WebDriver =
         WebDriver::new(driver_url.unwrap_or("http://localhost:9515"), options).await?;
     return Ok(driver);
 }
 
 pub async fn wait_url(driver: &WebDriver, url: &str, equal: bool) -> WebDriverResult<()> {
-    println!("wait_url '{url}'.");
+    iceyee_logger::info_2("wait_url()", url).await;
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
         stdout
@@ -73,7 +74,7 @@ pub async fn wait_url(driver: &WebDriver, url: &str, equal: bool) -> WebDriverRe
 }
 
 pub async fn wait_ready(driver: &WebDriver) -> WebDriverResult<()> {
-    println!("wait_ready.");
+    iceyee_logger::info("wait_ready()").await;
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
         stdout
@@ -100,7 +101,7 @@ pub async fn wait_ready(driver: &WebDriver) -> WebDriverResult<()> {
 }
 
 pub async fn wait_element(driver: &WebDriver, css: &str, number: usize) -> WebDriverResult<()> {
-    println!("wait_element '{css}' {number}");
+    iceyee_logger::info_3("wait_element()", css, number.to_string()).await;
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
         stdout
@@ -139,6 +140,7 @@ pub async fn add_cookie(
     value: &str,
     domain: &str,
 ) -> WebDriverResult<()> {
+    iceyee_logger::info_4("add_cookie()", key, value, domain).await;
     let mut cookie = Cookie::new(key.to_string(), value.to_string());
     cookie.set_domain(domain.to_string());
     cookie.set_path("/");
@@ -147,6 +149,7 @@ pub async fn add_cookie(
 }
 
 pub async fn set_cookie(driver: &WebDriver, cookie: &str, domain: &str) -> WebDriverResult<()> {
+    iceyee_logger::info_3("set_cookie()", cookie, domain).await;
     driver.delete_all_cookies().await?;
     for x in cookie.split(";") {
         let mut y = x.split("=");
@@ -181,15 +184,3 @@ pub async fn get_cookie(driver: &WebDriver) -> WebDriverResult<(String, String)>
     }
     return Ok((output_1, output_2));
 }
-//
-// pub async fn wait_ready(driver: &WebDriver) -> WebDriverResult<()> {
-//     return Ok(());
-// }
-//
-// pub async fn wait_ready(driver: &WebDriver) -> WebDriverResult<()> {
-//     return Ok(());
-// }
-//
-// pub async fn wait_ready(driver: &WebDriver) -> WebDriverResult<()> {
-//     return Ok(());
-// }
