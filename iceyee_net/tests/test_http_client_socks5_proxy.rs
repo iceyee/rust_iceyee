@@ -28,12 +28,14 @@ pub async fn test_httpclient_socks5_proxy() {
     let url: &str = "https://www.baidu.com/";
     let url: &str = "https://www.c5game.com/";
     let url: &str = "https://buff.163.com/";
+    let url: &str = "https://buff.163.com/api/asset/get_brief_asset/";
     let _ = HttpClient::new()
         .set_verbose(true)
         .set_url::<&str>(url)
         .expect("test_http_client_no_proxy.rs 449")
         .set_header("Connection", "close")
         .set_forwarded(None)
-        .send(Some(proxy))
+        .send(Some(proxy.clone()))
         .await;
+    return;
 }

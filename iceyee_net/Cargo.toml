@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_net"
-version = "4.2.1"
+version = "5.0.0"
 edition = "2021"
 
 description = "Net Protocol."
@@ -19,7 +19,7 @@ repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_net/"
 [dependencies]
 async-compression = { version = "0.4", features = ["all"] }
 iceyee_encoder = "4"
-iceyee_logger = "4"
+iceyee_logger = "5"
 iceyee_random = "4"
 iceyee_time = "4"
 native-tls = "0.2"

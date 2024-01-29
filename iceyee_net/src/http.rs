@@ -10,9 +10,6 @@
 pub mod client;
 pub mod server;
 
-pub use serde_json::from_str;
-pub use serde_json::to_string;
-
 use std::collections::HashMap;
 use std::error::Error as StdError;
 use std::io::Error as StdIoError;
@@ -311,21 +308,14 @@ impl Url {
     where
         S: AsRef<str>,
     {
-        let value: &str = value.as_ref();
+        let value = value.as_ref().to_string();
         let link: Arc<String> = Arc::new(value.to_string());
         let mut state: State = State::Protocol;
         let value: &[u8] = value.as_bytes();
         let mut index: usize = 0;
         let length: usize = value.len();
         let mut buffer: Vec<u8> = Vec::new();
-        let mut url: Url = Url {
-            protocol: "".to_string(),
-            host: "".to_string(),
-            port: 0,
-            path: "".to_string(),
-            query: None,
-            fragment: None,
-        };
+        let mut url: Url = Url::default();
         let mut _state: Arc<State> = Arc::new(state.clone());
         while index < length {
             _state = Arc::new(state.clone());

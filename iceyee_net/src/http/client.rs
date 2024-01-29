@@ -182,11 +182,11 @@ impl Proxy for NoProxy {
                 if let Err(e) = self
                     .plain_socket
                     .as_mut()
-                    .expect("iceyee_net/http/client.rs 297")
+                    .expect("iceyee_net/http/client.rs 545")
                     .shutdown()
                     .await
                 {
-                    iceyee_logger::error_2("iceyee_net/http/client.rs 185", e.to_string()).await
+                    iceyee_logger::error_2("NoProxy::close(),", e.to_string()).await
                 }
                 self.plain_socket = None;
             }
@@ -194,11 +194,11 @@ impl Proxy for NoProxy {
                 if let Err(e) = self
                     .ssl_socket
                     .as_mut()
-                    .expect("iceyee_net/http/client.rs 633")
+                    .expect("iceyee_net/http/client.rs 601")
                     .shutdown()
                     .await
                 {
-                    iceyee_logger::error_2("iceyee_net/http/client.rs 841", e.to_string()).await
+                    iceyee_logger::error_2("NoProxy::close(),", e.to_string()).await
                 }
                 self.ssl_socket = None;
             }
@@ -263,7 +263,7 @@ impl Proxy for HttpProxy {
                 let auth: String = Base64Encoder::encode(
                     self.proxy_auth
                         .as_ref()
-                        .expect("iceyee_net/http/client.rs 545")
+                        .expect("iceyee_net/http/client.rs 865")
                         .as_bytes(),
                 );
                 let auth: String = "Basic ".to_string() + auth.trim();
@@ -323,11 +323,11 @@ impl Proxy for HttpProxy {
                 if let Err(e) = self
                     .plain_socket
                     .as_mut()
-                    .expect("iceyee_net/http/client.rs 297")
+                    .expect("iceyee_net/http/client.rs 913")
                     .shutdown()
                     .await
                 {
-                    iceyee_logger::error_2("iceyee_net/http/client.rs 185", e.to_string()).await
+                    iceyee_logger::error_2("HttpProxy::close(),", e.to_string()).await
                 }
                 self.plain_socket = None;
             }
@@ -335,11 +335,11 @@ impl Proxy for HttpProxy {
                 if let Err(e) = self
                     .ssl_socket
                     .as_mut()
-                    .expect("iceyee_net/http/client.rs 633")
+                    .expect("iceyee_net/http/client.rs 489")
                     .shutdown()
                     .await
                 {
-                    iceyee_logger::error_2("iceyee_net/http/client.rs 841", e.to_string()).await
+                    iceyee_logger::error_2("HttpProxy::close(),", e.to_string()).await
                 }
                 self.ssl_socket = None;
             }
@@ -593,11 +593,11 @@ impl Proxy for Socks5Proxy {
                 if let Err(e) = self
                     .plain_socket
                     .as_mut()
-                    .expect("iceyee_net/http/client.rs 297")
+                    .expect("iceyee_net/http/client.rs 705")
                     .shutdown()
                     .await
                 {
-                    iceyee_logger::error_2("iceyee_net/http/client.rs 185", e.to_string()).await
+                    iceyee_logger::error_2("Socks5Proxy::close(),", e.to_string()).await
                 }
                 self.plain_socket = None;
             }
@@ -605,11 +605,11 @@ impl Proxy for Socks5Proxy {
                 if let Err(e) = self
                     .ssl_socket
                     .as_mut()
-                    .expect("iceyee_net/http/client.rs 633")
+                    .expect("iceyee_net/http/client.rs 161")
                     .shutdown()
                     .await
                 {
-                    iceyee_logger::error_2("iceyee_net/http/client.rs 841", e.to_string()).await
+                    iceyee_logger::error_2("Socks5Proxy::close(),", e.to_string()).await
                 }
                 self.ssl_socket = None;
             }
@@ -931,7 +931,7 @@ impl HttpClient {
     ) -> Result<Response, StdIoError> {
         // 1 连接.
         if proxy.is_closed() {
-            let url: &Url = self.url.as_ref().expect("iceyee_net/http/client.rs 889");
+            let url: &Url = self.url.as_ref().expect("iceyee_net/http/client.rs 457");
             proxy
                 .connect(
                     self.log.clone(),
