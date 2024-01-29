@@ -65,7 +65,7 @@ impl std::error::Error for TimerError {}
 // Struct.
 
 /// 日期时间.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct DateTime {
     /// \[0, +oo)
     pub year: usize,
@@ -412,7 +412,7 @@ impl PartialOrd for DateTime {
     }
 }
 
-/// 时钟, 精度200ms ~ 400ms.
+/// 时钟, 精度100ms ~ 200ms.
 #[derive(Clone, Debug)]
 pub struct Timer {
     thread_handles: Arc<TokioMutex<Vec<JoinHandle<()>>>>,
@@ -651,7 +651,7 @@ impl Timer {
                     f(stop_flag.clone()).await;
                 }
                 while !stop_flag.load(Ordering::SeqCst) && !sl.is_finished() {
-                    sleep(200).await;
+                    sleep(100).await;
                 }
             }
         });
@@ -682,14 +682,14 @@ impl Timer {
             // 1 初始延迟.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop_flag.load(Ordering::SeqCst) && !sl.is_finished() {
-                sleep(200).await;
+                sleep(100).await;
             }
             while !stop_flag.load(Ordering::SeqCst) {
                 // 2 等待并执行.
                 let sl = tokio::task::spawn(sleep(period));
                 f(stop_flag.clone()).await;
                 while !stop_flag.load(Ordering::SeqCst) && !sl.is_finished() {
-                    sleep(200).await;
+                    sleep(100).await;
                 }
             }
         });
@@ -720,14 +720,14 @@ impl Timer {
             // 1 初始延迟.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop_flag.load(Ordering::SeqCst) && !sl.is_finished() {
-                sleep(200).await;
+                sleep(100).await;
             }
             while !stop_flag.load(Ordering::SeqCst) {
                 // 2 执行并等待.
                 f(stop_flag.clone()).await;
                 let sl = tokio::task::spawn(sleep(period));
                 while !stop_flag.load(Ordering::SeqCst) && !sl.is_finished() {
-                    sleep(200).await;
+                    sleep(100).await;
                 }
             }
         });
