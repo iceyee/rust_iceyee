@@ -14,11 +14,15 @@
 
 // Function.
 
-// #[tokio::test]
+#[tokio::test]
 pub async fn test_httpclient_no_proxy() {
     use iceyee_net::http::client::HttpClient;
 
     println!("");
+    println!(
+        "{}",
+        HttpClient::get_expect_string("http://ip-api.com/json/")
+    );
     HttpClient::new()
         .set_verbose(true)
         .set_url("http://ip-api.com/json/")
@@ -127,7 +131,7 @@ pub async fn test_httpclient_http_proxy() {
 //     use iceyee_net::http::client::HttpClient;
 //     use iceyee_net::http::client::Proxy;
 //     use iceyee_net::http::client::Socks5Proxy;
-// 
+//
 //     println!("");
 //     let proxy = Socks5Proxy::new("ip-api.com", 80, false, "localhost", 1082, None).wrap();
 //     HttpClient::new()
@@ -196,9 +200,9 @@ pub async fn test_httpclient_http_proxy() {
 // pub async fn test_httpclient_repeated_use() {
 //     use iceyee_net::http::client::HttpClient;
 //     use iceyee_net::http::client::HttpProxy;
-//     
+//
 //     use iceyee_net::http::client::Proxy;
-// 
+//
 //     println!("");
 //     let proxy = HttpProxy::new("ip-api.com", 80, false, "localhost", 1081, None).wrap();
 //     // let proxy = NoProxy::new("ip-api.com", 80, false).wrap();

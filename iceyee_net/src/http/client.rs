@@ -1079,6 +1079,18 @@ impl HttpClient {
             .send(None)
             .await;
     }
+
+    pub async fn get_expect_string(url: &str) -> String {
+        let response = HttpClient::new()
+            .set_verbose(false)
+            .set_url::<&str>(url)
+            .expect("iceyee_net/http/client.rs 937")
+            .set_header("Connection", "close")
+            .send(None)
+            .await
+            .expect("iceyee_net/http/client.rs 809");
+        return String::from_utf8(response.body).expect("iceyee_net/http/client.rs 057");
+    }
 }
 
 // Function.

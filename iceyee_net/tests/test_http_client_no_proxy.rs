@@ -26,15 +26,19 @@ pub async fn test_httpclient_no_proxy() {
     let url: &str = "https://buff.163.com/";
     let url: &str = "http://ip-api.com/json/";
     let url: &str = "https://www.c5game.com/";
-    HttpClient::new()
-        .set_verbose(true)
-        .set_url::<&str>(url)
-        .expect("test_http_client_no_proxy.rs 513")
-        .set_header("Connection", "close")
-        .set_forwarded(None)
-        .send(None)
-        .await
-        .expect("test_http_client_no_proxy.rs 321");
+    println!(
+        "{}",
+        HttpClient::get_expect_string("http://ip-api.com/json/").await
+    );
+    // HttpClient::new()
+    //     .set_verbose(true)
+    //     .set_url::<&str>(url)
+    //     .expect("test_http_client_no_proxy.rs 513")
+    //     .set_header("Connection", "close")
+    //     .set_forwarded(None)
+    //     .send(None)
+    //     .await
+    //     .expect("test_http_client_no_proxy.rs 321");
     // let response = HttpClient::get(url)
     //     .await
     //     .expect("test_http_client_no_proxy.rs 137");
