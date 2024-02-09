@@ -394,13 +394,8 @@ pub struct UrlEncoder;
 
 impl UrlEncoder {
     /// 编码.
-    ///
-    /// - @exception 没有异常.
-    pub fn encode<S>(input: S) -> String
-    where
-        S: AsRef<str>,
-    {
-        let input: String = input.as_ref().to_string();
+    pub fn encode(input: &str) -> String {
+        let input: String = input.to_string();
         static TABLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
         ];
@@ -426,11 +421,8 @@ impl UrlEncoder {
     ///
     /// - @exception [UrlError::InvalidFormat] 错误的格式.
     /// - @exception [UrlError::FromUtf8Error] 解码后的内容不是UTF-8编码.
-    pub fn decode<S>(cipher: S) -> Result<String, UrlError>
-    where
-        S: AsRef<str>,
-    {
-        let cipher: String = cipher.as_ref().to_string();
+    pub fn decode(cipher: &str) -> Result<String, UrlError> {
+        let cipher: String = cipher.to_string();
         enum Status {
             Normal,
             High,

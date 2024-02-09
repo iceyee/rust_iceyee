@@ -38,17 +38,8 @@ pub fn test_url_encoder() {
         assert_eq!(UrlEncoder::decode(x).expect("test_url.rs 417"), y);
     }
     println!("测试decode异常输入.");
-    assert_eq!(
-        UrlEncoder::decode("%%".to_string()),
-        Err(UrlError::InvalidFormat)
-    );
-    assert_eq!(
-        UrlEncoder::decode("%3%45".to_string()),
-        Err(UrlError::InvalidFormat)
-    );
-    assert_eq!(
-        UrlEncoder::decode("%34%5".to_string()),
-        Err(UrlError::InvalidFormat)
-    );
+    assert_eq!(UrlEncoder::decode("%%"), Err(UrlError::InvalidFormat));
+    assert_eq!(UrlEncoder::decode("%3%45"), Err(UrlError::InvalidFormat));
+    assert_eq!(UrlEncoder::decode("%34%5"), Err(UrlError::InvalidFormat));
     return;
 }
