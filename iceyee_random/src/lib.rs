@@ -20,8 +20,6 @@ thread_local! {
 // Struct.
 
 /// 随机数.
-
-#[derive(Clone, Debug)]
 pub struct Random;
 
 impl Random {
@@ -31,8 +29,8 @@ impl Random {
         return;
     }
 
-    /// 取一个随机数.
-    pub fn next() -> usize {
+    /// 下一个随机数.
+    pub fn next() -> u64 {
         let mut seed: u64 = SEED.with(|seed| {
             if seed.get() == 0 {
                 init();
@@ -79,7 +77,7 @@ impl Random {
             seed = ((seed as u128) + (TABLE[x + 16] as u128)) as u64;
         }
         SEED.with(|s| s.set(seed));
-        return seed as usize;
+        return seed;
     }
 }
 
@@ -103,8 +101,8 @@ fn init() {
 fn get_thread_id() -> u64 {
     #[cfg(target_os = "linux")]
     unsafe {
-        // pthread_t pthread_self(void);
         // type pthread_t = long unsigned int.
+        // pthread_t pthread_self(void);
         use std::ffi::c_ulong;
         extern "C" {
             fn pthread_self() -> c_ulong;
@@ -114,9 +112,8 @@ fn get_thread_id() -> u64 {
     #[cfg(target_os = "windows")]
     unsafe {
         // DWORD GetCurrentThreadId();
-        use std::ffi::c_ulong;
         extern "C" {
-            fn GetCurrentThreadId() -> c_ulong;
+            fn GetCurrentThreadId() -> u32;
         }
         return GetCurrentThreadId() as u64;
     }
