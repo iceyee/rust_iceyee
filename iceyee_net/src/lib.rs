@@ -13,6 +13,7 @@
 //! - @see [iceyee_time](../iceyee_time/index.html)
 //! - @see [native_tls](../native_tls/index.html)
 //! - @see [serde_json](../serde_json/index.html)
+//! - @see [tokio](../tokio/index.html)
 //! - @see [tokio_native_tls](../tokio_native_tls/index.html)
 
 #![feature(get_mut_unchecked)]

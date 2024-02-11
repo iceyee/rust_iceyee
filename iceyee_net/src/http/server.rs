@@ -44,11 +44,11 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener as TokioTcpListener;
 use tokio::net::TcpStream as TokioTcpStream;
-use tokio::net::ToSocketAddrs;
 use tokio::sync::Mutex as TokioMutex;
 use tokio::sync::RwLock as TokioRwLock;
 use tokio::sync::RwLockReadGuard;
 use tokio::sync::RwLockWriteGuard;
+use tokio::sync::Semaphore;
 
 // Enum.
 
@@ -67,6 +67,7 @@ use tokio::sync::RwLockWriteGuard;
 /// ```
 /// - @see [Context]
 /// - @see [HttpServer]
+/// - @see [R]
 /// - @see [Work]
 pub trait Filter: Send + Sync {
     /// 返回值决定是否执行do_filter(), 默认true.
@@ -163,7 +164,7 @@ pub trait Filter: Send + Sync {
             let e_message: String = context
                 .e_message
                 .as_ref()
-                .expect("Context::e_message is none")
+                .expect("Context::e_message None")
                 .clone();
             let a001: ResponseObject<bool> = ResponseObject {
                 success: false,
@@ -171,7 +172,7 @@ pub trait Filter: Send + Sync {
                 data: false,
             };
             R::write_json(&mut context.response, &a001);
-            iceyee_logger::error_2(context.id.to_string(), e_message.clone()).await;
+            iceyee_logger::error(vec![context.id.to_string(), e_message.clone()]).await;
             return false;
         });
     }
@@ -198,6 +199,7 @@ pub trait Filter: Send + Sync {
 /// - @see [Context]
 /// - @see [Filter]
 /// - @see [HttpServer]
+/// - @see [R]
 pub trait Work: Send + Sync {
     /// 请求方法, 默认'GET'.
     ///
@@ -268,7 +270,6 @@ pub trait Work: Send + Sync {
     ///             data: false,
     ///         };
     ///         R::write_json(&mut context.response, &a001);
-    ///         iceyee_logger::error_2(context.id.to_string(), e_message.clone()).await;
     ///         return;
     ///     });
     /// }
@@ -284,7 +285,7 @@ pub trait Work: Send + Sync {
             let e_message: String = context
                 .e_message
                 .as_ref()
-                .expect("Context::e_message is none")
+                .expect("Context::e_message None")
                 .clone();
             let a001: ResponseObject<bool> = ResponseObject {
                 success: false,
@@ -292,7 +293,7 @@ pub trait Work: Send + Sync {
                 data: false,
             };
             R::write_json(&mut context.response, &a001);
-            iceyee_logger::error_2(context.id.to_string(), e_message.clone()).await;
+            iceyee_logger::error(vec![context.id.to_string(), e_message.clone()]).await;
             return;
         });
     }
@@ -334,8 +335,8 @@ where
 /// 服务器分配给请求的一个id.
 #[derive(Clone, Debug)]
 pub struct Id {
-    id: usize,
-    counter: usize,
+    id: u64,
+    counter: u64,
 }
 
 impl Id {
@@ -346,9 +347,9 @@ impl Id {
         };
     }
 
-    fn add(&mut self) -> &mut Self {
+    fn add(&mut self) {
         self.counter += 1;
-        return self;
+        return;
     }
 }
 
@@ -359,51 +360,61 @@ impl std::fmt::Display for Id {
 }
 
 /// cookies.
-#[derive(Clone, Debug)]
-pub struct Cookies {
-    this: HashMap<String, String>,
-}
+#[derive(Clone, Debug, Default)]
+pub struct Cookies(pub HashMap<String, String>);
 
 impl std::ops::Deref for Cookies {
     type Target = HashMap<String, String>;
+
     fn deref(&self) -> &Self::Target {
-        return &self.this;
+        return &self.0;
     }
 }
 
 impl std::ops::DerefMut for Cookies {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        return &mut self.this;
+        return &mut self.0;
+    }
+}
+
+impl std::str::FromStr for Cookies {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut cookies: Cookies = Cookies::default();
+        for x in s.split(";") {
+            if x.contains("=") {
+                let mut y = x.splitn(2, "=");
+                let key: String = y.next().unwrap().trim().to_string();
+                let value: String = y.next().unwrap().trim().to_string();
+                cookies.insert(key, value);
+            }
+        }
+        return Ok(cookies);
     }
 }
 
 impl Cookies {
     pub fn new() -> Self {
-        return Cookies {
-            this: HashMap::new(),
-        };
+        return Cookies(HashMap::new());
     }
 }
 
 /// 会话, 以键值的方式存储用户数据, 内部包含有读写锁.
 #[derive(Clone)]
-pub struct Session {
-    this: Arc<TokioRwLock<HashMap<String, String>>>,
-}
+pub struct Session(pub Arc<TokioRwLock<HashMap<String, String>>>);
 
 impl Session {
     pub fn new() -> Session {
-        return Session {
-            this: Arc::new(TokioRwLock::new(HashMap::new())),
-        };
+        return Session(Arc::new(TokioRwLock::new(HashMap::new())));
     }
 
     pub async fn read(&self) -> RwLockReadGuard<'_, HashMap<String, String>> {
-        return self.this.read().await;
+        return self.0.read().await;
     }
 
     pub async fn write(&self) -> RwLockWriteGuard<'_, HashMap<String, String>> {
-        return self.this.write().await;
+        return self.0.write().await;
     }
 }
 
@@ -472,27 +483,25 @@ impl R {
 /// - @see [Work]
 #[derive(Clone)]
 pub struct HttpServer {
-    stop_server: Arc<AtomicBool>,
-    session_timeout: usize,
-    connection_timeout: usize,
+    connection_timeout: u64,
+    session_timeout: u64,
     sessions: Arc<TokioMutex<HashMap<String, Session>>>,
     global_session: Session,
     filters_before_work: Vec<Arc<dyn Filter>>,
-    works: HashMap<String, Vec<(String, Arc<dyn Work>)>>,
+    works: HashMap<String, Arc<dyn Work>>,
     filters_after_work: Vec<Arc<dyn Filter>>,
     filter_host: FilterHost,
     file_router: Option<FileRouter>,
 }
 
-unsafe impl Send for HttpServer {}
-unsafe impl Sync for HttpServer {}
+// unsafe impl Send for HttpServer {}
+// unsafe impl Sync for HttpServer {}
 
 impl HttpServer {
     pub fn new() -> Self {
         let server = HttpServer {
-            stop_server: Arc::new(AtomicBool::new(false)),
-            session_timeout: 1_000 * 60 * 60,
             connection_timeout: 1_000 * 60,
+            session_timeout: 1_000 * 60 * 60,
             sessions: Arc::new(TokioMutex::new(HashMap::new())),
             global_session: Session::new(),
             filters_before_work: Vec::new(),
@@ -504,15 +513,15 @@ impl HttpServer {
         return server;
     }
 
-    /// 设置会话超时, 会话不活跃超过一定时间会被释放, 单位:分钟, 默认一小时.
-    pub fn set_session_timeout(mut self, t: usize) -> Self {
-        self.session_timeout = 1_000 * 60 * t;
+    /// 设置连接超时, 单位:毫秒.
+    pub fn set_connection_timeout(mut self, t: u64) -> Self {
+        self.connection_timeout = t;
         return self;
     }
 
-    /// 设置连接超时, 单位:毫秒.
-    pub fn set_connection_timeout(mut self, t: usize) -> Self {
-        self.connection_timeout = t;
+    /// 设置会话超时, 会话不活跃超过一定时间会被释放, 单位:分钟, 默认一小时.
+    pub fn set_session_timeout(mut self, t: u64) -> Self {
+        self.session_timeout = 1_000 * 60 * t;
         return self;
     }
 
@@ -520,14 +529,14 @@ impl HttpServer {
     ///
     /// # Panic
     ///
-    /// root是'/'.
+    /// 无效根目录.
     pub fn set_root(mut self, root: &str) -> Self {
         let mut root = root.to_string();
-        while 1 < root.len() && root.ends_with("/") {
+        while root.ends_with("/") {
             root.pop();
         }
-        if root == "/" {
-            panic!("无效的根目录.");
+        if root.len() == 0 {
+            panic!("无效根目录.");
         }
         self.file_router = Some(FileRouter::new(&root));
         return self;
@@ -562,340 +571,216 @@ impl HttpServer {
     pub fn add_work(mut self, work: Arc<dyn Work>) -> Self {
         let method: String = work.method().to_string();
         let path: String = work.path().to_string();
-        if !self.works.contains_key(&path) {
-            self.works.insert(path.clone(), Vec::new());
-        }
-        self.works.get_mut(&path).unwrap().push((method, work));
+        let key: String = method.clone() + " " + &path;
+        self.works.insert(key, work);
         return self;
+    }
+}
+
+impl HttpServer {
+    /// 启动服务器.
+    ///
+    /// - @return 改变状态, 使得服务器停止.
+    pub async fn test(mut self, address: &str, port: u16) -> Result<Arc<AtomicBool>, StdIoError> {
+        iceyee_logger::warn(vec![
+            "HTTPSERVER START AT".to_string(),
+            address.to_string(),
+            port.to_string(),
+        ])
+        .await;
+        self.filters_before_work
+            .push(self.filter_host.clone().wrap());
+        let listener: TokioTcpListener = TokioTcpListener::bind((address, port)).await?;
+        let address = listener.local_addr()?;
+        let server = Arc::new(self);
+        let _server = server.clone();
+        let semaphore: Arc<Semaphore> = Arc::new(Semaphore::new(0));
+        let _semaphore = semaphore.clone();
+        let stop: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+        let _stop = stop.clone();
+        tokio::task::spawn(async move {
+            _semaphore.add_permits(1);
+            let clean_t: i64 = iceyee_time::now();
+            while !_stop.load(SeqCst) {
+                let server = _server.clone();
+                match listener.accept().await {
+                    Ok((mut tcp, address)) => {
+                        if 1_000 * 60 * 60 < iceyee_time::now() - clean_t {
+                            Self::clean_expired_session(server.clone()).await;
+                        }
+                        if _stop.load(SeqCst) {
+                            break;
+                        }
+                        let stop = _stop.clone();
+                        tokio::task::spawn(async move {
+                            let mut id: Id = Id::new();
+                            let ip: String = match address.ip() {
+                                IpAddr::V4(ip) => ipv4_to_string(ip),
+                                IpAddr::V6(ip) => ipv6_to_string(ip),
+                            };
+                            iceyee_logger::debug(vec![
+                                "建立连接".to_string(),
+                                ip.clone(),
+                                id.to_string(),
+                            ])
+                            .await;
+                            while !stop.load(SeqCst) {
+                                id.add();
+                                let server = server.clone();
+                                let request: Request = match Request::read_from(
+                                    &mut tcp,
+                                    Some(server.connection_timeout),
+                                )
+                                .await
+                                {
+                                    Ok(r) => r,
+                                    Err(e) => {
+                                        if let StdIoErrorKind::TimedOut = e.kind() {
+                                            iceyee_logger::debug(vec![
+                                                "超时断开连接".to_string(),
+                                                ip.clone(),
+                                                id.to_string(),
+                                            ])
+                                            .await;
+                                            break;
+                                        } else {
+                                            iceyee_logger::debug(vec![
+                                                "异常断开连接".to_string(),
+                                                ip.clone(),
+                                                id.to_string(),
+                                            ])
+                                            .await;
+                                            iceyee_logger::error(vec![
+                                                "Request::read_from()".to_string(),
+                                                e.to_string(),
+                                            ])
+                                            .await;
+                                            break;
+                                        }
+                                    }
+                                };
+                                let mut context: Context =
+                                    Self::build_context(server.clone(), request, id.clone()).await;
+                                let close: bool = Self::process(server, &mut context).await;
+                                if let Err(e) = Self::write_to_tcp(&mut tcp, &context).await {
+                                    iceyee_logger::debug(vec![
+                                        "异常断开连接".to_string(),
+                                        ip.clone(),
+                                        id.to_string(),
+                                    ])
+                                    .await;
+                                    iceyee_logger::error(vec![
+                                        "HttpServer::write_to_tcp()".to_string(),
+                                        e.to_string(),
+                                    ])
+                                    .await;
+                                    break;
+                                }
+                                if close {
+                                    iceyee_logger::debug(vec![
+                                        "正常断开连接".to_string(),
+                                        ip.clone(),
+                                        id.to_string(),
+                                    ])
+                                    .await;
+                                    break;
+                                }
+                            }
+                            // 关闭连接.
+                            {
+                                if let Err(e) = tcp.shutdown().await {
+                                    iceyee_logger::error(vec![
+                                        "TcpStream::shutdown()".to_string(),
+                                        e.to_string(),
+                                    ])
+                                    .await;
+                                }
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        iceyee_logger::error(vec![
+                            "TcpListener::accept()".to_string(),
+                            e.to_string(),
+                        ])
+                        .await;
+                        break;
+                    }
+                }
+            }
+            _semaphore.add_permits(1);
+        });
+        semaphore
+            .acquire()
+            .await
+            .expect("Semaphore::acquire()")
+            .forget();
+        let _stop = stop.clone();
+        tokio::task::spawn(async move {
+            while !_stop.load(SeqCst) {
+                iceyee_time::sleep(100).await;
+            }
+            if let Ok(mut tcp) = TokioTcpStream::connect(address).await {
+                let _ = tcp.shutdown().await;
+            }
+        });
+        return Ok(stop);
     }
 
     /// 启动服务器.
-    pub async fn start<A>(mut self, address_and_port: A) -> Result<(), StdIoError>
-    where
-        A: ToSocketAddrs,
-    {
-        self.filters_before_work
-            .push(self.filter_host.clone().wrap());
-        let listener: TokioTcpListener = TokioTcpListener::bind(address_and_port).await?;
-        let address = listener.local_addr()?;
-        let server = Arc::new(self);
-        tokio::task::spawn(Self::clean_expired_session(server.clone()));
-        let server_clone = server.clone();
-        let exit_counter: Arc<usize> = Arc::new(0);
-        let exit_counter_clone = exit_counter.clone();
-        let listener_future = tokio::task::spawn(async move {
-            while !server_clone.stop_server.load(SeqCst) {
-                let server = server_clone.clone();
-                let exit_counter = exit_counter_clone.clone();
-                match listener.accept().await {
-                    Ok((tcp, address)) => {
-                        if server.stop_server.load(SeqCst) {
-                            break;
-                        }
-                        tokio::task::spawn(async move {
-                            #[allow(unused_variables)]
-                            let exit_counter = exit_counter;
-                            let mut id: Id = Id::new();
-                            let ip = match address.ip() {
-                                IpAddr::V4(ip) => Self::ipv4_to_string(ip),
-                                IpAddr::V6(ip) => Self::ipv6_to_string(ip),
-                            };
-                            let message: String = format!("建立连接, {ip}, {id}.");
-                            iceyee_logger::debug(&message).await;
-                            let mut tcp = Arc::new(tcp);
-                            loop {
-                                id.add();
-                                let server = server.clone();
-                                let tcp = tcp.clone();
-                                match Self::process_tcp(server, tcp, id.clone()).await {
-                                    Ok(true) => continue,
-                                    Ok(false) => {
-                                        let message: String = format!("正常断开连接, {ip}, {id}.");
-                                        iceyee_logger::debug(&message).await;
-                                        break;
-                                    }
-                                    Err(e) => {
-                                        match e.kind() {
-                                            StdIoErrorKind::TimedOut => {
-                                                let message: String =
-                                                    format!("超时断开连接, {ip}, {id}.");
-                                                iceyee_logger::debug(&message).await;
-                                            }
-                                            _ => {
-                                                let message: String =
-                                                    format!("异常断开连接, {ip}, {id}.");
-                                                iceyee_logger::debug(&message).await;
-                                                iceyee_logger::error(e.to_string().as_str()).await;
-                                            }
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-                            // 关闭连接.
-                            {
-                                match Arc::get_mut(&mut tcp).unwrap().shutdown().await {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        iceyee_logger::error(e.to_string().as_str()).await;
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    Err(e) => {
-                        iceyee_logger::error(e.to_string().as_str()).await;
-                        break;
-                    }
-                }
-            }
-        });
+    pub async fn start(self, address: &str, port: u16) -> Result<(), StdIoError> {
+        let stop = Self::test(self, address, port).await?;
         println!("---- 输入[Ctrl+C]停止. ----");
         tokio::signal::ctrl_c().await.unwrap();
+        iceyee_time::sleep(100).await;
         println!("---- 退出服务端. ----");
-        server.stop_server.store(true, SeqCst);
-        TokioTcpStream::connect(address).await?.shutdown().await?;
-        listener_future.await.unwrap();
         println!("---- 等待所有TCP处理完毕. ----");
-        while 1 < Arc::strong_count(&exit_counter) {
-            iceyee_time::sleep(200).await;
+        stop.store(true, SeqCst);
+        for _ in 0..600 {
+            if Arc::strong_count(&stop) != 1 {
+                iceyee_time::sleep(100).await;
+            }
         }
         println!("---- DONE. ----");
         return Ok(());
     }
 
-    /// 逻辑同start(), 但是stop由外部的信号决定.
-    pub async fn test<A>(
-        mut self,
-        address_and_port: A,
-        stop: Arc<AtomicBool>,
-    ) -> Result<(), StdIoError>
-    where
-        A: ToSocketAddrs,
-    {
-        self.connection_timeout = 2_000;
-        self.stop_server = stop;
-        self.filters_before_work
-            .push(self.filter_host.clone().wrap());
-        let listener: TokioTcpListener = TokioTcpListener::bind(address_and_port).await?;
-        let address = listener.local_addr()?;
-        let server = Arc::new(self);
-        tokio::task::spawn(Self::clean_expired_session(server.clone()));
-        let server_clone = server.clone();
-        let exit_counter: Arc<usize> = Arc::new(0);
-        let exit_counter_clone = exit_counter.clone();
-        let listener_future = tokio::task::spawn(async move {
-            while !server_clone.stop_server.load(SeqCst) {
-                let server = server_clone.clone();
-                let exit_counter = exit_counter_clone.clone();
-                match listener.accept().await {
-                    Ok((tcp, address)) => {
-                        if server.stop_server.load(SeqCst) {
-                            break;
-                        }
-                        tokio::task::spawn(async move {
-                            #[allow(unused_variables)]
-                            let exit_counter = exit_counter;
-                            let mut id: Id = Id::new();
-                            let ip = match address.ip() {
-                                IpAddr::V4(ip) => Self::ipv4_to_string(ip),
-                                IpAddr::V6(ip) => Self::ipv6_to_string(ip),
-                            };
-                            let message: String = format!("建立连接, {ip}, {id}.");
-                            iceyee_logger::debug(&message).await;
-                            let mut tcp = Arc::new(tcp);
-                            loop {
-                                id.add();
-                                let server = server.clone();
-                                let tcp = tcp.clone();
-                                match Self::process_tcp(server, tcp, id.clone()).await {
-                                    Ok(true) => continue,
-                                    Ok(false) => {
-                                        let message: String = format!("正常断开连接, {ip}, {id}.");
-                                        iceyee_logger::debug(&message).await;
-                                        break;
-                                    }
-                                    Err(e) => {
-                                        match e.kind() {
-                                            StdIoErrorKind::TimedOut => {
-                                                let message: String =
-                                                    format!("超时断开连接, {ip}, {id}.");
-                                                iceyee_logger::debug(&message).await;
-                                            }
-                                            _ => {
-                                                let message: String =
-                                                    format!("异常断开连接, {ip}, {id}.");
-                                                iceyee_logger::debug(&message).await;
-                                                iceyee_logger::error(e.to_string().as_str()).await;
-                                            }
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-                            // 关闭连接.
-                            {
-                                match Arc::get_mut(&mut tcp).unwrap().shutdown().await {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        iceyee_logger::error(e.to_string().as_str()).await;
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    Err(e) => {
-                        iceyee_logger::error(e.to_string().as_str()).await;
-                        break;
-                    }
-                }
-            }
-        });
-        while !server.stop_server.load(SeqCst) {
-            iceyee_time::sleep(200).await;
-        }
-        println!("---- 退出服务端. ----");
-        server.stop_server.store(true, SeqCst);
-        TokioTcpStream::connect(address).await?.shutdown().await?;
-        listener_future.await.unwrap();
-        println!("---- 等待所有TCP处理完毕. ----");
-        while 1 < Arc::strong_count(&exit_counter) {
-            iceyee_time::sleep(200).await;
-        }
-        println!("---- DONE. ----");
-        return Ok(());
-    }
-
-    async fn clean_expired_session(server: Arc<HttpServer>) {
-        while !server.stop_server.load(SeqCst) {
-            iceyee_time::sleep(1_000).await;
-            let sleep = tokio::task::spawn(iceyee_time::sleep(1_000 * 60 * 60));
-            let now: i64 = iceyee_time::now();
-            let mut sessions = server.sessions.lock().await;
-            let mut expired_session_id: Vec<String> = Vec::new();
-            for (id, session) in sessions.iter() {
-                let expired_time: i64 = session
-                    .read()
-                    .await
-                    .get("expired_time")
-                    .expect("iceyee_net/http/server.rs 937")
-                    .parse::<i64>()
-                    .unwrap_or(0);
-                if expired_time < now {
-                    expired_session_id.push(id.clone());
-                }
-            }
-            for id in &expired_session_id {
-                sessions.remove(id);
-            }
-            let message: String = format!(
-                "清理不活跃会话{}个, 剩余会话{}个.",
-                expired_session_id.len(),
-                sessions.len()
-            );
-            iceyee_logger::info(&message).await;
-            drop(sessions);
-            while !server.stop_server.load(SeqCst) && !sleep.is_finished() {
-                iceyee_time::sleep(200).await;
-            }
-        }
-        return;
-    }
-
-    fn parse_cookie(s: &str) -> Cookies {
-        let mut cookies: Cookies = Cookies::new();
-        for x in s.split(";") {
-            if x.contains("=") {
-                let mut y = x.splitn(2, "=");
-                let key: String = y.next().unwrap().trim().to_string();
-                let value: String = y.next().unwrap().trim().to_string();
-                cookies.insert(key, value);
-            }
-        }
-        return cookies;
-    }
-
-    fn new_session_id() -> String {
-        let a001 = HexEncoder::encode_number(Random::next() as u64);
-        let a002 = HexEncoder::encode_number(Random::next() as u64);
-        return a001 + &a002;
-    }
-
-    fn ipv4_to_string(ip: std::net::Ipv4Addr) -> String {
-        let ip = ip.octets();
-        return format!("{}.{}.{}.{}", ip[0], ip[1], ip[2], ip[3]);
-    }
-
-    fn ipv6_to_string(ip: std::net::Ipv6Addr) -> String {
-        let ip = ip.octets();
-        let ip: String = HexEncoder::encode(ip.to_vec().as_slice());
-        let ip: &[u8] = ip.as_bytes();
-        let mut buffer: Vec<u8> = Vec::new();
-        for x in 0..32 {
-            buffer.push(ip[x]);
-            if x % 4 == 3 {
-                buffer.push(b'.');
-            }
-        }
-        buffer.pop();
-        return String::from_utf8(buffer).unwrap();
-    }
-
-    async fn process_tcp(
-        server: Arc<HttpServer>,
-        mut tcp: Arc<TokioTcpStream>,
-        id: Id,
-    ) -> Result<bool, StdIoError> {
-        let mut close = false;
-        let request: Request = Request::read_from(
-            unsafe { Arc::get_mut_unchecked(&mut tcp) },
-            Some(server.connection_timeout),
-        )
-        .await?;
-        let message = format!(">>> {}, {}, {}", id, request.method, request.path);
-        iceyee_logger::info(&message).await;
-        let mut message = format!("\n{id}\n>>>\n{}", request.to_string());
-        match String::from_utf8(request.body.clone()) {
-            Ok(s) => message.push_str(&s),
-            Err(_) => message.push_str("[not utf-8.]"),
-        }
-        iceyee_logger::debug(&message).await;
+    async fn build_context(server: Arc<HttpServer>, request: Request, id: Id) -> Context {
         let mut response: Response = Response::default();
         R::write_ok(&mut response);
-        response
-            .header
-            .insert("Content-Type".to_string(), vec!["text/plain".to_string()]);
-        let mut cookies: Cookies = Cookies::new();
-        let session_id: String = if request.header.contains_key("Cookie") {
-            let s: &String = request.header.get("Cookie").unwrap();
-            cookies = Self::parse_cookie(s);
+        let (session_id, mut cookies) = if request.header.contains_key("Cookie") {
+            let cookies: Cookies = request
+                .header
+                .get("Cookie")
+                .expect("NEVER")
+                .parse::<Cookies>()
+                .expect("NEVER");
             if cookies.contains_key("session_id") {
-                cookies.get("session_id").unwrap().to_string()
+                (cookies.get("session_id").expect("NEVER").clone(), cookies)
             } else {
-                Self::new_session_id()
+                (new_session_id(), cookies)
             }
         } else {
-            Self::new_session_id()
+            (new_session_id(), Cookies::new())
         };
         cookies.insert("session_id".to_string(), session_id.clone());
         response.header.insert(
             "Set-Cookie".to_string(),
             vec!["session_id=".to_string() + &session_id + ";"],
         );
-        let mut sessions = server.sessions.lock().await;
-        let session: Session = if sessions.contains_key(&session_id) {
-            sessions.get(&session_id).unwrap().clone()
-        } else {
-            sessions.insert(session_id.clone(), Session::new());
-            sessions.get(&session_id).unwrap().clone()
+        let session: Session = {
+            let mut sessions = server.sessions.lock().await;
+            if !sessions.contains_key(&session_id) {
+                sessions.insert(session_id.clone(), Session::new());
+            }
+            sessions.get(&session_id).expect("NEVER").clone()
         };
-        drop(sessions);
         let expired_time: i64 = iceyee_time::now() + server.session_timeout as i64;
         session
             .write()
             .await
             .insert("expired_time".to_string(), expired_time.to_string());
-        let mut context: Context = Context {
+        let context: Context = Context {
             id: id.clone(),
             request: request,
             response: response,
@@ -904,10 +789,32 @@ impl HttpServer {
             global_session: server.global_session.clone(),
             e_message: None,
         };
+        return context;
+    }
+
+    async fn process(server: Arc<HttpServer>, context: &mut Context) -> bool {
+        iceyee_logger::debug(vec![
+            "\n".to_string(),
+            context.id.to_string(),
+            "\n".to_string(),
+            ">>>\n".to_string(),
+            context.request.to_string_with_body(),
+        ])
+        .await;
+        iceyee_logger::info(vec![
+            ">>>".to_string(),
+            context.id.to_string(),
+            context.request.method.clone(),
+            context.request.path.clone(),
+        ])
+        .await;
         let mut stop = false;
         for filter in &server.filters_before_work {
-            if filter.rule(&mut context).await {
-                match filter.do_filter(&mut context).await {
+            if stop {
+                break;
+            }
+            if filter.rule(context).await {
+                match filter.do_filter(context).await {
                     Ok(true) => continue,
                     Ok(false) => {
                         stop = true;
@@ -915,7 +822,7 @@ impl HttpServer {
                     }
                     Err(e) => {
                         context.e_message = Some(e);
-                        if !filter.on_error(&mut context).await {
+                        if !filter.on_error(context).await {
                             stop = true;
                             break;
                         }
@@ -925,66 +832,87 @@ impl HttpServer {
         }
         let mut done = false;
         if !stop {
-            if server.works.contains_key(&context.request.path) {
-                let works = server.works.get(&context.request.path).unwrap();
-                for (method, work) in works {
-                    if method == &context.request.method {
-                        done = true;
-                        match work.do_work(&mut context).await {
-                            Ok(()) => {}
-                            Err(e) => {
-                                context.e_message = Some(e);
-                                work.on_error(&mut context).await;
-                            }
-                        };
+            let method: String = context.request.method.clone();
+            let path: String = context.request.path.clone();
+            let key: String = method.clone() + " " + &path;
+            if server.works.contains_key(&key) {
+                done = true;
+                let work = server.works.get(&key).expect("NEVER");
+                match work.do_work(context).await {
+                    Ok(()) => {}
+                    Err(e) => {
+                        context.e_message = Some(e);
+                        work.on_error(context).await;
                     }
-                }
+                };
             }
         }
         if !stop && !done && server.file_router.is_some() {
-            // Work不匹配.
-            let file_router = server.file_router.as_ref().unwrap();
-            if file_router.rule(&mut context).await {
-                match file_router.do_filter(&mut context).await {
+            // Work不匹配, 则找本地文件.
+            let file_router = server.file_router.as_ref().expect("NEVER");
+            if file_router.rule(context).await {
+                match file_router.do_filter(context).await {
                     Ok(_) => {}
                     Err(e) => {
                         context.e_message = Some(e);
-                        file_router.on_error(&mut context).await;
+                        file_router.on_error(context).await;
                     }
                 }
             }
         }
-        if !stop {
-            for filter in &server.filters_after_work {
-                if filter.rule(&mut context).await {
-                    match filter.do_filter(&mut context).await {
-                        Ok(true) => continue,
-                        Ok(false) => break,
-                        Err(e) => {
-                            context.e_message = Some(e);
-                            if !filter.on_error(&mut context).await {
-                                break;
-                            }
+        for filter in &server.filters_after_work {
+            if stop {
+                break;
+            }
+            if filter.rule(context).await {
+                match filter.do_filter(context).await {
+                    Ok(true) => continue,
+                    Ok(false) => {
+                        // stop = true;
+                        break;
+                    }
+                    Err(e) => {
+                        context.e_message = Some(e);
+                        if !filter.on_error(context).await {
+                            // stop = true;
+                            break;
                         }
                     }
                 }
             }
         }
         // Connection: close.
-        if context.request.header.contains_key("Connection") {
-            if context.request.header.get("Connection").unwrap() == "close" {
-                context
-                    .response
-                    .header
-                    .insert("Connection".to_string(), vec!["close".to_string()]);
-                close = true;
-            } else {
-                context
-                    .response
-                    .header
-                    .insert("Connection".to_string(), vec!["keep-alive".to_string()]);
-            }
-        }
+        let close: bool = if context.request.header.contains_key("Connection")
+            && context.request.header.get("Connection").expect("NEVER") == "close"
+        {
+            context
+                .response
+                .header
+                .insert("Connection".to_string(), vec!["close".to_string()]);
+            true
+        } else {
+            context
+                .response
+                .header
+                .insert("Connection".to_string(), vec!["keep-alive".to_string()]);
+            false
+        };
+        // 输出.
+        iceyee_logger::debug(vec![
+            "\n".to_string(),
+            context.id.to_string(),
+            "\n".to_string(),
+            "<<<\n".to_string(),
+            context.response.to_string_with_body(),
+        ])
+        .await;
+        iceyee_logger::info(vec![
+            "<<<".to_string(),
+            context.id.to_string(),
+            context.response.status_code.to_string(),
+            context.response.status.clone(),
+        ])
+        .await;
         // Content-Length.
         // chunk.
         match context
@@ -1008,10 +936,17 @@ impl HttpServer {
                     .response
                     .header
                     .insert("Transfer-Encoding".to_string(), vec!["chunked".to_string()]);
-                let mut gzip = GzipEncoder::new(context.response.body.as_slice());
                 let mut buffer = Vec::new();
-                gzip.read_to_end(&mut buffer).await?;
-                drop(gzip);
+                if let Err(e) = GzipEncoder::new(context.response.body.as_slice())
+                    .read_to_end(&mut buffer)
+                    .await
+                {
+                    iceyee_logger::error(vec![
+                        "GzipEncoder::read_to_end()".to_string(),
+                        e.to_string(),
+                    ])
+                    .await;
+                }
                 context.response.body.clear();
                 let length: String = HexEncoder::encode_number(buffer.len() as u64);
                 context
@@ -1030,22 +965,72 @@ impl HttpServer {
                 context.response.body.push(b'\n');
             }
         }
-        // 输出.
-        let message = format!(
-            "<<< {}, {}, {}",
-            id, context.response.status_code, context.response.status
-        );
-        iceyee_logger::info(&message).await;
-        let message = format!("\n{id}\n<<<\n{}", context.response.to_string());
-        iceyee_logger::debug(&message).await;
-        unsafe { Arc::get_mut_unchecked(&mut tcp) }
-            .write_all(context.response.to_string().as_bytes())
+        return close;
+    }
+
+    async fn write_to_tcp(tcp: &mut TokioTcpStream, context: &Context) -> Result<(), StdIoError> {
+        tcp.write_all(context.response.to_string().as_bytes())
             .await?;
-        unsafe { Arc::get_mut_unchecked(&mut tcp) }
-            .write_all(context.response.body.as_slice())
-            .await?;
-        return Ok(!close);
+        tcp.write_all(context.response.body.as_slice()).await?;
+        return Ok(());
+    }
+
+    async fn clean_expired_session(server: Arc<HttpServer>) {
+        let now: i64 = iceyee_time::now();
+        let mut sessions = server.sessions.lock().await;
+        let mut expired_session_id: Vec<String> = Vec::new();
+        for (id, session) in sessions.iter() {
+            let expired_time: i64 = session
+                .read()
+                .await
+                .get("expired_time")
+                .expect("NEVER")
+                .parse::<i64>()
+                .expect("NEVER");
+            if expired_time < now {
+                expired_session_id.push(id.clone());
+            }
+        }
+        for id in &expired_session_id {
+            sessions.remove(id);
+        }
+        iceyee_logger::info(vec![
+            "清理不活跃会话".to_string(),
+            expired_session_id.len().to_string(),
+            "个, 剩余会话".to_string(),
+            sessions.len().to_string(),
+            "个.".to_string(),
+        ])
+        .await;
+        drop(sessions);
+        return;
     }
 }
 
 // Function.
+
+fn ipv4_to_string(ip: std::net::Ipv4Addr) -> String {
+    let ip = ip.octets();
+    return format!("{}.{}.{}.{}", ip[0], ip[1], ip[2], ip[3]);
+}
+
+fn ipv6_to_string(ip: std::net::Ipv6Addr) -> String {
+    let ip = ip.octets();
+    let ip: String = HexEncoder::encode(ip.to_vec().as_slice());
+    let ip: &[u8] = ip.as_bytes();
+    let mut buffer: Vec<u8> = Vec::new();
+    for x in 0..32 {
+        buffer.push(ip[x]);
+        if x % 4 == 3 {
+            buffer.push(b'.');
+        }
+    }
+    buffer.pop();
+    return String::from_utf8(buffer).expect("NEVER");
+}
+
+fn new_session_id() -> String {
+    let a001 = HexEncoder::encode_number(Random::next());
+    let a002 = HexEncoder::encode_number(Random::next());
+    return a001 + &a002;
+}

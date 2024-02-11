@@ -45,7 +45,7 @@ hello\
     println!(
         "{}{}",
         a001.to_string(),
-        String::from_utf8(a001.body.clone()).expect("test_http_response.rs 153")
+        String::from_utf8(a001.body.clone()).expect("String::from_utf8()"),
     );
     let s: &str = "\
 HTTP/1.1 403 Forbidden\r\n\
@@ -67,6 +67,6 @@ world\r\n\
     println!(
         "{}{}",
         a001.to_string(),
-        String::from_utf8(a001.body.clone()).expect("test_http_response.rs 761")
+        String::from_utf8(a001.body.clone()).expect("String::from_utf8()"),
     );
 }

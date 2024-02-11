@@ -20,9 +20,7 @@ use iceyee_net::http::server::R;
 use iceyee_net::http::Status;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
-use std::sync::Arc;
 
 // Enum.
 
@@ -136,50 +134,59 @@ impl Work for WorkJson {
 
 #[tokio::test]
 pub async fn test_first_work() {
-    println!("");
-    // iceyee_logger::init(iceyee_logger::Level::Debug, None, None).await;
-    let stop: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-    let stop_clone = stop.clone();
-    let a001 = tokio::task::spawn(async move {
-        let stop = stop_clone;
-        let proxy = NoProxy::new().wrap();
-        HttpClient::new()
-            .set_verbose(true)
-            .set_url::<&str>("http://localhost:10877/first_work")
-            .unwrap()
-            .send(Some(proxy.clone()))
-            .await
-            .expect("test_http_server.rs 857");
-        HttpClient::new()
-            .set_verbose(true)
-            .set_url::<&str>("http://localhost:10877/error")
-            .unwrap()
-            .set_header("Authorization", "Basic aWNleWVlOjc0NTkxODcw")
-            .send(Some(proxy.clone()))
-            .await
-            .expect("test_http_server.rs 945");
-        HttpClient::new()
-            .set_verbose(true)
-            .set_url::<&str>("http://localhost:10877/json")
-            .unwrap()
-            .set_header("Authorization", "Basic aWNleWVlOjc0NTkxODcw")
-            .send(Some(proxy.clone()))
-            .await
-            .expect("test_http_server.rs 593");
-        stop.store(true, SeqCst);
-    });
-    HttpServer::new()
+    iceyee_logger::init(Some(iceyee_logger::Level::Debug), None, None).await;
+    let stop = HttpServer::new()
         .set_root("/home/ljq")
+        .set_connection_timeout(1_000)
         .add_filter_before_work(FilterCORS::new().allow_origin("*").wrap())
         .add_filter_before_work(FilterBasicAuth::new("iceyee", "74591870").wrap())
         .add_work(WorkFirst.wrap())
         .add_work(WorkRedirect.wrap())
         .add_work(WorkError.wrap())
         .add_work(WorkJson.wrap())
-        .test("localhost:10877", stop)
+        .test("localhost", 10877)
         .await
-        .expect("test_http_server.rs 129");
-    a001.await.unwrap();
-
+        .expect("HttpServer::test()");
+    // let _ = HttpClient::get(false, "http://localhost:10877/first_work", "").await;
+    // let _ = HttpClient::get(false, "http://localhost:10877/error", "").await;
+    // let _ = HttpClient::get(false, "http://localhost:10877/json", "").await;
+    let proxy = NoProxy::new().wrap();
+    HttpClient::new()
+        .set_verbose(false)
+        .set_url("http://localhost:10877/first_work")
+        .expect("NEVER")
+        .send(Some(proxy.clone()))
+        .await
+        .expect("HttpClient::send()");
+    HttpClient::new()
+        .set_verbose(false)
+        .set_url("http://localhost:10877/error")
+        .expect("NEVER")
+        .set_header("Authorization", "Basic aWNleWVlOjc0NTkxODcw")
+        .send(Some(proxy.clone()))
+        .await
+        .expect("HttpClient::send()");
+    HttpClient::new()
+        .set_verbose(false)
+        .set_url("http://localhost:10877/json")
+        .expect("NEVER")
+        .set_header("Authorization", "Basic aWNleWVlOjc0NTkxODcw")
+        .send(Some(proxy.clone()))
+        .await
+        .expect("HttpClient::send()");
+    stop.store(true, SeqCst);
+    iceyee_time::sleep(100).await;
+    // HttpServer::new()
+    //     .set_root("/home/ljq")
+    //     .set_connection_timeout(10_000)
+    //     .add_filter_before_work(FilterCORS::new().allow_origin("*").wrap())
+    //     .add_filter_before_work(FilterBasicAuth::new("iceyee", "74591870").wrap())
+    //     .add_work(WorkFirst.wrap())
+    //     .add_work(WorkRedirect.wrap())
+    //     .add_work(WorkError.wrap())
+    //     .add_work(WorkJson.wrap())
+    //     .start("localhost", 10877)
+    //     .await
+    //     .expect("HttpServer::start()");
     return;
 }

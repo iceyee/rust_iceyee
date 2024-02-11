@@ -25,80 +25,6 @@ use std::pin::Pin;
 
 // Struct.
 
-// Function.
-
-#[derive(Clone, Debug)]
-pub(in crate::http::server) struct FilterHost {
-    full_hosts: HashSet<String>,
-    usual_hosts: HashSet<String>,
-}
-
-impl FilterHost {
-    pub fn new() -> FilterHost {
-        let mut host_filter = FilterHost {
-            full_hosts: HashSet::new(),
-            usual_hosts: HashSet::new(),
-        };
-        host_filter.full_hosts.insert("127.0.0.1".to_string());
-        host_filter.full_hosts.insert("localhost".to_string());
-        return host_filter;
-    }
-
-    pub fn add_full(&mut self, host: &str) {
-        self.full_hosts.insert(host.to_string());
-        return;
-    }
-
-    pub fn add_usual(&mut self, host: &str) {
-        self.usual_hosts.insert(host.to_string());
-        return;
-    }
-}
-
-impl Filter for FilterHost {
-    fn do_filter<'a, 'b>(
-        &'a self,
-        context: &'b mut Context,
-    ) -> Pin<Box<dyn Future<Output = Result<bool, String>> + Send + 'b>>
-    where
-        'a: 'b,
-    {
-        return Box::pin(async move {
-            // 如果有端口, 则截掉端口部分.
-            let host: Option<String> = context.request.header.get("Host").map(|host| {
-                if host.contains(":") {
-                    host.splitn(2, ":").next().unwrap().to_string()
-                } else {
-                    host.to_string()
-                }
-            });
-            let auth: bool = match host {
-                Some(host) => {
-                    if self.full_hosts.contains(&host) {
-                        // 如果全匹配.
-                        return Ok(true);
-                    } else if !host.contains(".") {
-                        // 如果没有二级域名.
-                        false
-                    } else {
-                        // 如果有二级域名 | 截掉前面的二级域名, 然后匹配.
-                        let a001 = host.clone();
-                        let mut a001 = a001.splitn(2, ".");
-                        a001.next();
-                        let a002 = ".".to_string() + a001.next().unwrap();
-                        self.usual_hosts.contains(&a002)
-                    }
-                }
-                None => false,
-            };
-            if !auth {
-                R::write_status(&mut context.response, Status::Forbidden(None));
-            }
-            return Ok(auth);
-        });
-    }
-}
-
 #[derive(Clone, Debug)]
 pub(in crate::http::server) struct FileRouter {
     root: String,
@@ -223,7 +149,7 @@ impl Filter for FileRouter {
                     .await
                     .map_err(|e| e.to_string())?
                     .to_str()
-                    .unwrap()
+                    .expect("fs::read_link()")
                     .to_string();
             }
             if metadata.is_dir() {
@@ -256,13 +182,86 @@ impl Filter for FileRouter {
         'a: 'b,
     {
         return Box::pin(async {
-            let body: String = context.e_message.as_ref().unwrap().clone();
+            let e_message: String = context.e_message.as_ref().expect("e_message None").clone();
             R::write_status(
                 &mut context.response,
-                Status::InternalServerError(Some(body.clone())),
+                Status::InternalServerError(Some(e_message.clone())),
             );
-            iceyee_logger::error_2(context.id.to_string(), body.clone()).await;
+            iceyee_logger::info(vec![context.id.to_string(), e_message.clone()]).await;
             return true;
+        });
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(in crate::http::server) struct FilterHost {
+    full_hosts: HashSet<String>,
+    usual_hosts: HashSet<String>,
+}
+
+impl FilterHost {
+    pub fn new() -> FilterHost {
+        let mut host_filter = FilterHost {
+            full_hosts: HashSet::new(),
+            usual_hosts: HashSet::new(),
+        };
+        host_filter.full_hosts.insert("0.0.0.0".to_string());
+        host_filter.full_hosts.insert("127.0.0.1".to_string());
+        host_filter.full_hosts.insert("localhost".to_string());
+        return host_filter;
+    }
+
+    pub fn add_full(&mut self, host: &str) {
+        self.full_hosts.insert(host.to_string());
+        return;
+    }
+
+    pub fn add_usual(&mut self, host: &str) {
+        self.usual_hosts.insert(host.to_string());
+        return;
+    }
+}
+
+impl Filter for FilterHost {
+    fn do_filter<'a, 'b>(
+        &'a self,
+        context: &'b mut Context,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, String>> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async move {
+            // 如果有端口, 则截掉端口部分.
+            let host: Option<String> = context.request.header.get("Host").map(|host| {
+                if host.contains(":") {
+                    host.splitn(2, ":").next().expect("NEVER").to_string()
+                } else {
+                    host.to_string()
+                }
+            });
+            let auth: bool = match host {
+                Some(host) => {
+                    if self.full_hosts.contains(&host) {
+                        // 如果全匹配.
+                        return Ok(true);
+                    } else if !host.contains(".") {
+                        // 如果没有二级域名.
+                        false
+                    } else {
+                        // 如果有二级域名 | 截掉前面的二级域名, 然后匹配.
+                        let a001 = host.clone();
+                        let mut a001 = a001.splitn(2, ".");
+                        a001.next();
+                        let a002 = ".".to_string() + a001.next().unwrap();
+                        self.usual_hosts.contains(&a002)
+                    }
+                }
+                None => false,
+            };
+            if !auth {
+                R::write_status(&mut context.response, Status::Forbidden(None));
+            }
+            return Ok(auth);
         });
     }
 }
@@ -382,22 +381,24 @@ impl Filter for FilterCORS {
             if self.allow_origin.is_some() {
                 context.response.header.insert(
                     "Access-Control-Allow-Origin".to_string(),
-                    vec![self.allow_origin.as_ref().unwrap().clone()],
+                    vec![self.allow_origin.as_ref().expect("NEVER").clone()],
                 );
             }
             if self.allow_methods.is_some() {
                 context.response.header.insert(
                     "Access-Control-Allow-Methods".to_string(),
-                    vec![self.allow_methods.as_ref().unwrap().clone()],
+                    vec![self.allow_methods.as_ref().expect("NEVER").clone()],
                 );
             }
             if self.allow_headers.is_some() {
                 context.response.header.insert(
                     "Access-Control-Allow-Headers".to_string(),
-                    vec![self.allow_headers.as_ref().unwrap().clone()],
+                    vec![self.allow_headers.as_ref().expect("NEVER").clone()],
                 );
             }
             return Ok(true);
         });
     }
 }
+
+// Function.

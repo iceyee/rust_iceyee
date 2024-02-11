@@ -20,7 +20,7 @@ use iceyee_net::http::Args;
 pub fn test_args() {
     println!("");
     println!("new Args.");
-    let mut args: Args = Args::new();
+    let mut args: Args = Args::default();
     println!("add '你好', '我好', '他好', 'k'.");
     args.add("你好", "1");
     args.add("你好", "2");
@@ -34,7 +34,7 @@ pub fn test_args() {
     println!("{}", args.to_string());
     println!("{:#?}", args);
     println!("parse old args.to_string().");
-    let args: Args = Args::parse(args.to_string().as_str());
+    let args: Args = args.to_string().parse::<Args>().expect("NEVER");
     println!("{:#?}", args);
     return;
 }

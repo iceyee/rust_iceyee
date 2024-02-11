@@ -50,6 +50,6 @@ hello\
     println!(
         "{}{}",
         a001.to_string(),
-        String::from_utf8(a001.body.clone()).expect("test_http_request.rs 985")
+        String::from_utf8(a001.body.clone()).expect("String::from_utf8()")
     );
 }

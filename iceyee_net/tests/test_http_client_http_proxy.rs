@@ -18,7 +18,8 @@ use iceyee_net::http::client::Proxy;
 
 // Function.
 
-#[tokio::test]
+// #[tokio::test]
+#[allow(unused_variables)]
 pub async fn test_httpclient_http_proxy() {
     println!("");
     let proxy = HttpProxy::new("vpn.iceyee.cn", 10001, Some("iceyee:74591870")).wrap();
@@ -30,7 +31,7 @@ pub async fn test_httpclient_http_proxy() {
     let url: &str = "http://ip-api.com/json/";
     let _ = HttpClient::new()
         .set_verbose(true)
-        .set_url::<&str>(url)
+        .set_url(url)
         .expect("test_http_client_no_proxy.rs 449")
         .set_header("Connection", "close")
         .set_forwarded(None)

@@ -10,11 +10,11 @@
 pub mod client;
 pub mod server;
 
+use iceyee_encoder::UrlEncoder;
 use std::collections::HashMap;
 use std::error::Error as StdError;
 use std::io::Error as StdIoError;
 use std::io::ErrorKind as StdIoErrorKind;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
@@ -25,35 +25,21 @@ use tokio::io::AsyncReadExt;
 
 /// 常用的状态码.
 ///
-/// 200 OK
-///
-/// 201 Created
-///
-/// 202 Accepted
-///
-/// 204 No Content
-///
-/// 301 Moved Permanently
-///
-/// 302 Moved Temporarily
-///
-/// 304 Not Modified
-///
-/// 400 Bad Request
-///
-/// 401 Unauthorized
-///
-/// 403 Forbidden
-///
-/// 404 Not Found
-///
-/// 500 Internal Server Error
-///
-/// 501 Not Implemented
-///
-/// 502 Bad Gateway
-///
-/// 503 Service Unavailable
+/// - 200 OK
+/// - 201 Created
+/// - 202 Accepted
+/// - 204 No Content
+/// - 301 Moved Permanently
+/// - 302 Moved Temporarily
+/// - 304 Not Modified
+/// - 400 Bad Request
+/// - 401 Unauthorized
+/// - 403 Forbidden
+/// - 404 Not Found
+/// - 500 Internal Server Error
+/// - 501 Not Implemented
+/// - 502 Bad Gateway
+/// - 503 Service Unavailable
 #[derive(Clone, Debug, PartialEq)]
 pub enum Status {
     OK(Option<String>),
@@ -181,24 +167,50 @@ pub struct Args {
 impl ToString for Args {
     /// 转字符串, 如'?a=1&b=2&b=3', 包含url编码.
     fn to_string(&self) -> String {
-        use iceyee_encoder::UrlEncoder;
-
-        let mut s: String = String::new();
+        let mut output: String = String::new();
         let mut keys = Vec::from_iter(self.hm.keys());
         keys.sort();
         for key in keys {
             for value in self.hm.get(key).unwrap() {
-                if s.len() == 0 {
-                    s.push_str("?");
+                if output.len() == 0 {
+                    output.push_str("?");
                 } else {
-                    s.push_str("&");
+                    output.push_str("&");
                 }
-                s.push_str(UrlEncoder::encode(key.clone()).as_str());
-                s.push_str("=");
-                s.push_str(UrlEncoder::encode(value.clone()).as_str());
+                output.push_str(UrlEncoder::encode(key).as_str());
+                output.push_str("=");
+                output.push_str(UrlEncoder::encode(value).as_str());
             }
         }
-        return s;
+        return output;
+    }
+}
+
+/// 解析参数, 例如'?a=1&a=2&b=3'解析得到\[(a,1),(a,2),(b,3)\].
+///
+/// 解析包括URL解码.
+///
+/// 没有异常.
+impl std::str::FromStr for Args {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut args: Args = Args::default();
+        for x in s.split(['?', '&']) {
+            if !x.contains('=') {
+                continue;
+            }
+            let mut a001 = x.splitn(2, '=');
+            let key: String = a001.next().unwrap().to_string();
+            let key: String = UrlEncoder::decode(&key).unwrap_or("".to_string());
+            let value: String = a001.next().unwrap().to_string();
+            let value: String = UrlEncoder::decode(&value).unwrap_or("".to_string());
+            if !args.hm.contains_key(&key) {
+                args.hm.insert(key.clone(), Vec::new());
+            }
+            args.hm.get_mut(&key).expect("NEVER").push(value);
+        }
+        return Ok(args);
     }
 }
 
@@ -207,7 +219,7 @@ impl Args {
         if !self.hm.contains_key(key) {
             self.hm.insert(key.to_string(), Vec::new());
         }
-        self.hm.get_mut(key).unwrap().push(value.to_string());
+        self.hm.get_mut(key).expect("NEVER").push(value.to_string());
         return;
     }
 
@@ -218,30 +230,6 @@ impl Args {
 
     pub fn get<'a>(&'a self, key: &str) -> &'a Vec<String> {
         return self.hm.get(key).unwrap_or(&self.empty_vec);
-    }
-
-    /// 解析参数, 例如'?a=1&a=2&b=3'解析得到\[(a,1),(a,2),(b,3)\].
-    ///
-    /// 解析包括URL解码.
-    pub fn parse(s: &str) -> Args {
-        use iceyee_encoder::UrlEncoder;
-
-        let mut args: Args = Args::default();
-        for x in s.split(['?', '&']) {
-            if !x.contains('=') {
-                continue;
-            }
-            let mut a001 = x.splitn(2, '=');
-            let key: String = a001.next().unwrap().to_string();
-            let key: String = UrlEncoder::decode(key).unwrap_or("".to_string());
-            let value: String = a001.next().unwrap().to_string();
-            let value: String = UrlEncoder::decode(value).unwrap_or("".to_string());
-            if !args.hm.contains_key(&key) {
-                args.hm.insert(key.clone(), Vec::new());
-            }
-            args.hm.get_mut(&key).unwrap().push(value);
-        }
-        return args;
     }
 }
 
@@ -268,10 +256,10 @@ pub struct UrlError {
 }
 
 impl UrlError {
-    fn new(link: String, state: State, index: usize, message: String) -> Self {
+    fn new(link: &str, state: &State, index: usize, message: String) -> Self {
         return Self {
-            link: link,
-            state: state,
+            link: link.to_string(),
+            state: state.clone(),
             index: index,
             message: message,
         };
@@ -293,7 +281,7 @@ impl StdError for UrlError {}
 /// 统一资源定位器, Uniform Resource Locator.
 ///
 /// http_URL = "http:" "//" host \[ ":" port \] \[ abs_path \]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Url {
     pub protocol: String,
     pub host: String,
@@ -303,40 +291,39 @@ pub struct Url {
     pub fragment: Option<String>,
 }
 
-impl Url {
-    pub fn new<S>(value: S) -> Result<Self, UrlError>
-    where
-        S: AsRef<str>,
-    {
-        let value = value.as_ref().to_string();
-        let link: Arc<String> = Arc::new(value.to_string());
-        let mut state: State = State::Protocol;
+impl std::default::Default for Url {
+    fn default() -> Self {
+        return Url {
+            protocol: "http:".to_string(),
+            host: "localhost".to_string(),
+            port: 80,
+            path: "/".to_string(),
+            query: None,
+            fragment: None,
+        };
+    }
+}
+
+impl std::str::FromStr for Url {
+    type Err = UrlError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let link: String = s.to_string();
+        let value = s.to_string();
         let value: &[u8] = value.as_bytes();
-        let mut index: usize = 0;
         let length: usize = value.len();
+        let mut state: State = State::Protocol;
+        let mut index: usize = 0;
         let mut buffer: Vec<u8> = Vec::new();
         let mut url: Url = Url::default();
-        let mut _state: Arc<State> = Arc::new(state.clone());
         while index < length {
-            _state = Arc::new(state.clone());
             match state {
                 State::Protocol => {
                     if value[index] == b'/' {
-                        let protocol: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
-                            UrlError::new(
-                                link.to_string(),
-                                _state.as_ref().clone(),
-                                index,
-                                e.to_string(),
-                            )
-                        })?;
+                        let protocol: String = String::from_utf8(buffer.to_vec())
+                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
                         if !protocol.ends_with(":") {
-                            Err(UrlError::new(
-                                link.to_string(),
-                                state,
-                                index,
-                                "".to_string(),
-                            ))?;
+                            Err(UrlError::new(&link, &state, index, "".to_string()))?;
                         }
                         url.protocol = protocol;
                         buffer.clear();
@@ -349,21 +336,10 @@ impl Url {
                 }
                 State::Host => match value[index] {
                     b':' | b'/' | b'?' | b'#' => {
-                        let host: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
-                            UrlError::new(
-                                link.to_string(),
-                                _state.as_ref().clone(),
-                                index,
-                                e.to_string(),
-                            )
-                        })?;
+                        let host: String = String::from_utf8(buffer.to_vec())
+                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
                         if host.len() == 0 {
-                            Err(UrlError::new(
-                                link.to_string(),
-                                state,
-                                index,
-                                "".to_string(),
-                            ))?;
+                            Err(UrlError::new(&link, &state, index, "".to_string()))?;
                         }
                         url.host = host;
                         buffer.clear();
@@ -385,7 +361,7 @@ impl Url {
                                 index += 0;
                             }
                             _ => {
-                                panic!("不可能到达.");
+                                panic!("NEVER");
                             }
                         }
                     }
@@ -397,30 +373,11 @@ impl Url {
                 State::Port => match value[index] {
                     b'/' | b'?' | b'#' => {
                         let port: u16 = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| {
-                                UrlError::new(
-                                    link.to_string(),
-                                    _state.as_ref().clone(),
-                                    index,
-                                    e.to_string(),
-                                )
-                            })?
+                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?
                             .parse::<u16>()
-                            .map_err(|e| {
-                                UrlError::new(
-                                    link.to_string(),
-                                    _state.as_ref().clone(),
-                                    index,
-                                    e.to_string(),
-                                )
-                            })?;
+                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
                         if port == 0 {
-                            Err(UrlError::new(
-                                link.to_string(),
-                                state,
-                                index,
-                                "".to_string(),
-                            ))?;
+                            Err(UrlError::new(&link, &state, index, "".to_string()))?;
                         }
                         url.port = port;
                         buffer.clear();
@@ -438,7 +395,7 @@ impl Url {
                                 index += 0;
                             }
                             _ => {
-                                panic!("不可能到达.");
+                                panic!("NEVER");
                             }
                         }
                     }
@@ -449,14 +406,8 @@ impl Url {
                 },
                 State::Path => match value[index] {
                     b'?' | b'#' => {
-                        let path: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
-                            UrlError::new(
-                                link.to_string(),
-                                _state.as_ref().clone(),
-                                index,
-                                e.to_string(),
-                            )
-                        })?;
+                        let path: String = String::from_utf8(buffer.to_vec())
+                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
                         url.path = path;
                         buffer.clear();
                         match value[index] {
@@ -469,7 +420,7 @@ impl Url {
                                 index += 0;
                             }
                             _ => {
-                                panic!("不可能到达.");
+                                panic!("NEVER");
                             }
                         }
                     }
@@ -480,14 +431,8 @@ impl Url {
                 },
                 State::Query => match value[index] {
                     b'#' => {
-                        let query: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
-                            UrlError::new(
-                                link.to_string(),
-                                _state.as_ref().clone(),
-                                index,
-                                e.to_string(),
-                            )
-                        })?;
+                        let query: String = String::from_utf8(buffer.to_vec())
+                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
                         url.query = Some(query);
                         buffer.clear();
                         state = State::Fragment;
@@ -506,101 +451,44 @@ impl Url {
         } // while index < length
         match state {
             State::Protocol => {
-                Err(UrlError::new(
-                    link.to_string(),
-                    state,
-                    index,
-                    "".to_string(),
-                ))?;
+                Err(UrlError::new(&link, &state, index, "".to_string()))?;
             }
             State::Host => {
-                let host: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
-                    UrlError::new(
-                        link.to_string(),
-                        _state.as_ref().clone(),
-                        index,
-                        e.to_string(),
-                    )
-                })?;
+                let host: String = String::from_utf8(buffer.to_vec())
+                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
                 if host.len() == 0 {
-                    Err(UrlError::new(
-                        link.to_string(),
-                        state,
-                        index,
-                        "".to_string(),
-                    ))?;
+                    Err(UrlError::new(&link, &state, index, "".to_string()))?;
                 }
                 url.host = host;
             }
             State::Port => {
                 let port: u16 = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| {
-                        UrlError::new(
-                            link.to_string(),
-                            _state.as_ref().clone(),
-                            index,
-                            e.to_string(),
-                        )
-                    })?
+                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?
                     .parse::<u16>()
-                    .map_err(|e| {
-                        UrlError::new(
-                            link.to_string(),
-                            _state.as_ref().clone(),
-                            index,
-                            e.to_string(),
-                        )
-                    })?;
+                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
                 if port == 0 {
-                    Err(UrlError::new(
-                        link.to_string(),
-                        state,
-                        index,
-                        "".to_string(),
-                    ))?;
+                    Err(UrlError::new(&link, &state, index, "".to_string()))?;
                 }
                 url.port = port;
             }
             State::Path => {
-                let path: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
-                    UrlError::new(
-                        link.to_string(),
-                        _state.as_ref().clone(),
-                        index,
-                        e.to_string(),
-                    )
-                })?;
+                let path: String = String::from_utf8(buffer.to_vec())
+                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
                 url.path = path;
             }
             State::Query => {
-                let query: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
-                    UrlError::new(
-                        link.to_string(),
-                        _state.as_ref().clone(),
-                        index,
-                        e.to_string(),
-                    )
-                })?;
+                let query: String = String::from_utf8(buffer.to_vec())
+                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
                 url.query = Some(query);
             }
             State::Fragment => {
-                let fragment: String = String::from_utf8(buffer.to_vec()).map_err(|e| {
-                    UrlError::new(
-                        link.to_string(),
-                        _state.as_ref().clone(),
-                        index,
-                        e.to_string(),
-                    )
-                })?;
+                let fragment: String = String::from_utf8(buffer.to_vec())
+                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
                 url.fragment = Some(fragment);
             }
         }
-        if url.port == 0 {
-            if url.protocol == "http:" {
-                url.port = 80;
-            } else if url.protocol == "https:" {
-                url.port = 443;
-            }
+        if url.port == 80 && url.protocol == "https:" {
+            url.port = 443;
         }
         if url.path.len() == 0 {
             url.path = "/".to_string();
@@ -663,10 +551,10 @@ impl Buffer {
 #[derive(Clone, Debug)]
 pub struct Request {
     pub method: String,
-    pub version: String,
     pub path: String,
     pub query: Args,
     pub fragment: Option<String>,
+    pub version: String,
     pub header: HashMap<String, String>,
     pub body: Vec<u8>,
 }
@@ -679,7 +567,7 @@ impl std::default::Default for Request {
             query: Args::default(),
             fragment: None,
             version: "HTTP/1.1".to_string(),
-            header: HashMap::new(),
+            header: HashMap::with_capacity(0xFF),
             body: Vec::new(),
         };
     }
@@ -688,36 +576,48 @@ impl std::default::Default for Request {
 /// 转成报文, 但不包含请求正文.
 impl ToString for Request {
     fn to_string(&self) -> String {
-        let mut s: String = String::new();
-        s.push_str(&self.method);
-        s.push_str(" ");
-        s.push_str(&self.path);
-        s.push_str(&self.query.to_string());
+        let mut output: String = String::with_capacity(0xFFF);
+        output.push_str(&self.method);
+        output.push_str(" ");
+        output.push_str(&self.path);
+        output.push_str(&self.query.to_string());
         self.fragment.as_ref().filter(|t| {
-            s.push_str(t);
+            output.push_str(t);
             false
         });
-        s.push_str(" ");
-        s.push_str(&self.version);
-        s.push_str("\r\n");
+        output.push_str(" ");
+        output.push_str(&self.version);
+        output.push_str("\r\n");
         let mut keys = Vec::from_iter(self.header.keys());
         keys.sort();
         for key in keys {
-            s.push_str(key);
-            s.push_str(": ");
-            s.push_str(self.header.get(key).unwrap());
-            s.push_str("\r\n");
+            output.push_str(key);
+            output.push_str(": ");
+            output.push_str(self.header.get(key).unwrap());
+            output.push_str("\r\n");
         }
-        s.push_str("\r\n");
-        return s;
+        output.push_str("\r\n");
+        return output;
     }
 }
 
 impl Request {
+    /// 转成报文, 包含请求正文.
+    pub fn to_string_with_body(&self) -> String {
+        let mut output: String = self.to_string();
+        match String::from_utf8(self.body.clone()) {
+            Ok(s) => output.push_str(&s),
+            Err(_) => output.push_str(
+                format!("[body is not utf-8, and has {} bytes.]", self.body.len()).as_str(),
+            ),
+        }
+        return output;
+    }
+
     /// 解析数据.
     ///
     /// - @param timeout 超时, 可选, 默认1分钟.
-    pub async fn read_from<R>(mut input: R, timeout: Option<usize>) -> Result<Request, StdIoError>
+    pub async fn read_from<R>(mut input: R, timeout: Option<u64>) -> Result<Request, StdIoError>
     where
         R: AsyncRead + Unpin,
     {
@@ -737,29 +637,26 @@ impl Request {
         let mut buffer: Buffer = Buffer::new();
         let mut bytes: Vec<u8> = Vec::new();
         let mut needed: usize = 1;
-        let timeout: usize = timeout.unwrap_or(60_000);
+        let timeout: u64 = timeout.unwrap_or(60_000);
         'A: while 0 < needed {
             while needed <= 0xFFF && buffer.length < needed
                 || 0xFFF <= needed && buffer.length < 0xFFF
             {
                 let mut buf: [u8; 0xFFF] = [0; 0xFFF];
                 let length: usize = match tokio::time::timeout(
-                    Duration::from_millis(timeout as u64),
+                    Duration::from_millis(timeout),
                     input.read(&mut buf),
                 )
                 .await
                 {
                     Ok(length) => length?,
-                    Err(_) => {
-                        Err(StdIoError::new(StdIoErrorKind::TimedOut, "TimedOut"))?;
-                        0
-                    }
+                    Err(_) => return Err(StdIoError::new(StdIoErrorKind::TimedOut, "TimedOut")),
                 };
                 if length == 0 {
-                    Err(StdIoError::new(
+                    return Err(StdIoError::new(
                         StdIoErrorKind::UnexpectedEof,
                         "UnexpectedEof",
-                    ))?;
+                    ));
                 }
                 buffer.extend(&buf, length);
             }
@@ -782,7 +679,7 @@ impl Request {
                                     break;
                                 }
                                 _ => {
-                                    panic!("never.");
+                                    panic!("NEVER");
                                 }
                             }
                         } else {
@@ -827,7 +724,7 @@ impl Request {
                                 let a002: String = a001.next().unwrap().to_string();
                                 let a003: String = a001.next().unwrap().to_string();
                                 request.path = a002;
-                                request.query = Args::parse(&a003);
+                                request.query = a003.parse::<Args>().expect("NEVER");
                             }
                             break;
                         } else {
@@ -980,7 +877,7 @@ impl std::default::Default for Response {
             version: "HTTP/1.1".to_string(),
             status_code: 200,
             status: "OK".to_string(),
-            header: HashMap::new(),
+            header: HashMap::with_capacity(0xFF),
             body: Vec::new(),
         };
     }
@@ -988,33 +885,45 @@ impl std::default::Default for Response {
 
 impl ToString for Response {
     fn to_string(&self) -> String {
-        let mut s: String = String::new();
-        s.push_str(self.version.as_str());
-        s.push_str(" ");
-        s.push_str(self.status_code.to_string().as_str());
-        s.push_str(" ");
-        s.push_str(self.status.as_str());
-        s.push_str("\r\n");
+        let mut output: String = String::with_capacity(0xFFF);
+        output.push_str(self.version.as_str());
+        output.push_str(" ");
+        output.push_str(self.status_code.to_string().as_str());
+        output.push_str(" ");
+        output.push_str(self.status.as_str());
+        output.push_str("\r\n");
         let mut keys = Vec::from_iter(self.header.keys());
         keys.sort();
         for key in keys {
             for value in self.header.get(key).unwrap() {
-                s.push_str(key);
-                s.push_str(": ");
-                s.push_str(value);
-                s.push_str("\r\n");
+                output.push_str(key);
+                output.push_str(": ");
+                output.push_str(value);
+                output.push_str("\r\n");
             }
         }
-        s.push_str("\r\n");
-        return s;
+        output.push_str("\r\n");
+        return output;
     }
 }
 
 impl Response {
+    /// 转成报文, 包含请求正文.
+    pub fn to_string_with_body(&self) -> String {
+        let mut output: String = self.to_string();
+        match String::from_utf8(self.body.clone()) {
+            Ok(s) => output.push_str(&s),
+            Err(_) => output.push_str(
+                format!("[body is not utf-8, and has {} bytes.]", self.body.len()).as_str(),
+            ),
+        }
+        return output;
+    }
+
     /// 解析数据.
     ///
     /// - @param timeout 超时, 可选, 默认1分钟.
-    pub async fn read_from<R>(mut input: R, timeout: Option<usize>) -> Result<Response, StdIoError>
+    pub async fn read_from<R>(mut input: R, timeout: Option<u64>) -> Result<Response, StdIoError>
     where
         R: AsyncRead + Unpin,
     {
@@ -1038,7 +947,7 @@ impl Response {
         let mut buffer: Buffer = Buffer::new();
         let mut bytes: Vec<u8> = Vec::new();
         let mut needed: usize = 1;
-        let timeout: usize = timeout.unwrap_or(60_000);
+        let timeout: u64 = timeout.unwrap_or(60_000);
         'A: loop {
             while needed <= 0xFFF && buffer.length < needed
                 || 0xFFF <= needed && buffer.length < 0xFFF
@@ -1051,16 +960,13 @@ impl Response {
                 .await
                 {
                     Ok(length) => length?,
-                    Err(_) => {
-                        Err(StdIoError::new(StdIoErrorKind::TimedOut, "TimedOut"))?;
-                        0
-                    }
+                    Err(_) => return Err(StdIoError::new(StdIoErrorKind::TimedOut, "TimedOut")),
                 };
                 if length == 0 {
-                    Err(StdIoError::new(
+                    return Err(StdIoError::new(
                         StdIoErrorKind::UnexpectedEof,
                         "UnexpectedEof",
-                    ))?;
+                    ));
                 }
                 buffer.extend(&buf, length);
             }

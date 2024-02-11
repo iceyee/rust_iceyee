@@ -18,7 +18,8 @@ use iceyee_net::http::client::Socks5Proxy;
 
 // Function.
 
-#[tokio::test]
+// #[tokio::test]
+#[allow(unused_variables)]
 pub async fn test_httpclient_socks5_proxy() {
     println!("");
     let proxy = Socks5Proxy::new("localhost", 1082, None).wrap();
@@ -31,7 +32,7 @@ pub async fn test_httpclient_socks5_proxy() {
     let url: &str = "https://buff.163.com/api/asset/get_brief_asset/";
     let _ = HttpClient::new()
         .set_verbose(true)
-        .set_url::<&str>(url)
+        .set_url(url)
         .expect("test_http_client_no_proxy.rs 449")
         .set_header("Connection", "close")
         .set_forwarded(None)
