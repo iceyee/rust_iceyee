@@ -600,13 +600,14 @@ impl HttpServer {
         let _stop = stop.clone();
         tokio::task::spawn(async move {
             _semaphore.add_permits(1);
-            let clean_t: i64 = iceyee_time::now();
+            let mut clean_t: i64 = iceyee_time::now();
             while !_stop.load(SeqCst) {
                 let server = _server.clone();
                 match listener.accept().await {
                     Ok((mut tcp, address)) => {
                         if 1_000 * 60 * 60 < iceyee_time::now() - clean_t {
                             Self::clean_expired_session(server.clone()).await;
+                            clean_t = iceyee_time::now();
                         }
                         if _stop.load(SeqCst) {
                             break;
