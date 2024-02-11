@@ -37,34 +37,28 @@ pub async fn chrome(driver_url: Option<&str>, headless: bool) -> WebDriverResult
     if headless {
         options.set_headless()?;
     }
-    iceyee_logger::info("打开浏览器.").await;
-    iceyee_logger::info_object("", &options).await;
+    iceyee_logger::info(vec!["打开浏览器".to_string()]).await;
+    iceyee_logger::info_object(&options).await;
     let driver: WebDriver =
         WebDriver::new(driver_url.unwrap_or("http://localhost:9515"), options).await?;
     return Ok(driver);
 }
 
 pub async fn wait_url(driver: &WebDriver, url: &str, equal: bool) -> WebDriverResult<()> {
-    iceyee_logger::info_2("wait_url()", url).await;
+    iceyee_logger::info(vec!["wait_url".to_string(), url.to_string()]).await;
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
-        stdout
-            .write_all(b"\r")
-            .await
-            .expect("iceyee_webdriver/lib.rs 081");
+        stdout.write_all(b"\r").await.expect("Stdout::write_all()");
         stdout
             .write_all(x.to_string().as_bytes())
             .await
-            .expect("iceyee_webdriver/lib.rs 049");
-        stdout.flush().await.expect("iceyee_webdriver/lib.rs 177");
+            .expect("Stdout::write_all()");
+        stdout.flush().await.expect("Stdout::flush()");
         if (driver.current_url().await?.as_str() == url && equal)
             || (driver.current_url().await?.as_str() != url && !equal)
         {
-            stdout
-                .write_all(b"\r")
-                .await
-                .expect("iceyee_webdriver/lib.rs 081");
-            stdout.flush().await.expect("iceyee_webdriver/lib.rs 713");
+            stdout.write_all(b"\r").await.expect("Stdout::write_all()");
+            stdout.flush().await.expect("Stdout::flush()");
             iceyee_time::sleep(1_000).await;
             return Ok(());
         }
@@ -74,24 +68,18 @@ pub async fn wait_url(driver: &WebDriver, url: &str, equal: bool) -> WebDriverRe
 }
 
 pub async fn wait_ready(driver: &WebDriver) -> WebDriverResult<()> {
-    iceyee_logger::info("wait_ready()").await;
+    iceyee_logger::info(vec!["wait_ready".to_string()]).await;
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
-        stdout
-            .write_all(b"\r")
-            .await
-            .expect("iceyee_webdriver/lib.rs 081");
+        stdout.write_all(b"\r").await.expect("Stdout::write_all()");
         stdout
             .write_all(x.to_string().as_bytes())
             .await
-            .expect("iceyee_webdriver/lib.rs 049");
-        stdout.flush().await.expect("iceyee_webdriver/lib.rs 177");
+            .expect("Stdout::write_all()");
+        stdout.flush().await.expect("Stdout::flush()");
         if driver.status().await?.ready {
-            stdout
-                .write_all(b"\r")
-                .await
-                .expect("iceyee_webdriver/lib.rs 081");
-            stdout.flush().await.expect("iceyee_webdriver/lib.rs 713");
+            stdout.write_all(b"\r").await.expect("Stdout::write_all()");
+            stdout.flush().await.expect("Stdout::flush()");
             iceyee_time::sleep(1_000).await;
             return Ok(());
         }
@@ -101,24 +89,23 @@ pub async fn wait_ready(driver: &WebDriver) -> WebDriverResult<()> {
 }
 
 pub async fn wait_element(driver: &WebDriver, css: &str, number: usize) -> WebDriverResult<()> {
-    iceyee_logger::info_3("wait_element()", css, number.to_string()).await;
+    iceyee_logger::info(vec![
+        "wait_element".to_string(),
+        css.to_string(),
+        number.to_string(),
+    ])
+    .await;
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
-        stdout
-            .write_all(b"\r")
-            .await
-            .expect("iceyee_webdriver/lib.rs 081");
+        stdout.write_all(b"\r").await.expect("Stdout::write_all()");
         stdout
             .write_all(x.to_string().as_bytes())
             .await
-            .expect("iceyee_webdriver/lib.rs 049");
-        stdout.flush().await.expect("iceyee_webdriver/lib.rs 177");
+            .expect("Stdout::write_all()");
+        stdout.flush().await.expect("Stdout::flush()");
         if number <= driver.find_all(By::Css(css)).await?.len() {
-            stdout
-                .write_all(b"\r")
-                .await
-                .expect("iceyee_webdriver/lib.rs 081");
-            stdout.flush().await.expect("iceyee_webdriver/lib.rs 713");
+            stdout.write_all(b"\r").await.expect("Stdout::write_all()");
+            stdout.flush().await.expect("Stdout::flush()");
             return Ok(());
         }
         iceyee_time::sleep(1_000).await;
@@ -140,7 +127,13 @@ pub async fn add_cookie(
     value: &str,
     domain: &str,
 ) -> WebDriverResult<()> {
-    iceyee_logger::info_4("add_cookie()", key, value, domain).await;
+    iceyee_logger::info(vec![
+        "add_cookie".to_string(),
+        key.to_string(),
+        value.to_string(),
+        domain.to_string(),
+    ])
+    .await;
     let mut cookie = Cookie::new(key.to_string(), value.to_string());
     cookie.set_domain(domain.to_string());
     cookie.set_path("/");
@@ -149,7 +142,12 @@ pub async fn add_cookie(
 }
 
 pub async fn set_cookie(driver: &WebDriver, cookie: &str, domain: &str) -> WebDriverResult<()> {
-    iceyee_logger::info_3("set_cookie()", cookie, domain).await;
+    iceyee_logger::info(vec![
+        "set_cookie".to_string(),
+        cookie.to_string(),
+        domain.to_string(),
+    ])
+    .await;
     driver.delete_all_cookies().await?;
     for x in cookie.split(";") {
         let mut y = x.split("=");
