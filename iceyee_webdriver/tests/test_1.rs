@@ -6,10 +6,8 @@
 //
 // Use.
 
-use thirtyfour::error::WebDriverError;
 use thirtyfour::error::WebDriverResult;
 use thirtyfour::WebDriver;
-use tokio::io::AsyncWriteExt;
 
 // Enum.
 
@@ -22,10 +20,9 @@ use tokio::io::AsyncWriteExt;
 #[tokio::test]
 pub async fn _1() {
     println!("");
-    let driver = iceyee_webdriver::chrome(None, false)
+    let (driver, _child) = iceyee_webdriver::chrome(false)
         .await
         .expect("test_1.rs 017");
-    iceyee_time::sleep(5_000).await;
     if let Err(e) = _2(&driver).await {
         println!("{}", e.to_string());
     }

@@ -13,11 +13,14 @@
 // Use.
 
 use cookie::SameSite;
+use iceyee_random::Random;
+use std::process::Child;
 use thirtyfour::error::WebDriverError;
 use thirtyfour::error::WebDriverResult;
 use thirtyfour::By;
 use thirtyfour::ChromeCapabilities;
 use thirtyfour::Cookie;
+use thirtyfour::EdgeCapabilities;
 use thirtyfour::WebDriver;
 use thirtyfour::WebElement;
 use tokio::io::AsyncWriteExt;
@@ -30,7 +33,14 @@ use tokio::io::AsyncWriteExt;
 
 // Function.
 
-pub async fn chrome(driver_url: Option<&str>, headless: bool) -> WebDriverResult<WebDriver> {
+pub async fn chrome(headless: bool) -> WebDriverResult<(WebDriver, Child)> {
+    let port: u64 = Random::next() % 0x7FFF + 0xFFF;
+    let child = std::process::Command::new("chromium.chromedriver")
+        .arg("--log-level=WARNING")
+        .arg("--port=".to_string() + port.to_string().as_str())
+        .spawn()
+        .expect("start chromium.chromedriver");
+    iceyee_time::sleep(3_000).await;
     let mut options: ChromeCapabilities = ChromeCapabilities::new();
     options.set_ignore_certificate_errors()?;
     options.add_chrome_arg("--no-sandbox")?;
@@ -39,9 +49,29 @@ pub async fn chrome(driver_url: Option<&str>, headless: bool) -> WebDriverResult
     }
     iceyee_logger::info(vec!["打开浏览器".to_string()]).await;
     iceyee_logger::info_object(&options).await;
-    let driver: WebDriver =
-        WebDriver::new(driver_url.unwrap_or("http://localhost:9515"), options).await?;
-    return Ok(driver);
+    let url: String = format!("http://localhost:{port}");
+    let driver: WebDriver = WebDriver::new(&url, options).await?;
+    if !headless {
+        driver.set_window_rect(0, 0, 848, 848).await?;
+    }
+    return Ok((driver, child));
+}
+
+pub async fn edge() -> WebDriverResult<(WebDriver, Child)> {
+    let port: u64 = Random::next() % 0x7FFF + 0xFFF;
+    let child = std::process::Command::new("msedgedriver")
+        .arg("--log-level=WARNING")
+        .arg("--port=".to_string() + port.to_string().as_str())
+        .spawn()
+        .expect("start msedgedriver");
+    iceyee_time::sleep(3_000).await;
+    let options: EdgeCapabilities = EdgeCapabilities::new();
+    iceyee_logger::info(vec!["打开浏览器".to_string()]).await;
+    iceyee_logger::info_object(&options).await;
+    let url: String = format!("http://localhost:{port}");
+    let driver: WebDriver = WebDriver::new(&url, options).await?;
+    driver.set_window_rect(0, 0, 1200, 400).await?;
+    return Ok((driver, child));
 }
 
 pub async fn wait_url(driver: &WebDriver, url: &str, equal: bool) -> WebDriverResult<()> {
