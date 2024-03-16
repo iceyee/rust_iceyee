@@ -52,7 +52,21 @@ pub async fn chrome(headless: bool) -> WebDriverResult<(WebDriver, Child)> {
     let url: String = format!("http://localhost:{port}");
     let driver: WebDriver = WebDriver::new(&url, options).await?;
     if !headless {
-        driver.set_window_rect(0, 0, 848, 848).await?;
+        if let serde_json::value::Value::Number(number) = driver
+            .execute("return window.outerWidth;", vec![])
+            .await?
+            .json()
+        {
+            let width: u32 = number.as_u64().expect("NEVER") as u32;
+            if let serde_json::value::Value::Number(number) = driver
+                .execute("return window.outerHeight;", vec![])
+                .await?
+                .json()
+            {
+                let height: u32 = number.as_u64().expect("NEVER") as u32;
+                driver.set_window_rect(0, 0, width, height * 3 / 4).await?;
+            }
+        }
     }
     return Ok((driver, child));
 }
@@ -70,7 +84,21 @@ pub async fn edge() -> WebDriverResult<(WebDriver, Child)> {
     iceyee_logger::info_object(&options).await;
     let url: String = format!("http://localhost:{port}");
     let driver: WebDriver = WebDriver::new(&url, options).await?;
-    driver.set_window_rect(0, 0, 1200, 400).await?;
+    if let serde_json::value::Value::Number(number) = driver
+        .execute("return window.outerWidth;", vec![])
+        .await?
+        .json()
+    {
+        let width: u32 = number.as_u64().expect("NEVER") as u32;
+        if let serde_json::value::Value::Number(number) = driver
+            .execute("return window.outerHeight;", vec![])
+            .await?
+            .json()
+        {
+            let height: u32 = number.as_u64().expect("NEVER") as u32;
+            driver.set_window_rect(0, 0, width, height * 3 / 4).await?;
+        }
+    }
     return Ok((driver, child));
 }
 
