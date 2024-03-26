@@ -18,17 +18,17 @@ use iceyee_net::http::client::Proxy;
 
 // Function.
 
-// #[tokio::test]
+#[tokio::test]
 #[allow(unused_variables)]
 pub async fn test_httpclient_http_proxy() {
     println!("");
-    let proxy = HttpProxy::new("vpn.iceyee.cn", 10001, Some("iceyee:74591870")).wrap();
     let proxy = HttpProxy::new("localhost", 1081, None).wrap();
+    let proxy = HttpProxy::new("vpn.iceyee.cn", 10001, Some("iceyee:74591870")).wrap();
+    let url: &str = "https://www.c5game.com/";
     let url: &str = "http://www.baidu.com/";
+    let url: &str = "http://ip-api.com/json/";
     let url: &str = "https://www.baidu.com/";
     let url: &str = "https://buff.163.com/";
-    let url: &str = "https://www.c5game.com/";
-    let url: &str = "http://ip-api.com/json/";
     let _ = HttpClient::new()
         .set_verbose(true)
         .set_url(url)

@@ -1045,7 +1045,7 @@ impl HttpClient {
             proxy.get_logger().push_str("\r\n---- Exception ----\r\n");
             proxy
                 .get_logger()
-                .push_str(r.as_ref().expect("NEVER").to_string().as_str());
+                .push_str(r.as_ref().expect_err("NEVER").to_string().as_str());
             proxy.close();
         }
         let message: String = format!(

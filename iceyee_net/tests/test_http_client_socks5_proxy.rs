@@ -18,7 +18,7 @@ use iceyee_net::http::client::Socks5Proxy;
 
 // Function.
 
-// #[tokio::test]
+#[tokio::test]
 #[allow(unused_variables)]
 pub async fn test_httpclient_socks5_proxy() {
     println!("");
