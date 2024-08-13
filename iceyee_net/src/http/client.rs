@@ -1046,7 +1046,7 @@ impl HttpClient {
             proxy
                 .get_logger()
                 .push_str(r.as_ref().expect_err("NEVER").to_string().as_str());
-            proxy.close();
+            proxy.close().await;
         }
         let message: String = format!(
             "\r\n---- End ----\r\n总耗时: {}ms\r\n",
