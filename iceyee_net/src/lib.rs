@@ -20,7 +20,7 @@
 #![feature(io_error_more)]
 
 pub mod http;
-// pub mod smtp;
+pub mod smtp;
 
 // Use.
 
