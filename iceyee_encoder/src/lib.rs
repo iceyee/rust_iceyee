@@ -26,12 +26,13 @@ impl std::fmt::Display for Base64Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Self::InvalidLength(length) => {
-                f.write_str(format!("Base64Error, 无效的长度, length={}.", length).as_str())?;
+                f.write_str(&format!("Base64Error, 无效的长度, length={}", length))?;
             }
             Self::UnexpectedCharacter(character) => {
-                f.write_str(
-                    format!("Base64Error, 出现未预期字符, character={}.", character).as_str(),
-                )?;
+                f.write_str(&format!(
+                    "Base64Error, 出现未预期字符, character={}",
+                    character
+                ))?;
             }
         }
         return Ok(());
@@ -53,12 +54,13 @@ impl std::fmt::Display for HexError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Self::InvalidLength(length) => {
-                f.write_str(format!("HexError, 无效的长度, length={}.", length).as_str())?;
+                f.write_str(&format!("HexError, 无效的长度, length={}", length))?;
             }
             Self::UnexpectedCharacter(character) => {
-                f.write_str(
-                    format!("HexError, 出现未预期字符, character={}.", character).as_str(),
-                )?;
+                f.write_str(&format!(
+                    "HexError, 出现未预期字符, character={}",
+                    character
+                ))?;
             }
         }
         return Ok(());
@@ -80,10 +82,10 @@ impl std::fmt::Display for UrlError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Self::InvalidFormat => {
-                f.write_str("UrlError, 错误的格式.")?;
+                f.write_str("UrlError, 错误格式")?;
             }
-            Self::FromUtf8Error(_) => {
-                f.write_str("UrlError, 解码后的内容不是UTF-8编码.")?;
+            Self::FromUtf8Error(e) => {
+                f.write_str(&format!("UrlError, {}", e.to_string()))?;
             }
         }
         return Ok(());

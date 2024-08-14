@@ -4,10 +4,12 @@
 # *  Git: https://github.com/iceyee                *
 # **************************************************
 #                                                   
+cargo-features = ["edition2024"]
+
 [package]
 name = "iceyee_encoder"
-version = "6.0.0"
-edition = "2021"
+version = "7.0.0"
+edition = "2024"
 
 description = "Base64Encoder, HexEncoder, UrlEncoder."
 keywords = ["iceyee", "base64", "hex", "url"]
