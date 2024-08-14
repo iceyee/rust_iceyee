@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_webdriver"
-version = "2.0.0"
+version = "3.0.0"
 edition = "2021"
 
 description = "web selenium."
@@ -18,9 +18,9 @@ repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_webdriver/"
 
 [dependencies]
 cookie = "0.16"
-iceyee_logger = "6" 
-iceyee_random = "6" 
-iceyee_time = "6" 
+iceyee_logger = "7" 
+iceyee_random = "7" 
+iceyee_time = "7" 
 serde_json = "1.0" 
 thirtyfour = "0.31" 
 tokio = { version = "1", features = ["full"] } 

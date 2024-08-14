@@ -79,6 +79,11 @@ impl Random {
         SEED.with(|s| s.set(seed));
         return seed;
     }
+
+    /// 下一个不大于max的随机数, 相当于next() % max.
+    pub fn next_less_than(max: u64) -> u64 {
+        return Self::next() % max;
+    }
 }
 
 // Function.

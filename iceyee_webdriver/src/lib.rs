@@ -47,8 +47,8 @@ pub async fn chrome(headless: bool) -> WebDriverResult<(WebDriver, Child)> {
     if headless {
         options.set_headless()?;
     }
-    iceyee_logger::info(vec!["打开浏览器".to_string()]).await;
-    iceyee_logger::info_object(&options).await;
+    iceyee_logger::info!("打开浏览器");
+    iceyee_logger::info_object!(&options);
     let url: String = format!("http://localhost:{port}");
     let driver: WebDriver = WebDriver::new(&url, options).await?;
     if !headless {
@@ -80,8 +80,8 @@ pub async fn edge() -> WebDriverResult<(WebDriver, Child)> {
         .expect("start msedgedriver");
     iceyee_time::sleep(3_000).await;
     let options: EdgeCapabilities = EdgeCapabilities::new();
-    iceyee_logger::info(vec!["打开浏览器".to_string()]).await;
-    iceyee_logger::info_object(&options).await;
+    iceyee_logger::info!("打开浏览器");
+    iceyee_logger::info_object!(&options);
     let url: String = format!("http://localhost:{port}");
     let driver: WebDriver = WebDriver::new(&url, options).await?;
     if let serde_json::value::Value::Number(number) = driver
@@ -103,7 +103,7 @@ pub async fn edge() -> WebDriverResult<(WebDriver, Child)> {
 }
 
 pub async fn wait_url(driver: &WebDriver, url: &str, equal: bool) -> WebDriverResult<()> {
-    iceyee_logger::info(vec!["wait_url".to_string(), url.to_string()]).await;
+    iceyee_logger::info!("wait_url", url);
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
         stdout.write_all(b"\r").await.expect("Stdout::write_all()");
@@ -126,7 +126,7 @@ pub async fn wait_url(driver: &WebDriver, url: &str, equal: bool) -> WebDriverRe
 }
 
 pub async fn wait_ready(driver: &WebDriver) -> WebDriverResult<()> {
-    iceyee_logger::info(vec!["wait_ready".to_string()]).await;
+    iceyee_logger::info!("wait_ready");
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
         stdout.write_all(b"\r").await.expect("Stdout::write_all()");
@@ -147,12 +147,7 @@ pub async fn wait_ready(driver: &WebDriver) -> WebDriverResult<()> {
 }
 
 pub async fn wait_element(driver: &WebDriver, css: &str, number: usize) -> WebDriverResult<()> {
-    iceyee_logger::info(vec![
-        "wait_element".to_string(),
-        css.to_string(),
-        number.to_string(),
-    ])
-    .await;
+    iceyee_logger::info!("wait_element", css, number);
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
         stdout.write_all(b"\r").await.expect("Stdout::write_all()");
@@ -185,13 +180,7 @@ pub async fn add_cookie(
     value: &str,
     domain: &str,
 ) -> WebDriverResult<()> {
-    iceyee_logger::info(vec![
-        "add_cookie".to_string(),
-        key.to_string(),
-        value.to_string(),
-        domain.to_string(),
-    ])
-    .await;
+    iceyee_logger::info!("add_cookie", key, value, domain);
     let mut cookie = Cookie::new(key.to_string(), value.to_string());
     cookie.set_domain(domain.to_string());
     cookie.set_path("/");
@@ -200,12 +189,7 @@ pub async fn add_cookie(
 }
 
 pub async fn set_cookie(driver: &WebDriver, cookie: &str, domain: &str) -> WebDriverResult<()> {
-    iceyee_logger::info(vec![
-        "set_cookie".to_string(),
-        cookie.to_string(),
-        domain.to_string(),
-    ])
-    .await;
+    iceyee_logger::info!("set_cookie", cookie, domain);
     driver.delete_all_cookies().await?;
     for x in cookie.split(";") {
         let mut y = x.split("=");

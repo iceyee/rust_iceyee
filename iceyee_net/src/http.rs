@@ -233,9 +233,6 @@ impl Args {
     }
 }
 
-// /// 通一资源定位符, Uniform Resource Identifiers.
-// type Uri = Url;
-
 #[derive(Clone, Debug)]
 enum State {
     Protocol,

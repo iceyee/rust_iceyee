@@ -187,7 +187,7 @@ impl Filter for FileRouter {
                 &mut context.response,
                 Status::InternalServerError(Some(e_message.clone())),
             );
-            iceyee_logger::info(vec![context.id.to_string(), e_message.clone()]).await;
+            iceyee_logger::info!(context.id, e_message);
             return true;
         });
     }
