@@ -474,7 +474,7 @@ impl PartialOrd for DateTime {
     }
 }
 
-/// 时钟, 精度0ms ~ 100ms.
+/// 时钟, 误差0ms ~ 100ms.
 #[derive(Clone, Debug)]
 pub struct Timer {
     thread_handles: Arc<Vec<JoinHandle<()>>>,
@@ -497,10 +497,8 @@ impl std::default::Default for Timer {
 impl Drop for Timer {
     /// 关闭时钟.
     fn drop(&mut self) {
-        if Arc::strong_count(&self.thread_handles) == 1 {
+        if Arc::get_mut(&mut self.thread_handles).is_some() {
             println!("Timer::drop().");
-            let thread_handles = unsafe { Arc::get_mut_unchecked(&mut self.thread_handles) };
-            thread_handles.clear();
             self.stop_flag.store(true, Ordering::SeqCst);
         }
         return;
@@ -518,28 +516,25 @@ impl Timer {
 
     /// 启动时钟.
     pub fn start(&mut self) {
-        let thread_handles = unsafe { Arc::get_mut_unchecked(&mut self.thread_handles) };
-        thread_handles.clear();
         self.stop_flag.store(false, Ordering::SeqCst);
         return;
     }
 
     /// 停止时钟.
     pub fn stop(&mut self) {
-        let thread_handles = unsafe { Arc::get_mut_unchecked(&mut self.thread_handles) };
-        thread_handles.clear();
         self.stop_flag.store(true, Ordering::SeqCst);
         return;
     }
 
     /// 停止时钟并等待所有任务结束.
     pub async fn stop_and_wait(&mut self) {
-        self.stop_flag.store(true, Ordering::SeqCst);
-        let thread_handles = unsafe { Arc::get_mut_unchecked(&mut self.thread_handles) };
-        loop {
-            match thread_handles.pop() {
-                Some(handle) => handle.await.expect("JoinHandle::await"),
-                None => break,
+        if let Some(thread_handles) = Arc::get_mut(&mut self.thread_handles) {
+            self.stop_flag.store(true, Ordering::SeqCst);
+            loop {
+                match thread_handles.pop() {
+                    Some(handle) => handle.await.expect("JoinHandle::await"),
+                    None => break,
+                }
             }
         }
         return;
@@ -806,7 +801,7 @@ impl Timer {
 
 // Function.
 
-/// 返回当前系统的时间戳, 单位:毫秒.
+/// 当前系统的时间戳, 单位:毫秒.
 pub fn now() -> i64 {
     #[cfg(target_os = "linux")]
     unsafe {
@@ -886,7 +881,7 @@ pub fn now() -> i64 {
     }
 }
 
-/// 返回当前系统的时间戳, 单位:秒.
+/// 当前系统的时间戳, 单位:秒.
 pub fn now_seconds() -> i64 {
     return now() / 1000;
 }
@@ -895,81 +890,3 @@ pub fn now_seconds() -> i64 {
 pub fn sleep(t: u64) -> Sleep {
     return tokio::time::sleep(Duration::from_millis(t));
 }
-
-// pub fn init() {
-//     #[cfg(target_os = "linux")]
-//     unsafe {
-//         // extern long timezone;
-//         // void tzset ();
-//         use std::ffi::c_long;
-//         extern "C" {
-//             static mut timezone: c_long;
-//             fn tzset();
-//         }
-//         tzset();
-//         let offset_hour: i16 = timezone as i16 / 60 / 60;
-//         let offset_minute: i16 = timezone as i16 / 60 % 60;
-//         TIME_OFFSET = Some(-(offset_hour * 100 + offset_minute));
-//     #[cfg(target_os = "windows")]
-//         // typedef struct _SYSTEMTIME {
-//         //     WORD wYear;
-//         //     WORD wMonth;
-//         //     WORD wDayOfWeek;
-//         //     WORD wDay;
-//         //     WORD wHour;
-//         //     WORD wMinute;
-//         //     WORD wSecond;
-//         //     WORD wMilliseconds;
-//         // } SYSTEMTIME, *PSYSTEMTIME, *LPSYSTEMTIME;
-//         // typedef struct _TIME_ZONE_INFORMATION {
-//         //     LONG       Bias;
-//         //     WCHAR      StandardName[32];
-//         //     SYSTEMTIME StandardDate;
-//         //     LONG       StandardBias;
-//         //     WCHAR      DaylightName[32];
-//         //     SYSTEMTIME DaylightDate;
-//         //     LONG       DaylightBias;
-//         // } TIME_ZONE_INFORMATION, *PTIME_ZONE_INFORMATION, *LPTIME_ZONE_INFORMATION;
-//         // DWORD GetTimeZoneInformation(
-//         //         [out] LPTIME_ZONE_INFORMATION lpTimeZoneInformation
-//         //         );
-//         use std::ffi::c_int;
-//         use std::ffi::c_long;
-//         use std::ffi::c_ushort;
-//         #[allow(non_snake_case)]
-//         #[derive(Debug, Clone, Default)]
-//         #[repr(C)]
-//         struct SYSTEMTIME {
-//             wYear: c_ushort,
-//             wMonth: c_ushort,
-//             wDayOfWeek: c_ushort,
-//             wDay: c_ushort,
-//             wHour: c_ushort,
-//             wMinute: c_ushort,
-//             wSecond: c_ushort,
-//             wMilliseconds: c_ushort,
-//         }
-//         #[allow(non_camel_case_types)]
-//         #[allow(non_snake_case)]
-//         #[derive(Debug, Clone, Default)]
-//         #[repr(C)]
-//         struct TIME_ZONE_INFORMATION {
-//             Bias: c_long,
-//             StandardName: [c_ushort; 32],
-//             StandardDate: SYSTEMTIME,
-//             StandardBias: c_long,
-//             DaylightName: [c_ushort; 32],
-//             DaylightDate: SYSTEMTIME,
-//             DaylightBias: c_long,
-//         }
-//         extern "C" {
-//             fn GetTimeZoneInformation(lpTimeZoneInformation: *mut TIME_ZONE_INFORMATION) -> c_int;
-//         }
-//         let mut tzi: TIME_ZONE_INFORMATION = Default::default();
-//         GetTimeZoneInformation(&mut tzi);
-//         let offset_hour: i16 = tzi.Bias as i16 / 60;
-//         let offset_minute: i16 = tzi.Bias as i16 % 60;
-//         TIME_OFFSET = Some(-(offset_hour * 100 + offset_minute));
-//     }
-//     return;
-// }

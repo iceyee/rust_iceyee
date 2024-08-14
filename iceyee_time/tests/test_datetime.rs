@@ -19,7 +19,6 @@ use iceyee_time::DateTime;
 #[test]
 pub fn test_datetime() {
     println!("");
-    println!("@TIME_OFFSET={:?}", unsafe { iceyee_time::TIME_OFFSET });
     println!("\niceyee_time::now()={}", iceyee_time::now());
     let dt_new = DateTime::new();
     // println!("DateTime::new()=\n{:?}", dt_new);
