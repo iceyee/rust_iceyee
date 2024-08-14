@@ -35,11 +35,7 @@ impl MailAgent {
         body: &str,
     ) -> bool {
         if let Err(e) = Self::send_email(server, name, auth, to, title, body).await {
-            iceyee_logger::error(vec![
-                "iceyee_net::smtp::MailAgent::send()".to_string(),
-                format!("{:?}", e),
-            ])
-            .await;
+            iceyee_logger::error!(e);
             return false;
         } else {
             return true;
@@ -62,8 +58,8 @@ impl MailAgent {
             .body(body.to_string())
             .expect("MessageBuilder::body()");
         let a001: Vec<u8> = message.formatted();
-        let a002: String = String::from_utf8(a001).expect("default message");
-        iceyee_logger::warn(vec!["\n".to_string(), a002]).await;
+        let a002: String = String::from_utf8(a001).expect("NEVER");
+        iceyee_logger::warn!("\n", a002);
         SmtpTransport::relay(server)?
             .credentials(Credentials::new(name.to_string(), auth.to_string()))
             .build()

@@ -148,7 +148,7 @@ pub trait Filter: Send + Sync {
     ///             data: false,
     ///         };
     ///         R::write_json(&mut context.response, &a001);
-    ///         iceyee_logger::error_2(context.id.to_string(), e_message.clone()).await;
+    ///         iceyee_logger::error!(context.id, e_message);
     ///         return false;
     ///     });
     /// }
@@ -172,7 +172,7 @@ pub trait Filter: Send + Sync {
                 data: false,
             };
             R::write_json(&mut context.response, &a001);
-            iceyee_logger::error(vec![context.id.to_string(), e_message.clone()]).await;
+            iceyee_logger::error!(context.id, e_message);
             return false;
         });
     }
@@ -270,6 +270,7 @@ pub trait Work: Send + Sync {
     ///             data: false,
     ///         };
     ///         R::write_json(&mut context.response, &a001);
+    ///         iceyee_logger::error!(self.path(), context.id, e_message);
     ///         return;
     ///     });
     /// }
@@ -293,7 +294,7 @@ pub trait Work: Send + Sync {
                 data: false,
             };
             R::write_json(&mut context.response, &a001);
-            iceyee_logger::error(vec![context.id.to_string(), e_message.clone()]).await;
+            iceyee_logger::error!(self.path(), context.id, e_message);
             return;
         });
     }
@@ -582,12 +583,7 @@ impl HttpServer {
     ///
     /// - @return 改变状态, 使得服务器停止.
     pub async fn test(mut self, address: &str, port: u16) -> Result<Arc<AtomicBool>, StdIoError> {
-        iceyee_logger::warn(vec![
-            "HTTPSERVER START AT".to_string(),
-            address.to_string(),
-            port.to_string(),
-        ])
-        .await;
+        iceyee_logger::warn!("HTTPSERVER START AT", address, port);
         self.filters_before_work
             .push(self.filter_host.clone().wrap());
         let listener: TokioTcpListener = TokioTcpListener::bind((address, port)).await?;
@@ -619,12 +615,7 @@ impl HttpServer {
                                 IpAddr::V4(ip) => ipv4_to_string(ip),
                                 IpAddr::V6(ip) => ipv6_to_string(ip),
                             };
-                            iceyee_logger::debug(vec![
-                                "建立连接".to_string(),
-                                ip.clone(),
-                                id.to_string(),
-                            ])
-                            .await;
+                            iceyee_logger::debug!("建立连接", ip, id);
                             while !stop.load(SeqCst) {
                                 id.add();
                                 let server = server.clone();
@@ -637,25 +628,11 @@ impl HttpServer {
                                     Ok(r) => r,
                                     Err(e) => {
                                         if let StdIoErrorKind::TimedOut = e.kind() {
-                                            iceyee_logger::debug(vec![
-                                                "超时断开连接".to_string(),
-                                                ip.clone(),
-                                                id.to_string(),
-                                            ])
-                                            .await;
+                                            iceyee_logger::debug!("超时异常断开连接", ip, id);
                                             break;
                                         } else {
-                                            iceyee_logger::debug(vec![
-                                                "异常断开连接".to_string(),
-                                                ip.clone(),
-                                                id.to_string(),
-                                            ])
-                                            .await;
-                                            iceyee_logger::error(vec![
-                                                "Request::read_from()".to_string(),
-                                                e.to_string(),
-                                            ])
-                                            .await;
+                                            iceyee_logger::debug!("输入异常断开连接", ip, id);
+                                            iceyee_logger::error!(e);
                                             break;
                                         }
                                     }
@@ -664,47 +641,25 @@ impl HttpServer {
                                     Self::build_context(server.clone(), request, id.clone()).await;
                                 let close: bool = Self::process(server, &mut context).await;
                                 if let Err(e) = Self::write_to_tcp(&mut tcp, &context).await {
-                                    iceyee_logger::debug(vec![
-                                        "异常断开连接".to_string(),
-                                        ip.clone(),
-                                        id.to_string(),
-                                    ])
-                                    .await;
-                                    iceyee_logger::error(vec![
-                                        "HttpServer::write_to_tcp()".to_string(),
-                                        e.to_string(),
-                                    ])
-                                    .await;
+                                    iceyee_logger::debug!("输出异常断开连接", ip, id);
+                                    iceyee_logger::error!(e);
                                     break;
                                 }
                                 if close {
-                                    iceyee_logger::debug(vec![
-                                        "正常断开连接".to_string(),
-                                        ip.clone(),
-                                        id.to_string(),
-                                    ])
-                                    .await;
+                                    iceyee_logger::debug!("正常断开连接", ip, id);
                                     break;
                                 }
                             }
                             // 关闭连接.
                             {
                                 if let Err(e) = tcp.shutdown().await {
-                                    iceyee_logger::error(vec![
-                                        "TcpStream::shutdown()".to_string(),
-                                        e.to_string(),
-                                    ])
-                                    .await;
+                                    iceyee_logger::error!(e);
                                 }
                             }
                         });
                     }
                     Err(e) => {
-                        iceyee_logger::error(vec![
-                            "TcpListener::accept()".to_string(),
-                            e.to_string(),
-                        ])
-                        .await;
+                        iceyee_logger::error!("监听tcp异常", e);
                         break;
                     }
                 }
@@ -730,15 +685,14 @@ impl HttpServer {
 
     /// 启动服务器.
     pub async fn start(self, address: &str, port: u16) -> Result<(), StdIoError> {
-        let stop = Self::test(self, address, port).await?;
+        let mut stop = Self::test(self, address, port).await?;
         println!("---- 输入[Ctrl+C]停止. ----");
-        tokio::signal::ctrl_c().await.unwrap();
-        iceyee_time::sleep(100).await;
+        tokio::signal::ctrl_c().await.expect("");
         println!("---- 退出服务端. ----");
-        println!("---- 等待所有TCP处理完毕. ----");
         stop.store(true, SeqCst);
+        println!("---- 等待所有TCP处理完毕. ----");
         for _ in 0..600 {
-            if Arc::strong_count(&stop) != 1 {
+            if Arc::get_mut(&mut stop).is_none() {
                 iceyee_time::sleep(100).await;
             }
         }
@@ -794,21 +748,19 @@ impl HttpServer {
     }
 
     async fn process(server: Arc<HttpServer>, context: &mut Context) -> bool {
-        iceyee_logger::debug(vec![
-            "\n".to_string(),
-            context.id.to_string(),
-            "\n".to_string(),
-            ">>>\n".to_string(),
+        iceyee_logger::debug!(
+            "\n",
+            context.id,
+            "\n",
+            ">>>\n",
             context.request.to_string_with_body(),
-        ])
-        .await;
-        iceyee_logger::info(vec![
-            ">>>".to_string(),
-            context.id.to_string(),
-            context.request.method.clone(),
-            context.request.path.clone(),
-        ])
-        .await;
+        );
+        iceyee_logger::info!(
+            ">>>",
+            context.id,
+            context.request.method,
+            context.request.path
+        );
         let mut stop = false;
         for filter in &server.filters_before_work {
             if stop {
@@ -899,21 +851,19 @@ impl HttpServer {
             false
         };
         // 输出.
-        iceyee_logger::debug(vec![
-            "\n".to_string(),
-            context.id.to_string(),
-            "\n".to_string(),
-            "<<<\n".to_string(),
+        iceyee_logger::debug!(
+            "\n",
+            context.id,
+            "\n",
+            "<<<\n",
             context.response.to_string_with_body(),
-        ])
-        .await;
-        iceyee_logger::info(vec![
-            "<<<".to_string(),
-            context.id.to_string(),
-            context.response.status_code.to_string(),
-            context.response.status.clone(),
-        ])
-        .await;
+        );
+        iceyee_logger::info!(
+            "<<<",
+            context.id,
+            context.response.status_code,
+            context.response.status
+        );
         // Content-Length.
         // chunk.
         match context
@@ -942,11 +892,7 @@ impl HttpServer {
                     .read_to_end(&mut buffer)
                     .await
                 {
-                    iceyee_logger::error(vec![
-                        "GzipEncoder::read_to_end()".to_string(),
-                        e.to_string(),
-                    ])
-                    .await;
+                    iceyee_logger::error!(e);
                 }
                 context.response.body.clear();
                 let length: String = HexEncoder::encode_number(buffer.len() as u64);
@@ -995,14 +941,13 @@ impl HttpServer {
         for id in &expired_session_id {
             sessions.remove(id);
         }
-        iceyee_logger::info(vec![
-            "清理不活跃会话".to_string(),
-            expired_session_id.len().to_string(),
-            "个, 剩余会话".to_string(),
-            sessions.len().to_string(),
-            "个.".to_string(),
-        ])
-        .await;
+        iceyee_logger::info!(
+            "清理不活跃会话",
+            expired_session_id.len(),
+            "个, 剩余会话",
+            sessions.len(),
+            "个."
+        );
         drop(sessions);
         return;
     }

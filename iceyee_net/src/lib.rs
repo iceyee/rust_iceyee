@@ -11,6 +11,7 @@
 //! - @see [iceyee_logger](../iceyee_logger/index.html)
 //! - @see [iceyee_random](../iceyee_random/index.html)
 //! - @see [iceyee_time](../iceyee_time/index.html)
+//! - @see [lettre](../lettre/index.html)
 //! - @see [native_tls](../native_tls/index.html)
 //! - @see [serde_json](../serde_json/index.html)
 //! - @see [tokio](../tokio/index.html)

@@ -137,7 +137,7 @@ pub async fn test_first_work() {
     iceyee_logger::init(Some(iceyee_logger::Level::Debug), None, None).await;
     let stop = HttpServer::new()
         .set_root("/home/ljq")
-        .set_connection_timeout(1_000)
+        .set_connection_timeout(200)
         .add_filter_before_work(FilterCORS::new().allow_origin("*").wrap())
         .add_filter_before_work(FilterBasicAuth::new("iceyee", "74591870").wrap())
         .add_work(WorkFirst.wrap())
@@ -175,18 +175,6 @@ pub async fn test_first_work() {
         .await
         .expect("HttpClient::send()");
     stop.store(true, SeqCst);
-    iceyee_time::sleep(100).await;
-    // HttpServer::new()
-    //     .set_root("/home/ljq")
-    //     .set_connection_timeout(10_000)
-    //     .add_filter_before_work(FilterCORS::new().allow_origin("*").wrap())
-    //     .add_filter_before_work(FilterBasicAuth::new("iceyee", "74591870").wrap())
-    //     .add_work(WorkFirst.wrap())
-    //     .add_work(WorkRedirect.wrap())
-    //     .add_work(WorkError.wrap())
-    //     .add_work(WorkJson.wrap())
-    //     .start("localhost", 10877)
-    //     .await
-    //     .expect("HttpServer::start()");
+    iceyee_time::sleep(300).await;
     return;
 }
