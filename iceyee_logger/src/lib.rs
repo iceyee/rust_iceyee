@@ -8,12 +8,26 @@
 #![feature(get_mut_unchecked)]
 
 //! 日志.
+//!
+//! [debug], [info], [warn], [error], 这四个都是要求参数比须实现[ToString].
+//!
+//! [debug_object], [info_object], [warn_object], [error_object], 
+//!     这四个都是要求参数比须实现[Debug].
+//!
+//! # Example
+//! ```
+//! iceyee_logger::debug!(0, "hello world debug.", "second", "third", "fourth");
+//! iceyee_logger::info!(1, "hello world debug.", "second", "third", "fourth");
+//! iceyee_logger::warn!(2, "hello world debug.", "second", "third", "fourth");
+//! iceyee_logger::error!(3, "hello world debug.", "second", "third", "fourth");
+//! ```
 
 // Use.
 
 use iceyee_time::DateTime;
 use iceyee_time::Timer;
 use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -85,7 +99,9 @@ impl ToString for Level {
 #[allow(dead_code)]
 struct Logger {
     timer: Arc<Timer>,
-    time: Arc<AtomicPtr<String>>,
+    time: AtomicPtr<String>,
+    time_buffer: Arc<[String; 2]>,
+    time_index: AtomicUsize,
     level: Level,
     project_name: Option<String>,
     target_directory: Option<String>,
@@ -96,14 +112,14 @@ struct Logger {
 impl Logger {
     // 更新时间.
     pub async fn update_time(logger: Arc<Logger>) {
-        static mut SWITCH: usize = 0;
-        static mut TIMES: [String; 2] = [String::new(), String::new()];
-        unsafe {
-            SWITCH = (SWITCH + 1) % 2;
-            TIMES[SWITCH] = DateTime::new().to_string();
-            logger.time.store(&mut TIMES[SWITCH], SeqCst);
-            return;
-        }
+        let mut index: usize = logger.time_index.load(SeqCst);
+        index = (index + 1) % 2;
+        logger.time_index.store(index, SeqCst);
+        let mut time_buffer = logger.time_buffer.clone();
+        let time_buffer = unsafe { Arc::get_mut_unchecked(&mut time_buffer) };
+        time_buffer[index] = DateTime::new().to_string();
+        logger.time.store(&mut time_buffer[index], SeqCst);
+        return;
     }
 
     // 创建目录文件.
@@ -314,13 +330,19 @@ impl Logger {
         project_name: Option<&str>,
         target_directory: Option<&str>,
     ) -> Arc<Self> {
-        static mut EMPTY_STRING: String = String::new();
         let level: Level = level.unwrap_or(Level::default());
         let timer = Timer::new();
-        let time: Arc<AtomicPtr<String>> = Arc::new(AtomicPtr::new(unsafe { &mut EMPTY_STRING }));
+        let time_buffer: Arc<[String; 2]> =
+            Arc::new([DateTime::new().to_string(), DateTime::new().to_string()]);
+        let time_index: AtomicUsize = AtomicUsize::new(0);
+        let mut _time_buffer = time_buffer.clone();
+        let time: AtomicPtr<String> =
+            unsafe { AtomicPtr::new(&mut Arc::get_mut_unchecked(&mut _time_buffer)[0]) };
         let this: Logger = Logger {
             timer: Arc::new(timer),
             time: time,
+            time_buffer: time_buffer,
+            time_index: time_index,
             level: level,
             project_name: project_name.map(|x| x.to_string()),
             target_directory: target_directory.map(|x| x.to_string()),
@@ -328,8 +350,7 @@ impl Logger {
             error_file: Mutex::new(None),
         };
         let this: Arc<Logger> = Arc::new(this);
-        let mut timer = this.timer.clone();
-        let timer = unsafe { Arc::get_mut_unchecked(&mut timer) };
+        let mut timer = (*this.timer).clone();
         // 更新时间.
         {
             Self::update_time(this.clone()).await;
@@ -362,7 +383,7 @@ impl Logger {
         return this;
     }
 
-    pub async fn print(&self, message: &str, level: Level) {
+    pub async fn print(&self, level: Level, message: &str) {
         static STDOUT: Mutex<Option<Stdout>> = Mutex::const_new(None);
         let mut stdout = STDOUT.lock().await;
         if stdout.is_none() {
@@ -436,15 +457,6 @@ impl Logger {
 
 /// 日志的默认路径.
 pub fn default_target() -> String {
-    // #[cfg(target_os = "linux")]
-    // {
-    //     return std::env::var("HOME").expect("std::env::var('HOME')") + "/.iceyee_log";
-    // }
-    // #[cfg(target_os = "windows")]
-    // {
-    //     return std::env::var("USERPROFILE").expect("std::env::var('USERPROFILE')")
-    //         + "/.iceyee_log";
-    // }
     return home() + "/.iceyee_log";
 }
 
@@ -460,26 +472,6 @@ pub fn home() -> String {
     }
 }
 
-/// 初始化.
-pub async fn init(
-    level: Option<Level>,
-    project_name: Option<&str>,
-    target_directory: Option<&str>,
-) {
-    let mut logger = LOGGER.lock().await;
-    if logger.is_some() {
-        unsafe {
-            let mut timer: Arc<Timer> = Arc::get_mut_unchecked(logger.as_mut().expect("NEVER"))
-                .timer
-                .clone();
-            let timer = Arc::get_mut_unchecked(&mut timer);
-            timer.stop_and_wait().await;
-        }
-    }
-    *logger = Some(Logger::new(level, project_name, target_directory).await);
-    return;
-}
-
 async fn default_logger() {
     let mut logger = LOGGER.lock().await;
     if logger.is_none() {
@@ -488,129 +480,150 @@ async fn default_logger() {
     return;
 }
 
-fn build_message(message: Vec<String>) -> String {
-    let mut output: String = String::with_capacity(0xFFF);
-    for x in message {
-        output.push_str(&x);
-        if !x.ends_with('\n') {
-            output.push_str(" ");
-        }
+/// 初始化.
+pub async fn init(
+    level: Option<Level>,
+    project_name: Option<&str>,
+    target_directory: Option<&str>,
+) {
+    let mut logger = LOGGER.lock().await;
+    if logger.is_some() {
+        (*logger.as_mut().expect("NEVER").timer).clone().stop();
     }
-    return output;
+    *logger = Some(Logger::new(level, project_name, target_directory).await);
+    return;
 }
 
-/// debug.
-pub async fn debug(message: Vec<String>) {
+pub async fn print(level: Level, message: &str) {
     default_logger().await;
-    let message: String = build_message(message);
-    return LOGGER
+    LOGGER
         .lock()
         .await
         .as_ref()
         .expect("NEVER")
-        .print(&message, Level::Debug)
+        .print(level, message)
         .await;
+    return;
 }
 
-/// info.
-pub async fn info(message: Vec<String>) {
-    default_logger().await;
-    let message: String = build_message(message);
-    return LOGGER
-        .lock()
-        .await
-        .as_ref()
-        .expect("NEVER")
-        .print(&message, Level::Info)
-        .await;
+#[macro_export]
+macro_rules! debug {
+    ($($x:expr),* $(,)?) => {
+        {
+            let mut message: String = String::new();
+            $(
+                let x: String = $x.to_string();
+                message.push_str(&x);
+                if !x.ends_with('\n') {
+                    message.push_str(" ");
+                }
+            )*
+            iceyee_logger::print(iceyee_logger::Level::Debug, &message).await;
+        }
+    };
 }
 
-/// warn.
-pub async fn warn(message: Vec<String>) {
-    default_logger().await;
-    let message: String = build_message(message);
-    return LOGGER
-        .lock()
-        .await
-        .as_ref()
-        .expect("NEVER")
-        .print(&message, Level::Warn)
-        .await;
+#[macro_export]
+macro_rules! info {
+    ($($x:expr),* $(,)?) => {
+        {
+            let mut message: String = String::new();
+            $(
+                let x: String = $x.to_string();
+                message.push_str(&x);
+                if !x.ends_with('\n') {
+                    message.push_str(" ");
+                }
+            )*
+            iceyee_logger::print(iceyee_logger::Level::Info, &message).await;
+        }
+    };
 }
 
-/// error.
-pub async fn error(message: Vec<String>) {
-    default_logger().await;
-    let message: String = build_message(message);
-    return LOGGER
-        .lock()
-        .await
-        .as_ref()
-        .expect("NEVER")
-        .print(&message, Level::Error)
-        .await;
+#[macro_export]
+macro_rules! warn {
+    ($($x:expr),* $(,)?) => {
+        {
+            let mut message: String = String::new();
+            $(
+                let x: String = $x.to_string();
+                message.push_str(&x);
+                if !x.ends_with('\n') {
+                    message.push_str(" ");
+                }
+            )*
+            iceyee_logger::print(iceyee_logger::Level::Warn, &message).await;
+        }
+    };
 }
 
-/// debug.
-pub async fn debug_object<O>(object: O)
-where
-    O: std::fmt::Debug,
-{
-    default_logger().await;
-    let message: String = format!("{:?}", object);
-    return LOGGER
-        .lock()
-        .await
-        .as_ref()
-        .expect("NEVER")
-        .print(&message, Level::Debug)
-        .await;
+#[macro_export]
+macro_rules! error {
+    ($($x:expr),* $(,)?) => {
+        {
+            let mut message: String = String::new();
+            message.push_str(&format!("{}:{} {} | ", file!(), line!(), module_path!()));
+            $(
+                let x: String = $x.to_string();
+                message.push_str(&x);
+                if !x.ends_with('\n') {
+                    message.push_str(" ");
+                }
+            )*
+            iceyee_logger::print(iceyee_logger::Level::Error, &message).await;
+        }
+    };
 }
 
-/// info.
-pub async fn info_object<O>(object: O)
-where
-    O: std::fmt::Debug,
-{
-    default_logger().await;
-    let message: String = format!("{:?}", object);
-    return LOGGER
-        .lock()
-        .await
-        .as_ref()
-        .expect("NEVER")
-        .print(&message, Level::Info)
-        .await;
+#[macro_export]
+macro_rules! debug_object {
+    ($($x:expr),* $(,)?) => {
+        {
+            let mut message: String = String::new();
+            $(
+                message.push_str(&format!("\n{:?}", $x));
+            )*
+            iceyee_logger::print(iceyee_logger::Level::Debug, &message).await;
+        }
+    };
 }
 
-/// warn.
-pub async fn warn_object<O>(object: O)
-where
-    O: std::fmt::Debug,
-{
-    default_logger().await;
-    let message: String = format!("{:?}", object);
-    return LOGGER
-        .lock()
-        .await
-        .as_ref()
-        .expect("NEVER")
-        .print(&message, Level::Warn)
-        .await;
+#[macro_export]
+macro_rules! info_object {
+    ($($x:expr),* $(,)?) => {
+        {
+            let mut message: String = String::new();
+            $(
+                message.push_str(&format!("\n{:?}", $x));
+            )*
+            iceyee_logger::print(iceyee_logger::Level::Info, &message).await;
+        }
+    };
 }
 
-/// error.
-pub async fn error_object<O>(object: O)
-where
-    O: std::fmt::Debug,
-{
-    default_logger().await;
-    let message: String = format!("{:?}", object);
-    return LOGGER
-        .lock()
-        .await
-        .as_ref()
-        .expect("NEVER")
-        .print(&message, Level::Error)
-        .await;
+#[macro_export]
+macro_rules! warn_object {
+    ($($x:expr),* $(,)?) => {
+        {
+            let mut message: String = String::new();
+            $(
+                message.push_str(&format!("\n{:?}", $x));
+            )*
+            iceyee_logger::print(iceyee_logger::Level::Warn, &message).await;
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! error_object {
+    ($($x:expr),* $(,)?) => {
+        {
+            let mut message: String = String::new();
+            message.push_str(&format!("{}:{} {} | ", file!(), line!(), module_path!()));
+            $(
+                message.push_str(&format!("\n{:?}", $x));
+            )*
+            iceyee_logger::print(iceyee_logger::Level::Error, &message).await;
+        }
+    };
 }
