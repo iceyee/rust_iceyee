@@ -12,10 +12,12 @@
 use std::cmp::Ordering as CmpOrdering;
 use std::cmp::PartialOrd;
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::Mutex as TokioMutex;
 use tokio::task::JoinHandle;
 use tokio::time::Sleep;
 
@@ -36,6 +38,75 @@ const TIME_0: i64 =
 // Enum.
 
 // Trait.
+
+/// 定时任务.
+///
+/// sleep_before_perform(), sleep_after_perform(), schedule_by_pattern()表示三种不同的模式.
+///
+/// # Use
+/// ```
+/// use iceyee_time::Schedule;
+/// use iceyee_time::Timer;
+/// use std::future::Future;
+/// use std::pin::Pin;
+/// use std::sync::Arc;
+/// use std::sync::atomic::AtomicBool;
+/// use std::sync::atomic::Ordering::SeqCst;
+/// ```
+/// - @see [Timer]
+pub trait Schedule: Send + Sync {
+    /// 初始延迟, 默认0.
+    fn delay(&self) -> u64 {
+        0
+    }
+
+    fn sleep_before_perform(&self) -> u64 {
+        0
+    }
+
+    fn sleep_after_perform(&self) -> u64 {
+        0
+    }
+
+    fn schedule_by_pattern(&self) -> String {
+        "".to_string()
+    }
+
+    /// 在循环任务开始之前执行.
+    fn initialize<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async {
+            return;
+        });
+    }
+
+    /// 循环任务, 返回值表示是否继续循环.
+    fn perform<'a, 'b>(
+        &'a self,
+        stop: Arc<AtomicBool>,
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
+    where
+        'a: 'b;
+
+    /// 在循环任务结束之后执行.
+    fn finish<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async {
+            return;
+        });
+    }
+
+    fn wrap(self) -> Arc<dyn Schedule>
+    where
+        Self: Sized + 'static,
+    {
+        return Arc::new(self);
+    }
+}
 
 // Struct.
 
@@ -475,10 +546,12 @@ impl PartialOrd for DateTime {
 }
 
 /// 时钟, 误差0ms ~ 100ms.
-#[derive(Clone, Debug)]
+///
+/// @see [Schedule]
+#[derive(Clone)]
 pub struct Timer {
-    thread_handles: Arc<Vec<JoinHandle<()>>>,
-    stop_flag: Arc<AtomicBool>,
+    thread_handles: Arc<TokioMutex<Vec<JoinHandle<()>>>>,
+    stop: Arc<AtomicBool>,
 }
 
 /// 默认的时钟, 这是全局变量.
@@ -499,7 +572,7 @@ impl Drop for Timer {
     fn drop(&mut self) {
         if Arc::get_mut(&mut self.thread_handles).is_some() {
             println!("Timer::drop().");
-            self.stop_flag.store(true, Ordering::SeqCst);
+            self.stop.store(true, SeqCst);
         }
         return;
     }
@@ -509,46 +582,115 @@ impl Timer {
     /// 创建新的时钟, 默认开启状态.
     pub fn new() -> Self {
         return Timer {
-            thread_handles: Arc::new(Vec::new()),
-            stop_flag: Arc::new(AtomicBool::new(false)),
+            thread_handles: Arc::new(TokioMutex::new(Vec::new())),
+            stop: Arc::new(AtomicBool::new(false)),
         };
     }
 
     /// 启动时钟.
-    pub fn start(&mut self) {
-        self.stop_flag.store(false, Ordering::SeqCst);
+    pub async fn start(&self) {
+        if !self.stop.load(SeqCst) {
+            return;
+        }
+        self.stop.store(false, SeqCst);
+        self.thread_handles.lock().await.clear();
         return;
     }
 
     /// 停止时钟.
-    pub fn stop(&mut self) {
-        self.stop_flag.store(true, Ordering::SeqCst);
+    pub async fn stop(&self) {
+        self.stop.store(true, SeqCst);
+        self.thread_handles.lock().await.clear();
         return;
     }
 
     /// 停止时钟并等待所有任务结束.
-    pub async fn stop_and_wait(&mut self) {
-        if let Some(thread_handles) = Arc::get_mut(&mut self.thread_handles) {
-            self.stop_flag.store(true, Ordering::SeqCst);
-            loop {
-                match thread_handles.pop() {
-                    Some(handle) => handle.await.expect("JoinHandle::await"),
-                    None => break,
-                }
+    pub async fn stop_and_wait(&self) {
+        let mut thread_handles = self.thread_handles.lock().await;
+        self.stop.store(true, SeqCst);
+        loop {
+            match thread_handles.pop() {
+                Some(handle) => handle.await.expect("JoinHandle::await"),
+                None => break,
             }
         }
         return;
     }
 
-    /// 定时任务, 模式匹配.
-    ///
-    /// - @param pattern "秒 分 时 日 月 周几", "second minute hour day month weekday", 可以参考linux的crontab.
-    /// - @param f 任务, 参数是stop标志, 表示是否已经发出停止的信号.
-    pub fn schedule_pattern<F1, F2>(&mut self, pattern: &str, mut f: F1) -> bool
-    where
-        F1: FnMut(Arc<AtomicBool>) -> F2 + Send + 'static,
-        F2: Future<Output = ()> + Send + 'static,
-    {
+    /// 定时任务.
+    pub async fn schedule(&self, schedule: Arc<dyn Schedule>) {
+        if schedule.sleep_before_perform() != 0 {
+            self.schedule_1(schedule).await;
+        } else if schedule.sleep_after_perform() != 0 {
+            self.schedule_2(schedule).await;
+        } else if schedule.schedule_by_pattern().len() != 0 {
+            self.schedule_3(schedule).await;
+        } else {
+            panic!("trait Schedule必须实现sleep_before_perform(),sleep_after_perform(),schedule_pattern()中的任意一个.");
+        }
+        return;
+    }
+
+    async fn schedule_1(&self, schedule: Arc<dyn Schedule>) {
+        let stop = self.stop.clone();
+        let handle = tokio::task::spawn(async move {
+            let delay: u64 = schedule.delay();
+            let period: u64 = schedule.sleep_before_perform();
+            // 1 初始延迟 开始.
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(100).await;
+            }
+            schedule.initialize().await;
+            while !stop.load(SeqCst) {
+                // 2 等待并执行.
+                let sl = tokio::task::spawn(sleep(period));
+                if !schedule.perform(stop.clone()).await {
+                    break;
+                }
+                while !stop.load(SeqCst) && !sl.is_finished() {
+                    sleep(100).await;
+                }
+            }
+            // 3 结束.
+            schedule.finish().await;
+        });
+        // 4 handle管理.
+        self.thread_handles.lock().await.push(handle);
+        return;
+    }
+
+    async fn schedule_2(&self, schedule: Arc<dyn Schedule>) {
+        let stop = self.stop.clone();
+        let handle = tokio::task::spawn(async move {
+            let delay: u64 = schedule.delay();
+            let period: u64 = schedule.sleep_after_perform();
+            // 1 初始延迟 开始.
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(100).await;
+            }
+            schedule.initialize().await;
+            while !stop.load(SeqCst) {
+                // 2 执行后等待.
+                if !schedule.perform(stop.clone()).await {
+                    break;
+                }
+                let sl = tokio::task::spawn(sleep(period));
+                while !stop.load(SeqCst) && !sl.is_finished() {
+                    sleep(100).await;
+                }
+            }
+            // 3 结束.
+            schedule.finish().await;
+        });
+        // 4 handle管理.
+        self.thread_handles.lock().await.push(handle);
+        return;
+    }
+
+    async fn schedule_3(&self, schedule: Arc<dyn Schedule>) {
+        let pattern: String = schedule.schedule_by_pattern();
         // 1 解析.
         // 在'*'可能有'/', 即SLASH.
         enum Status {
@@ -578,12 +720,12 @@ impl Timer {
             pattern = pattern.replace("  ", " ");
         }
         if pattern.split(' ').count() != table.len() {
-            return false;
+            panic!("bad pattern");
         }
         let mut index: usize = 0;
         for x in pattern.split(' ') {
             if x.len() == 0 {
-                return false;
+                panic!("bad pattern");
             }
             for y in x.split([',', '，']) {
                 let mut status: Status = Status::MIN;
@@ -599,13 +741,13 @@ impl Timer {
                                 status = Status::MAX;
                             } else if *z == b'*' {
                                 if 0 < min.len() {
-                                    return false;
+                                    panic!("bad pattern");
                                 }
                                 min.extend_from_slice(table[index].1.to_string().as_bytes());
                                 max.extend_from_slice(table[index].2.to_string().as_bytes());
                                 status = Status::SLASH;
                             } else {
-                                return false;
+                                panic!("bad pattern");
                             }
                         }
                         Status::MAX => {
@@ -614,14 +756,14 @@ impl Timer {
                             } else if *z == b'/' {
                                 status = Status::SEPARATION;
                             } else {
-                                return false;
+                                panic!("bad pattern");
                             }
                         }
                         Status::SEPARATION => {
                             if z.is_ascii_digit() {
                                 separation.push(*z);
                             } else {
-                                return false;
+                                panic!("bad pattern");
                             }
                         }
                         Status::SLASH => {
@@ -634,19 +776,19 @@ impl Timer {
                 match status {
                     Status::MIN => {
                         if min.len() == 0 {
-                            return false;
+                            panic!("bad pattern");
                         } else {
                             max = min.clone();
                         }
                     }
                     Status::MAX => {
                         if max.len() == 0 {
-                            return false;
+                            panic!("bad pattern");
                         }
                     }
                     Status::SEPARATION => {
                         if separation.len() == 0 {
-                            return false;
+                            panic!("bad pattern");
                         }
                     }
                     Status::SLASH => {}
@@ -654,35 +796,26 @@ impl Timer {
                 let min: u64 = if min.len() == 0 {
                     table[index].1
                 } else {
-                    match String::from_utf8(min) {
-                        Ok(s) => match s.parse::<u64>() {
-                            Ok(s) => s,
-                            Err(_) => return false,
-                        },
-                        Err(_) => return false,
-                    }
+                    String::from_utf8(min)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
                 };
                 let max: u64 = if max.len() == 0 {
                     table[index].2
                 } else {
-                    match String::from_utf8(max) {
-                        Ok(s) => match s.parse::<u64>() {
-                            Ok(s) => s,
-                            Err(_) => return false,
-                        },
-                        Err(_) => return false,
-                    }
+                    String::from_utf8(max)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
                 };
                 let separation: u64 = if separation.len() == 0 {
                     1
                 } else {
-                    match String::from_utf8(separation) {
-                        Ok(s) => match s.parse::<u64>() {
-                            Ok(s) => s,
-                            Err(_) => return false,
-                        },
-                        Err(_) => return false,
-                    }
+                    String::from_utf8(separation)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
                 };
                 if min < table[index].1
                     || table[index].2 < min
@@ -690,7 +823,7 @@ impl Timer {
                     || table[index].2 < max
                     || max < min
                 {
-                    return false;
+                    panic!("bad pattern");
                 }
                 for z in expand(min, max, separation) {
                     table[index].0[z as usize] = true;
@@ -698,17 +831,23 @@ impl Timer {
             } // for y in x.split(',') {...}
             index += 1;
         } // for x in pattern.split(' ') {...}
-          // 2 执行.
-        let stop_flag_clone: Arc<AtomicBool> = self.stop_flag.clone();
+        let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            let stop_flag = stop_flag_clone;
+            // 2 初始延迟 开始.
+            let delay: u64 = schedule.delay();
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(100).await;
+            }
+            schedule.initialize().await;
             let second = &table[0];
             let minute = &table[1];
             let hour = &table[2];
             let day = &table[3];
             let month = &table[4];
             let weekday = &table[5];
-            while !stop_flag.load(Ordering::SeqCst) {
+            // 3 执行.
+            while !stop.load(SeqCst) {
                 let t: u64 = 200 + 1000 - now() as u64 % 1000;
                 let sl = tokio::task::spawn(sleep(t as u64));
                 let dt: DateTime = DateTime::new();
@@ -719,82 +858,19 @@ impl Timer {
                     && month.0[dt.month as usize]
                     && weekday.0[dt.weekday as usize]
                 {
-                    f(stop_flag.clone()).await;
+                    if !schedule.perform(stop.clone()).await {
+                        break;
+                    }
                 }
-                while !stop_flag.load(Ordering::SeqCst) && !sl.is_finished() {
+                while !stop.load(SeqCst) && !sl.is_finished() {
                     sleep(100).await;
                 }
             }
+            // 4 结束.
+            schedule.finish().await;
         });
-        // 3 handle管理.
-        let thread_handles = unsafe { Arc::get_mut_unchecked(&mut self.thread_handles) };
-        thread_handles.push(handle);
-        return true;
-    }
-
-    /// 定时任务, 任务执行的同时等待.
-    ///
-    /// - @param delay 初始延迟, 单位:毫秒.
-    /// - @param period 每轮任务的时间间隔, 单位:毫秒.
-    /// - @param f 任务, 参数是stop标志, 表示是否已经发出停止的信号.
-    pub fn schedule_execute_before<F1, F2>(&mut self, delay: u64, period: u64, mut f: F1)
-    where
-        F1: FnMut(Arc<AtomicBool>) -> F2 + Send + 'static,
-        F2: Future<Output = ()> + Send + 'static,
-    {
-        let stop_flag_clone: Arc<AtomicBool> = self.stop_flag.clone();
-        let handle = tokio::task::spawn(async move {
-            let stop_flag = stop_flag_clone;
-            // 1 初始延迟.
-            let sl = tokio::task::spawn(sleep(delay));
-            while !stop_flag.load(Ordering::SeqCst) && !sl.is_finished() {
-                sleep(100).await;
-            }
-            while !stop_flag.load(Ordering::SeqCst) {
-                // 2 等待并执行.
-                let sl = tokio::task::spawn(sleep(period));
-                f(stop_flag.clone()).await;
-                while !stop_flag.load(Ordering::SeqCst) && !sl.is_finished() {
-                    sleep(100).await;
-                }
-            }
-        });
-        // 3 handle管理.
-        let thread_handles = unsafe { Arc::get_mut_unchecked(&mut self.thread_handles) };
-        thread_handles.push(handle);
-        return;
-    }
-
-    /// 定时任务, 在任务执行完成后等待.
-    ///
-    /// - @param delay 初始延迟, 单位:毫秒.
-    /// - @param period 每轮任务的时间间隔, 单位:毫秒.
-    /// - @param f 任务, 参数是stop标志, 表示是否已经发出停止的信号.
-    pub fn schedule_execute_after<F1, F2>(&mut self, delay: u64, period: u64, mut f: F1)
-    where
-        F1: FnMut(Arc<AtomicBool>) -> F2 + Send + 'static,
-        F2: Future<Output = ()> + Send + 'static,
-    {
-        let stop_flag_clone: Arc<AtomicBool> = self.stop_flag.clone();
-        let handle = tokio::task::spawn(async move {
-            let stop_flag = stop_flag_clone;
-            // 1 初始延迟.
-            let sl = tokio::task::spawn(sleep(delay));
-            while !stop_flag.load(Ordering::SeqCst) && !sl.is_finished() {
-                sleep(100).await;
-            }
-            while !stop_flag.load(Ordering::SeqCst) {
-                // 2 执行并等待.
-                f(stop_flag.clone()).await;
-                let sl = tokio::task::spawn(sleep(period));
-                while !stop_flag.load(Ordering::SeqCst) && !sl.is_finished() {
-                    sleep(100).await;
-                }
-            }
-        });
-        // 3 handle管理.
-        let thread_handles = unsafe { Arc::get_mut_unchecked(&mut self.thread_handles) };
-        thread_handles.push(handle);
+        // 5 handle管理.
+        self.thread_handles.lock().await.push(handle);
         return;
     }
 }

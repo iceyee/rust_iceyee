@@ -71,22 +71,6 @@ use tokio::sync::Semaphore;
 /// - @see [Work]
 pub trait Filter: Send + Sync {
     /// 返回值决定是否执行do_filter(), 默认true.
-    ///
-    /// # Example
-    /// ```
-    /// fn rule<'a, 'b>(
-    ///     &'a self,
-    ///     context: &'b mut Context,
-    /// ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
-    /// where
-    ///     'a: 'b,
-    /// {
-    ///     return Box::pin(async {
-    ///         let _ = context;
-    ///         return true;
-    ///     });
-    /// }
-    /// ```
     fn rule<'a, 'b>(
         &'a self,
         context: &'b mut Context,
@@ -140,7 +124,7 @@ pub trait Filter: Send + Sync {
     ///         let e_message: String = context
     ///             .e_message
     ///             .as_ref()
-    ///             .expect("Context::e_message is none")
+    ///             .expect("Context::e_message None")
     ///             .clone();
     ///         let a001: ResponseObject<bool> = ResponseObject {
     ///             success: false,
@@ -202,44 +186,14 @@ pub trait Filter: Send + Sync {
 /// - @see [R]
 pub trait Work: Send + Sync {
     /// 请求方法, 默认'GET'.
-    ///
-    /// # Example
-    /// ```
-    /// fn method(&self) -> String {
-    ///     return "GET".to_string();
-    /// }
-    /// ```
     fn method(&self) -> String {
         return "GET".to_string();
     }
 
     /// 路径.
-    ///
-    /// # Example
-    /// ```
-    /// fn path(&self) -> String {
-    ///     return "/hello".to_string();
-    /// }
-    /// ```
     fn path(&self) -> String;
 
     /// 干活.
-    ///
-    /// # Example
-    /// ```
-    /// fn do_work<'a, 'b>(
-    ///     &'a self,
-    ///     context: &'b mut Context,
-    /// ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
-    /// where
-    ///     'a: 'b,
-    /// {
-    ///     return Box::pin(async {
-    ///         println!("hello world.");
-    ///         return Ok(());
-    ///     });
-    /// }
-    /// ```
     fn do_work<'a, 'b>(
         &'a self,
         context: &'b mut Context,
@@ -262,7 +216,7 @@ pub trait Work: Send + Sync {
     ///         let e_message: String = context
     ///             .e_message
     ///             .as_ref()
-    ///             .expect("Context::e_message is none")
+    ///             .expect("Context::e_message None")
     ///             .clone();
     ///         let a001: ResponseObject<bool> = ResponseObject {
     ///             success: false,

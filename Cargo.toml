@@ -1,0 +1,9 @@
+# **************************************************
+# *  Author: Iceyee                                *
+# *  Mail: iceyee.studio@qq.com                    *
+# *  Git: https://github.com/iceyee                *
+# **************************************************
+#                                                   
+[workspace]
+members = ["iceyee_config", "iceyee_encoder", "iceyee_logger", "iceyee_net", "iceyee_random", "iceyee_time", "iceyee_webdriver"]
+resolver = "2"

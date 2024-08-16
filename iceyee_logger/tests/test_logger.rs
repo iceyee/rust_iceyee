@@ -43,7 +43,7 @@ pub async fn test_no_init() {
     iceyee_logger::info!(1, "hello world debug.", "second", "third", "fourth");
     iceyee_logger::warn_object!(&a001);
     iceyee_logger::warn!(2, "hello world debug.", "second", "third", "fourth");
-    iceyee_logger::error_object!(&a001);
+    iceyee_logger::error_object!(&a001, &a001);
     iceyee_logger::error!(3, "hello world debug.", "second", "third", "fourth");
     return;
 }
@@ -89,19 +89,19 @@ pub async fn test_test() {
 //     iceyee_logger::warn!("hello world warn.");
 //     return;
 // }
-// 
-// // #[tokio::test]
-// pub async fn test_sleep() {
-//     println!("");
-//     println!("间隔1秒输出, 持续10秒, Level是Info.");
-//     println!("初始化None.");
-//     iceyee_logger::init(Some(Level::Info), None, None).await;
-//     for _ in 0..10 {
-//         iceyee_logger::debug!(0, "hello world debug.", "second", "third", "fourth");
-//         iceyee_logger::info!(1, "hello world debug.", "second", "third", "fourth");
-//         iceyee_logger::warn!(2, "hello world debug.", "second", "third", "fourth");
-//         iceyee_logger::error!(3, "hello world debug.", "second", "third", "fourth");
-//         iceyee_time::sleep(1_000).await;
-//     }
-//     return;
-// }
+
+// #[tokio::test]
+pub async fn test_sleep() {
+    println!("");
+    println!("间隔1秒输出, 持续10秒, Level是Info.");
+    println!("初始化None.");
+    iceyee_logger::init(Some(Level::Info), None, None).await;
+    for _ in 0..10 {
+        iceyee_logger::debug!(0, "hello world debug.", "second", "third", "fourth");
+        iceyee_logger::info!(1, "hello world debug.", "second", "third", "fourth");
+        iceyee_logger::warn!(2, "hello world debug.", "second", "third", "fourth");
+        iceyee_logger::error!(3, "hello world debug.", "second", "third", "fourth");
+        iceyee_time::sleep(1_000).await;
+    }
+    return;
+}

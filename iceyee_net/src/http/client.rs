@@ -1054,71 +1054,25 @@ impl HttpClient {
     /// 等效于如下代码.
     /// ```
     /// HttpClient::new()
-    ///     .set_verbose(verbose)
     ///     .set_url(url)
     ///     .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?
     ///     .set_header("Connection", "close")
-    ///     .set_header("Cookie", cookie)
     ///     .send(None)
     ///     .await;
     /// ```
-    pub async fn get(
-        verbose: bool,
-        url: &str,
-        cookie: &str,
-    ) -> Result<(Response, String), StdIoError> {
+    pub async fn get(url: &str) -> Result<(Response, String), StdIoError> {
         return HttpClient::new()
-            .set_verbose(verbose)
             .set_url(url)
             .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?
             .set_header("Connection", "close")
-            .set_header("Cookie", cookie)
             .send(None)
             .await;
     }
 
-    /// 等效于如下代码.
-    /// ```
-    /// HttpClient::new()
-    ///     .set_verbose(verbose)
-    ///     .set_url(url)
-    ///     .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?
-    ///     .set_method("POST")
-    ///     .set_header("Connection", "close")
-    ///     .set_header("Cookie", cookie)
-    ///     .set_body(data)
-    ///     .send(None)
-    ///     .await;
-    /// ```
-    pub async fn post(
-        verbose: bool,
-        url: &str,
-        cookie: &str,
-        data: &[u8],
-    ) -> Result<(Response, String), StdIoError> {
-        return HttpClient::new()
-            .set_verbose(verbose)
-            .set_url(url)
-            .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?
-            .set_method("POST")
-            .set_header("Connection", "close")
-            .set_header("Cookie", cookie)
-            .set_body(data)
-            .send(None)
-            .await;
-    }
-
-    pub async fn get_expect_string(verbose: bool, url: &str, cookie: &str) -> String {
-        let (response, _) = Self::get(verbose, url, cookie)
+    pub async fn get_expect_string(url: &str) -> String {
+        let (response, _) = Self::get(url)
             .await
             .expect("HttpClient::get_expect_string()");
-        return String::from_utf8(response.body).expect("String::from_utf8()");
-    }
-
-    pub async fn post_expect_string(verbose: bool, url: &str, cookie: &str, data: &[u8]) -> String {
-        let (response, _) = Self::post(verbose, url, cookie, data)
-            .await
-            .expect("HttpClient::post_expect_string()");
         return String::from_utf8(response.body).expect("String::from_utf8()");
     }
 }
