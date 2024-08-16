@@ -7,12 +7,14 @@
 
 //! 网络相关.
 //!
+//! - @see [async_compression](../async_compression/index.html)
 //! - @see [iceyee_encoder](../iceyee_encoder/index.html)
 //! - @see [iceyee_logger](../iceyee_logger/index.html)
 //! - @see [iceyee_random](../iceyee_random/index.html)
 //! - @see [iceyee_time](../iceyee_time/index.html)
 //! - @see [lettre](../lettre/index.html)
 //! - @see [native_tls](../native_tls/index.html)
+//! - @see [serde](../serde/index.html)
 //! - @see [serde_json](../serde_json/index.html)
 //! - @see [tokio](../tokio/index.html)
 //! - @see [tokio_native_tls](../tokio_native_tls/index.html)
