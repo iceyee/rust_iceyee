@@ -39,13 +39,13 @@ const TIME_0: i64 =
 
 // Trait.
 
-/// 定时任务.
+/// 定时任务1.
 ///
 /// sleep_before_perform(), sleep_after_perform(), schedule_by_pattern()表示三种不同的模式.
 ///
 /// # Use
 /// ```
-/// use iceyee_time::Schedule;
+/// use iceyee_time::Schedule1;
 /// use iceyee_time::Timer;
 /// use std::future::Future;
 /// use std::pin::Pin;
@@ -54,53 +54,212 @@ const TIME_0: i64 =
 /// use std::sync::atomic::Ordering::SeqCst;
 /// ```
 /// - @see [Timer]
-pub trait Schedule: Send + Sync {
+pub trait Schedule1: Send + Sync {
     /// 初始延迟, 默认0.
-    fn delay(&self) -> u64 {
+    fn delay1(&self) -> u64 {
         0
     }
 
-    fn sleep_before_perform(&self) -> u64 {
+    fn sleep_before_perform1(&self) -> u64 {
         0
     }
 
-    fn sleep_after_perform(&self) -> u64 {
+    fn sleep_after_perform1(&self) -> u64 {
         0
     }
 
-    fn schedule_by_pattern(&self) -> String {
+    fn schedule_by_pattern1(&self) -> String {
         "".to_string()
     }
 
     /// 在循环任务开始之前执行.
-    fn initialize<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn initialize1<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
-        return Box::pin(async {
+        return Box::pin(async move {
             return;
         });
     }
 
     /// 循环任务, 返回值表示是否继续循环.
-    fn perform<'a, 'b>(
+    fn perform1<'a, 'b>(
         &'a self,
-        stop: Arc<AtomicBool>,
+        _stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
     where
         'a: 'b;
 
     /// 在循环任务结束之后执行.
-    fn finish<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn finish1<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
-        return Box::pin(async {
+        return Box::pin(async move {
             return;
         });
     }
 
-    fn wrap(self) -> Arc<dyn Schedule>
+    fn wrap1(self) -> Arc<dyn Schedule1>
+    where
+        Self: Sized + 'static,
+    {
+        return Arc::new(self);
+    }
+}
+
+/// 定时任务2.
+///
+/// - @see [Timer]
+pub trait Schedule2: Send + Sync {
+    fn delay2(&self) -> u64 {
+        0
+    }
+
+    fn sleep_before_perform2(&self) -> u64 {
+        0
+    }
+
+    fn sleep_after_perform2(&self) -> u64 {
+        0
+    }
+
+    fn schedule_by_pattern2(&self) -> String {
+        "".to_string()
+    }
+
+    fn initialize2<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async move {
+            return;
+        });
+    }
+
+    fn perform2<'a, 'b>(
+        &'a self,
+        _stop: Arc<AtomicBool>,
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
+    where
+        'a: 'b;
+
+    fn finish2<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async move {
+            return;
+        });
+    }
+
+    fn wrap2(self) -> Arc<dyn Schedule2>
+    where
+        Self: Sized + 'static,
+    {
+        return Arc::new(self);
+    }
+}
+
+/// 定时任务3.
+///
+/// - @see [Timer]
+pub trait Schedule3: Send + Sync {
+    fn delay3(&self) -> u64 {
+        0
+    }
+
+    fn sleep_before_perform3(&self) -> u64 {
+        0
+    }
+
+    fn sleep_after_perform3(&self) -> u64 {
+        0
+    }
+
+    fn schedule_by_pattern3(&self) -> String {
+        "".to_string()
+    }
+
+    fn initialize3<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async move {
+            return;
+        });
+    }
+
+    fn perform3<'a, 'b>(
+        &'a self,
+        _stop: Arc<AtomicBool>,
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
+    where
+        'a: 'b;
+
+    fn finish3<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async move {
+            return;
+        });
+    }
+
+    fn wrap3(self) -> Arc<dyn Schedule3>
+    where
+        Self: Sized + 'static,
+    {
+        return Arc::new(self);
+    }
+}
+
+/// 定时任务4.
+///
+/// - @see [Timer]
+pub trait Schedule4: Send + Sync {
+    fn delay4(&self) -> u64 {
+        0
+    }
+
+    fn sleep_before_perform4(&self) -> u64 {
+        0
+    }
+
+    fn sleep_after_perform4(&self) -> u64 {
+        0
+    }
+
+    fn schedule_by_pattern4(&self) -> String {
+        "".to_string()
+    }
+
+    fn initialize4<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async move {
+            return;
+        });
+    }
+
+    fn perform4<'a, 'b>(
+        &'a self,
+        _stop: Arc<AtomicBool>,
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
+    where
+        'a: 'b;
+
+    fn finish4<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async move {
+            return;
+        });
+    }
+
+    fn wrap4(self) -> Arc<dyn Schedule4>
     where
         Self: Sized + 'static,
     {
@@ -547,7 +706,7 @@ impl PartialOrd for DateTime {
 
 /// 时钟, 误差0ms ~ 100ms.
 ///
-/// @see [Schedule]
+/// @see [Schedule1]
 #[derive(Clone)]
 pub struct Timer {
     thread_handles: Arc<TokioMutex<Vec<JoinHandle<()>>>>,
@@ -557,13 +716,14 @@ pub struct Timer {
 /// 默认的时钟, 这是全局变量.
 impl std::default::Default for Timer {
     fn default() -> Self {
-        static mut TIMER: Option<Timer> = None;
-        unsafe {
-            if TIMER.is_none() {
-                TIMER = Some(Timer::new());
-            }
-            return TIMER.as_ref().expect("NEVER").clone();
+        use std::sync::Mutex;
+
+        static TIMER: Mutex<Option<Timer>> = Mutex::new(None);
+        let mut timer = TIMER.lock().expect("Mutex::lock()");
+        if timer.is_none() {
+            *timer = Some(Timer::new());
         }
+        return timer.as_ref().expect("NEVER").clone();
     }
 }
 
@@ -618,34 +778,34 @@ impl Timer {
     }
 
     /// 定时任务.
-    pub async fn schedule(&self, schedule: Arc<dyn Schedule>) {
-        if schedule.sleep_before_perform() != 0 {
-            self.schedule_1(schedule).await;
-        } else if schedule.sleep_after_perform() != 0 {
-            self.schedule_2(schedule).await;
-        } else if schedule.schedule_by_pattern().len() != 0 {
-            self.schedule_3(schedule).await;
+    pub async fn schedule1(&self, schedule: Arc<dyn Schedule1>) {
+        if schedule.sleep_before_perform1() != 0 {
+            self.schedule_1_1(schedule).await;
+        } else if schedule.sleep_after_perform1() != 0 {
+            self.schedule_1_2(schedule).await;
+        } else if schedule.schedule_by_pattern1().len() != 0 {
+            self.schedule_1_3(schedule).await;
         } else {
             panic!("trait Schedule必须实现sleep_before_perform(),sleep_after_perform(),schedule_pattern()中的任意一个.");
         }
         return;
     }
 
-    async fn schedule_1(&self, schedule: Arc<dyn Schedule>) {
+    async fn schedule_1_1(&self, schedule: Arc<dyn Schedule1>) {
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            let delay: u64 = schedule.delay();
-            let period: u64 = schedule.sleep_before_perform();
+            let delay: u64 = schedule.delay1();
+            let period: u64 = schedule.sleep_before_perform1();
             // 1 初始延迟 开始.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
                 sleep(100).await;
             }
-            schedule.initialize().await;
+            schedule.initialize1().await;
             while !stop.load(SeqCst) {
                 // 2 等待并执行.
                 let sl = tokio::task::spawn(sleep(period));
-                if !schedule.perform(stop.clone()).await {
+                if !schedule.perform1(stop.clone()).await {
                     break;
                 }
                 while !stop.load(SeqCst) && !sl.is_finished() {
@@ -653,27 +813,27 @@ impl Timer {
                 }
             }
             // 3 结束.
-            schedule.finish().await;
+            schedule.finish1().await;
         });
         // 4 handle管理.
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
-    async fn schedule_2(&self, schedule: Arc<dyn Schedule>) {
+    async fn schedule_1_2(&self, schedule: Arc<dyn Schedule1>) {
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            let delay: u64 = schedule.delay();
-            let period: u64 = schedule.sleep_after_perform();
+            let delay: u64 = schedule.delay1();
+            let period: u64 = schedule.sleep_after_perform1();
             // 1 初始延迟 开始.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
                 sleep(100).await;
             }
-            schedule.initialize().await;
+            schedule.initialize1().await;
             while !stop.load(SeqCst) {
                 // 2 执行后等待.
-                if !schedule.perform(stop.clone()).await {
+                if !schedule.perform1(stop.clone()).await {
                     break;
                 }
                 let sl = tokio::task::spawn(sleep(period));
@@ -682,15 +842,15 @@ impl Timer {
                 }
             }
             // 3 结束.
-            schedule.finish().await;
+            schedule.finish1().await;
         });
         // 4 handle管理.
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
-    async fn schedule_3(&self, schedule: Arc<dyn Schedule>) {
-        let pattern: String = schedule.schedule_by_pattern();
+    async fn schedule_1_3(&self, schedule: Arc<dyn Schedule1>) {
+        let pattern: String = schedule.schedule_by_pattern1();
         // 1 解析.
         // 在'*'可能有'/', 即SLASH.
         enum Status {
@@ -834,12 +994,12 @@ impl Timer {
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
             // 2 初始延迟 开始.
-            let delay: u64 = schedule.delay();
+            let delay: u64 = schedule.delay1();
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
                 sleep(100).await;
             }
-            schedule.initialize().await;
+            schedule.initialize1().await;
             let second = &table[0];
             let minute = &table[1];
             let hour = &table[2];
@@ -858,7 +1018,7 @@ impl Timer {
                     && month.0[dt.month as usize]
                     && weekday.0[dt.weekday as usize]
                 {
-                    if !schedule.perform(stop.clone()).await {
+                    if !schedule.perform1(stop.clone()).await {
                         break;
                     }
                 }
@@ -867,7 +1027,778 @@ impl Timer {
                 }
             }
             // 4 结束.
-            schedule.finish().await;
+            schedule.finish1().await;
+        });
+        // 5 handle管理.
+        self.thread_handles.lock().await.push(handle);
+        return;
+    }
+
+    /// 定时任务.
+    pub async fn schedule2(&self, schedule: Arc<dyn Schedule2>) {
+        if schedule.sleep_before_perform2() != 0 {
+            self.schedule_2_1(schedule).await;
+        } else if schedule.sleep_after_perform2() != 0 {
+            self.schedule_2_2(schedule).await;
+        } else if schedule.schedule_by_pattern2().len() != 0 {
+            self.schedule_2_3(schedule).await;
+        } else {
+            panic!("trait Schedule必须实现sleep_before_perform(),sleep_after_perform(),schedule_pattern()中的任意一个.");
+        }
+        return;
+    }
+
+    async fn schedule_2_1(&self, schedule: Arc<dyn Schedule2>) {
+        let stop = self.stop.clone();
+        let handle = tokio::task::spawn(async move {
+            let delay: u64 = schedule.delay2();
+            let period: u64 = schedule.sleep_before_perform2();
+            // 1 初始延迟 开始.
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(200).await;
+            }
+            schedule.initialize2().await;
+            while !stop.load(SeqCst) {
+                // 2 等待并执行.
+                let sl = tokio::task::spawn(sleep(period));
+                if !schedule.perform2(stop.clone()).await {
+                    break;
+                }
+                while !stop.load(SeqCst) && !sl.is_finished() {
+                    sleep(200).await;
+                }
+            }
+            // 3 结束.
+            schedule.finish2().await;
+        });
+        // 4 handle管理.
+        self.thread_handles.lock().await.push(handle);
+        return;
+    }
+
+    async fn schedule_2_2(&self, schedule: Arc<dyn Schedule2>) {
+        let stop = self.stop.clone();
+        let handle = tokio::task::spawn(async move {
+            let delay: u64 = schedule.delay2();
+            let period: u64 = schedule.sleep_after_perform2();
+            // 1 初始延迟 开始.
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(200).await;
+            }
+            schedule.initialize2().await;
+            while !stop.load(SeqCst) {
+                // 2 执行后等待.
+                if !schedule.perform2(stop.clone()).await {
+                    break;
+                }
+                let sl = tokio::task::spawn(sleep(period));
+                while !stop.load(SeqCst) && !sl.is_finished() {
+                    sleep(200).await;
+                }
+            }
+            // 3 结束.
+            schedule.finish2().await;
+        });
+        // 4 handle管理.
+        self.thread_handles.lock().await.push(handle);
+        return;
+    }
+
+    async fn schedule_2_3(&self, schedule: Arc<dyn Schedule2>) {
+        let pattern: String = schedule.schedule_by_pattern2();
+        // 1 解析.
+        // 在'*'可能有'/', 即SLASH.
+        enum Status {
+            MIN,
+            MAX,
+            SEPARATION,
+            SLASH,
+        }
+        let expand = |mut min: u64, max: u64, separation: u64| {
+            let mut output: Vec<u64> = Vec::new();
+            while min <= max {
+                output.push(min);
+                min += separation;
+            }
+            return output;
+        };
+        let mut table: [([bool; 60], u64, u64); 6] = [
+            ([false; 60], 0, 59),
+            ([false; 60], 0, 59),
+            ([false; 60], 0, 59),
+            ([false; 60], 1, 31),
+            ([false; 60], 1, 12),
+            ([false; 60], 1, 7),
+        ];
+        let mut pattern: String = pattern.to_string();
+        while pattern.contains("  ") {
+            pattern = pattern.replace("  ", " ");
+        }
+        if pattern.split(' ').count() != table.len() {
+            panic!("bad pattern");
+        }
+        let mut index: usize = 0;
+        for x in pattern.split(' ') {
+            if x.len() == 0 {
+                panic!("bad pattern");
+            }
+            for y in x.split([',', '，']) {
+                let mut status: Status = Status::MIN;
+                let mut min: Vec<u8> = Vec::new();
+                let mut max: Vec<u8> = Vec::new();
+                let mut separation: Vec<u8> = Vec::new();
+                for z in y.as_bytes() {
+                    match status {
+                        Status::MIN => {
+                            if z.is_ascii_digit() {
+                                min.push(*z);
+                            } else if *z == b'-' {
+                                status = Status::MAX;
+                            } else if *z == b'*' {
+                                if 0 < min.len() {
+                                    panic!("bad pattern");
+                                }
+                                min.extend_from_slice(table[index].1.to_string().as_bytes());
+                                max.extend_from_slice(table[index].2.to_string().as_bytes());
+                                status = Status::SLASH;
+                            } else {
+                                panic!("bad pattern");
+                            }
+                        }
+                        Status::MAX => {
+                            if z.is_ascii_digit() {
+                                max.push(*z);
+                            } else if *z == b'/' {
+                                status = Status::SEPARATION;
+                            } else {
+                                panic!("bad pattern");
+                            }
+                        }
+                        Status::SEPARATION => {
+                            if z.is_ascii_digit() {
+                                separation.push(*z);
+                            } else {
+                                panic!("bad pattern");
+                            }
+                        }
+                        Status::SLASH => {
+                            if *z == b'/' {
+                                status = Status::SEPARATION;
+                            }
+                        }
+                    }
+                }
+                match status {
+                    Status::MIN => {
+                        if min.len() == 0 {
+                            panic!("bad pattern");
+                        } else {
+                            max = min.clone();
+                        }
+                    }
+                    Status::MAX => {
+                        if max.len() == 0 {
+                            panic!("bad pattern");
+                        }
+                    }
+                    Status::SEPARATION => {
+                        if separation.len() == 0 {
+                            panic!("bad pattern");
+                        }
+                    }
+                    Status::SLASH => {}
+                }
+                let min: u64 = if min.len() == 0 {
+                    table[index].1
+                } else {
+                    String::from_utf8(min)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
+                };
+                let max: u64 = if max.len() == 0 {
+                    table[index].2
+                } else {
+                    String::from_utf8(max)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
+                };
+                let separation: u64 = if separation.len() == 0 {
+                    1
+                } else {
+                    String::from_utf8(separation)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
+                };
+                if min < table[index].1
+                    || table[index].2 < min
+                    || max < table[index].1
+                    || table[index].2 < max
+                    || max < min
+                {
+                    panic!("bad pattern");
+                }
+                for z in expand(min, max, separation) {
+                    table[index].0[z as usize] = true;
+                }
+            } // for y in x.split(',') {...}
+            index += 1;
+        } // for x in pattern.split(' ') {...}
+        let stop = self.stop.clone();
+        let handle = tokio::task::spawn(async move {
+            // 2 初始延迟 开始.
+            let delay: u64 = schedule.delay2();
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(100).await;
+            }
+            schedule.initialize2().await;
+            let second = &table[0];
+            let minute = &table[1];
+            let hour = &table[2];
+            let day = &table[3];
+            let month = &table[4];
+            let weekday = &table[5];
+            // 3 执行.
+            while !stop.load(SeqCst) {
+                let t: u64 = 200 + 1000 - now() as u64 % 1000;
+                let sl = tokio::task::spawn(sleep(t as u64));
+                let dt: DateTime = DateTime::new();
+                if second.0[dt.second as usize]
+                    && minute.0[dt.minute as usize]
+                    && hour.0[dt.hour as usize]
+                    && day.0[dt.day as usize]
+                    && month.0[dt.month as usize]
+                    && weekday.0[dt.weekday as usize]
+                {
+                    if !schedule.perform2(stop.clone()).await {
+                        break;
+                    }
+                }
+                while !stop.load(SeqCst) && !sl.is_finished() {
+                    sleep(100).await;
+                }
+            }
+            // 4 结束.
+            schedule.finish2().await;
+        });
+        // 5 handle管理.
+        self.thread_handles.lock().await.push(handle);
+        return;
+    }
+
+    /// 定时任务.
+    pub async fn schedule3(&self, schedule: Arc<dyn Schedule3>) {
+        if schedule.sleep_before_perform3() != 0 {
+            self.schedule_3_1(schedule).await;
+        } else if schedule.sleep_after_perform3() != 0 {
+            self.schedule_3_2(schedule).await;
+        } else if schedule.schedule_by_pattern3().len() != 0 {
+            self.schedule_3_3(schedule).await;
+        } else {
+            panic!("trait Schedule必须实现sleep_before_perform(),sleep_after_perform(),schedule_pattern()中的任意一个.");
+        }
+        return;
+    }
+
+    async fn schedule_3_1(&self, schedule: Arc<dyn Schedule3>) {
+        let stop = self.stop.clone();
+        let handle = tokio::task::spawn(async move {
+            let delay: u64 = schedule.delay3();
+            let period: u64 = schedule.sleep_before_perform3();
+            // 1 初始延迟 开始.
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(300).await;
+            }
+            schedule.initialize3().await;
+            while !stop.load(SeqCst) {
+                // 2 等待并执行.
+                let sl = tokio::task::spawn(sleep(period));
+                if !schedule.perform3(stop.clone()).await {
+                    break;
+                }
+                while !stop.load(SeqCst) && !sl.is_finished() {
+                    sleep(300).await;
+                }
+            }
+            // 3 结束.
+            schedule.finish3().await;
+        });
+        // 4 handle管理.
+        self.thread_handles.lock().await.push(handle);
+        return;
+    }
+
+    async fn schedule_3_2(&self, schedule: Arc<dyn Schedule3>) {
+        let stop = self.stop.clone();
+        let handle = tokio::task::spawn(async move {
+            let delay: u64 = schedule.delay3();
+            let period: u64 = schedule.sleep_after_perform3();
+            // 1 初始延迟 开始.
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(300).await;
+            }
+            schedule.initialize3().await;
+            while !stop.load(SeqCst) {
+                // 2 执行后等待.
+                if !schedule.perform3(stop.clone()).await {
+                    break;
+                }
+                let sl = tokio::task::spawn(sleep(period));
+                while !stop.load(SeqCst) && !sl.is_finished() {
+                    sleep(300).await;
+                }
+            }
+            // 3 结束.
+            schedule.finish3().await;
+        });
+        // 4 handle管理.
+        self.thread_handles.lock().await.push(handle);
+        return;
+    }
+
+    async fn schedule_3_3(&self, schedule: Arc<dyn Schedule3>) {
+        let pattern: String = schedule.schedule_by_pattern3();
+        // 1 解析.
+        // 在'*'可能有'/', 即SLASH.
+        enum Status {
+            MIN,
+            MAX,
+            SEPARATION,
+            SLASH,
+        }
+        let expand = |mut min: u64, max: u64, separation: u64| {
+            let mut output: Vec<u64> = Vec::new();
+            while min <= max {
+                output.push(min);
+                min += separation;
+            }
+            return output;
+        };
+        let mut table: [([bool; 60], u64, u64); 6] = [
+            ([false; 60], 0, 59),
+            ([false; 60], 0, 59),
+            ([false; 60], 0, 59),
+            ([false; 60], 1, 31),
+            ([false; 60], 1, 12),
+            ([false; 60], 1, 7),
+        ];
+        let mut pattern: String = pattern.to_string();
+        while pattern.contains("  ") {
+            pattern = pattern.replace("  ", " ");
+        }
+        if pattern.split(' ').count() != table.len() {
+            panic!("bad pattern");
+        }
+        let mut index: usize = 0;
+        for x in pattern.split(' ') {
+            if x.len() == 0 {
+                panic!("bad pattern");
+            }
+            for y in x.split([',', '，']) {
+                let mut status: Status = Status::MIN;
+                let mut min: Vec<u8> = Vec::new();
+                let mut max: Vec<u8> = Vec::new();
+                let mut separation: Vec<u8> = Vec::new();
+                for z in y.as_bytes() {
+                    match status {
+                        Status::MIN => {
+                            if z.is_ascii_digit() {
+                                min.push(*z);
+                            } else if *z == b'-' {
+                                status = Status::MAX;
+                            } else if *z == b'*' {
+                                if 0 < min.len() {
+                                    panic!("bad pattern");
+                                }
+                                min.extend_from_slice(table[index].1.to_string().as_bytes());
+                                max.extend_from_slice(table[index].2.to_string().as_bytes());
+                                status = Status::SLASH;
+                            } else {
+                                panic!("bad pattern");
+                            }
+                        }
+                        Status::MAX => {
+                            if z.is_ascii_digit() {
+                                max.push(*z);
+                            } else if *z == b'/' {
+                                status = Status::SEPARATION;
+                            } else {
+                                panic!("bad pattern");
+                            }
+                        }
+                        Status::SEPARATION => {
+                            if z.is_ascii_digit() {
+                                separation.push(*z);
+                            } else {
+                                panic!("bad pattern");
+                            }
+                        }
+                        Status::SLASH => {
+                            if *z == b'/' {
+                                status = Status::SEPARATION;
+                            }
+                        }
+                    }
+                }
+                match status {
+                    Status::MIN => {
+                        if min.len() == 0 {
+                            panic!("bad pattern");
+                        } else {
+                            max = min.clone();
+                        }
+                    }
+                    Status::MAX => {
+                        if max.len() == 0 {
+                            panic!("bad pattern");
+                        }
+                    }
+                    Status::SEPARATION => {
+                        if separation.len() == 0 {
+                            panic!("bad pattern");
+                        }
+                    }
+                    Status::SLASH => {}
+                }
+                let min: u64 = if min.len() == 0 {
+                    table[index].1
+                } else {
+                    String::from_utf8(min)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
+                };
+                let max: u64 = if max.len() == 0 {
+                    table[index].2
+                } else {
+                    String::from_utf8(max)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
+                };
+                let separation: u64 = if separation.len() == 0 {
+                    1
+                } else {
+                    String::from_utf8(separation)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
+                };
+                if min < table[index].1
+                    || table[index].2 < min
+                    || max < table[index].1
+                    || table[index].2 < max
+                    || max < min
+                {
+                    panic!("bad pattern");
+                }
+                for z in expand(min, max, separation) {
+                    table[index].0[z as usize] = true;
+                }
+            } // for y in x.split(',') {...}
+            index += 1;
+        } // for x in pattern.split(' ') {...}
+        let stop = self.stop.clone();
+        let handle = tokio::task::spawn(async move {
+            // 2 初始延迟 开始.
+            let delay: u64 = schedule.delay3();
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(100).await;
+            }
+            schedule.initialize3().await;
+            let second = &table[0];
+            let minute = &table[1];
+            let hour = &table[2];
+            let day = &table[3];
+            let month = &table[4];
+            let weekday = &table[5];
+            // 3 执行.
+            while !stop.load(SeqCst) {
+                let t: u64 = 200 + 1000 - now() as u64 % 1000;
+                let sl = tokio::task::spawn(sleep(t as u64));
+                let dt: DateTime = DateTime::new();
+                if second.0[dt.second as usize]
+                    && minute.0[dt.minute as usize]
+                    && hour.0[dt.hour as usize]
+                    && day.0[dt.day as usize]
+                    && month.0[dt.month as usize]
+                    && weekday.0[dt.weekday as usize]
+                {
+                    if !schedule.perform3(stop.clone()).await {
+                        break;
+                    }
+                }
+                while !stop.load(SeqCst) && !sl.is_finished() {
+                    sleep(100).await;
+                }
+            }
+            // 4 结束.
+            schedule.finish3().await;
+        });
+        // 5 handle管理.
+        self.thread_handles.lock().await.push(handle);
+        return;
+    }
+
+    /// 定时任务.
+    pub async fn schedule4(&self, schedule: Arc<dyn Schedule4>) {
+        if schedule.sleep_before_perform4() != 0 {
+            self.schedule_4_1(schedule).await;
+        } else if schedule.sleep_after_perform4() != 0 {
+            self.schedule_4_2(schedule).await;
+        } else if schedule.schedule_by_pattern4().len() != 0 {
+            self.schedule_4_3(schedule).await;
+        } else {
+            panic!("trait Schedule必须实现sleep_before_perform(),sleep_after_perform(),schedule_pattern()中的任意一个.");
+        }
+        return;
+    }
+
+    async fn schedule_4_1(&self, schedule: Arc<dyn Schedule4>) {
+        let stop = self.stop.clone();
+        let handle = tokio::task::spawn(async move {
+            let delay: u64 = schedule.delay4();
+            let period: u64 = schedule.sleep_before_perform4();
+            // 1 初始延迟 开始.
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(400).await;
+            }
+            schedule.initialize4().await;
+            while !stop.load(SeqCst) {
+                // 2 等待并执行.
+                let sl = tokio::task::spawn(sleep(period));
+                if !schedule.perform4(stop.clone()).await {
+                    break;
+                }
+                while !stop.load(SeqCst) && !sl.is_finished() {
+                    sleep(400).await;
+                }
+            }
+            // 3 结束.
+            schedule.finish4().await;
+        });
+        // 4 handle管理.
+        self.thread_handles.lock().await.push(handle);
+        return;
+    }
+
+    async fn schedule_4_2(&self, schedule: Arc<dyn Schedule4>) {
+        let stop = self.stop.clone();
+        let handle = tokio::task::spawn(async move {
+            let delay: u64 = schedule.delay4();
+            let period: u64 = schedule.sleep_after_perform4();
+            // 1 初始延迟 开始.
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(400).await;
+            }
+            schedule.initialize4().await;
+            while !stop.load(SeqCst) {
+                // 2 执行后等待.
+                if !schedule.perform4(stop.clone()).await {
+                    break;
+                }
+                let sl = tokio::task::spawn(sleep(period));
+                while !stop.load(SeqCst) && !sl.is_finished() {
+                    sleep(400).await;
+                }
+            }
+            // 3 结束.
+            schedule.finish4().await;
+        });
+        // 4 handle管理.
+        self.thread_handles.lock().await.push(handle);
+        return;
+    }
+
+    async fn schedule_4_3(&self, schedule: Arc<dyn Schedule4>) {
+        let pattern: String = schedule.schedule_by_pattern4();
+        // 1 解析.
+        // 在'*'可能有'/', 即SLASH.
+        enum Status {
+            MIN,
+            MAX,
+            SEPARATION,
+            SLASH,
+        }
+        let expand = |mut min: u64, max: u64, separation: u64| {
+            let mut output: Vec<u64> = Vec::new();
+            while min <= max {
+                output.push(min);
+                min += separation;
+            }
+            return output;
+        };
+        let mut table: [([bool; 60], u64, u64); 6] = [
+            ([false; 60], 0, 59),
+            ([false; 60], 0, 59),
+            ([false; 60], 0, 59),
+            ([false; 60], 1, 31),
+            ([false; 60], 1, 12),
+            ([false; 60], 1, 7),
+        ];
+        let mut pattern: String = pattern.to_string();
+        while pattern.contains("  ") {
+            pattern = pattern.replace("  ", " ");
+        }
+        if pattern.split(' ').count() != table.len() {
+            panic!("bad pattern");
+        }
+        let mut index: usize = 0;
+        for x in pattern.split(' ') {
+            if x.len() == 0 {
+                panic!("bad pattern");
+            }
+            for y in x.split([',', '，']) {
+                let mut status: Status = Status::MIN;
+                let mut min: Vec<u8> = Vec::new();
+                let mut max: Vec<u8> = Vec::new();
+                let mut separation: Vec<u8> = Vec::new();
+                for z in y.as_bytes() {
+                    match status {
+                        Status::MIN => {
+                            if z.is_ascii_digit() {
+                                min.push(*z);
+                            } else if *z == b'-' {
+                                status = Status::MAX;
+                            } else if *z == b'*' {
+                                if 0 < min.len() {
+                                    panic!("bad pattern");
+                                }
+                                min.extend_from_slice(table[index].1.to_string().as_bytes());
+                                max.extend_from_slice(table[index].2.to_string().as_bytes());
+                                status = Status::SLASH;
+                            } else {
+                                panic!("bad pattern");
+                            }
+                        }
+                        Status::MAX => {
+                            if z.is_ascii_digit() {
+                                max.push(*z);
+                            } else if *z == b'/' {
+                                status = Status::SEPARATION;
+                            } else {
+                                panic!("bad pattern");
+                            }
+                        }
+                        Status::SEPARATION => {
+                            if z.is_ascii_digit() {
+                                separation.push(*z);
+                            } else {
+                                panic!("bad pattern");
+                            }
+                        }
+                        Status::SLASH => {
+                            if *z == b'/' {
+                                status = Status::SEPARATION;
+                            }
+                        }
+                    }
+                }
+                match status {
+                    Status::MIN => {
+                        if min.len() == 0 {
+                            panic!("bad pattern");
+                        } else {
+                            max = min.clone();
+                        }
+                    }
+                    Status::MAX => {
+                        if max.len() == 0 {
+                            panic!("bad pattern");
+                        }
+                    }
+                    Status::SEPARATION => {
+                        if separation.len() == 0 {
+                            panic!("bad pattern");
+                        }
+                    }
+                    Status::SLASH => {}
+                }
+                let min: u64 = if min.len() == 0 {
+                    table[index].1
+                } else {
+                    String::from_utf8(min)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
+                };
+                let max: u64 = if max.len() == 0 {
+                    table[index].2
+                } else {
+                    String::from_utf8(max)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
+                };
+                let separation: u64 = if separation.len() == 0 {
+                    1
+                } else {
+                    String::from_utf8(separation)
+                        .expect("String::from_utf8()")
+                        .parse::<u64>()
+                        .expect("str::parse()")
+                };
+                if min < table[index].1
+                    || table[index].2 < min
+                    || max < table[index].1
+                    || table[index].2 < max
+                    || max < min
+                {
+                    panic!("bad pattern");
+                }
+                for z in expand(min, max, separation) {
+                    table[index].0[z as usize] = true;
+                }
+            } // for y in x.split(',') {...}
+            index += 1;
+        } // for x in pattern.split(' ') {...}
+        let stop = self.stop.clone();
+        let handle = tokio::task::spawn(async move {
+            // 2 初始延迟 开始.
+            let delay: u64 = schedule.delay4();
+            let sl = tokio::task::spawn(sleep(delay));
+            while !stop.load(SeqCst) && !sl.is_finished() {
+                sleep(100).await;
+            }
+            schedule.initialize4().await;
+            let second = &table[0];
+            let minute = &table[1];
+            let hour = &table[2];
+            let day = &table[3];
+            let month = &table[4];
+            let weekday = &table[5];
+            // 3 执行.
+            while !stop.load(SeqCst) {
+                let t: u64 = 200 + 1000 - now() as u64 % 1000;
+                let sl = tokio::task::spawn(sleep(t as u64));
+                let dt: DateTime = DateTime::new();
+                if second.0[dt.second as usize]
+                    && minute.0[dt.minute as usize]
+                    && hour.0[dt.hour as usize]
+                    && day.0[dt.day as usize]
+                    && month.0[dt.month as usize]
+                    && weekday.0[dt.weekday as usize]
+                {
+                    if !schedule.perform4(stop.clone()).await {
+                        break;
+                    }
+                }
+                while !stop.load(SeqCst) && !sl.is_finished() {
+                    sleep(100).await;
+                }
+            }
+            // 4 结束.
+            schedule.finish4().await;
         });
         // 5 handle管理.
         self.thread_handles.lock().await.push(handle);

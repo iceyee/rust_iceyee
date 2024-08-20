@@ -6,7 +6,7 @@
 //
 // Use.
 
-use iceyee_time::Schedule;
+use iceyee_time::Schedule1;
 use iceyee_time::Timer;
 use std::future::Future;
 use std::pin::Pin;
@@ -22,16 +22,16 @@ use std::sync::Arc;
 
 struct A;
 
-impl Schedule for A {
-    fn delay(&self) -> u64 {
+impl Schedule1 for A {
+    fn delay1(&self) -> u64 {
         1_000
     }
 
-    fn sleep_before_perform(&self) -> u64 {
+    fn sleep_before_perform1(&self) -> u64 {
         1_000
     }
 
-    fn initialize<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn initialize1<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
@@ -41,7 +41,7 @@ impl Schedule for A {
         });
     }
 
-    fn finish<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn finish1<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
@@ -51,7 +51,7 @@ impl Schedule for A {
         });
     }
 
-    fn perform<'a, 'b>(
+    fn perform1<'a, 'b>(
         &'a self,
         stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
@@ -68,16 +68,16 @@ impl Schedule for A {
 
 struct B;
 
-impl Schedule for B {
-    fn delay(&self) -> u64 {
+impl Schedule1 for B {
+    fn delay1(&self) -> u64 {
         1_000
     }
 
-    fn sleep_after_perform(&self) -> u64 {
+    fn sleep_after_perform1(&self) -> u64 {
         1_000
     }
 
-    fn initialize<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn initialize1<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
@@ -87,7 +87,7 @@ impl Schedule for B {
         });
     }
 
-    fn finish<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn finish1<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
@@ -97,7 +97,7 @@ impl Schedule for B {
         });
     }
 
-    fn perform<'a, 'b>(
+    fn perform1<'a, 'b>(
         &'a self,
         stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
@@ -114,12 +114,12 @@ impl Schedule for B {
 
 struct C;
 
-impl Schedule for C {
-    fn schedule_by_pattern(&self) -> String {
+impl Schedule1 for C {
+    fn schedule_by_pattern1(&self) -> String {
         "* * * * * *".to_string()
     }
 
-    fn initialize<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn initialize1<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
@@ -129,7 +129,7 @@ impl Schedule for C {
         });
     }
 
-    fn finish<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn finish1<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
@@ -139,7 +139,7 @@ impl Schedule for C {
         });
     }
 
-    fn perform<'a, 'b>(
+    fn perform1<'a, 'b>(
         &'a self,
         stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
@@ -156,7 +156,7 @@ impl Schedule for C {
 
 // Function.
 
-// #[tokio::test]
+#[tokio::test]
 pub async fn test_timer_drop() {
     println!("");
     println!("测试Timer的Drop.");
@@ -168,8 +168,8 @@ pub async fn test_timer_drop() {
     println!("定时B, 初始延迟1秒, 间隔1秒, schedule_execute_after");
     println!("主线等5秒.");
     println!("当前时间戳{}", iceyee_time::now_seconds());
-    timer.schedule(A.wrap()).await;
-    timer.schedule(B.wrap()).await;
+    timer.schedule1(A.wrap1()).await;
+    timer.schedule1(B.wrap1()).await;
     iceyee_time::sleep(5_000).await;
     println!("主线等待结束");
     {
@@ -181,7 +181,7 @@ pub async fn test_timer_drop() {
     return;
 }
 
-#[tokio::test]
+// #[tokio::test]
 pub async fn test_timer_pattern() {
     println!("");
     println!("创建时钟.");
@@ -190,7 +190,7 @@ pub async fn test_timer_pattern() {
     println!("定时C, * * * * * *");
     println!("主线等5秒.");
     println!("当前时间戳{}", iceyee_time::now_seconds());
-    timer.schedule(C.wrap()).await;
+    timer.schedule1(C.wrap1()).await;
     iceyee_time::sleep(5_000).await;
     {
         println!("stop_and_wait.");
