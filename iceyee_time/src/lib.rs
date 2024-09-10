@@ -59,6 +59,10 @@ pub trait Schedule1: Send + Sync {
     fn delay1(&self) -> u64 {
         0
     }
+    /// 精度, 默认100.
+    fn precision1(&self) -> u64 {
+        100
+    }
 
     fn sleep_before_perform1(&self) -> u64 {
         0
@@ -116,6 +120,10 @@ pub trait Schedule2: Send + Sync {
         0
     }
 
+    fn precision2(&self) -> u64 {
+        100
+    }
+
     fn sleep_before_perform2(&self) -> u64 {
         0
     }
@@ -169,6 +177,10 @@ pub trait Schedule3: Send + Sync {
         0
     }
 
+    fn precision3(&self) -> u64 {
+        100
+    }
+
     fn sleep_before_perform3(&self) -> u64 {
         0
     }
@@ -220,6 +232,10 @@ pub trait Schedule3: Send + Sync {
 pub trait Schedule4: Send + Sync {
     fn delay4(&self) -> u64 {
         0
+    }
+
+    fn precision4(&self) -> u64 {
+        100
     }
 
     fn sleep_before_perform4(&self) -> u64 {
@@ -795,21 +811,28 @@ impl Timer {
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay1();
+            let precision: u64 = schedule.precision1();
             let period: u64 = schedule.sleep_before_perform1();
             // 1 初始延迟 开始.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(100).await;
+                sleep(precision).await;
             }
             schedule.initialize1().await;
             while !stop.load(SeqCst) {
                 // 2 等待并执行.
                 let sl = tokio::task::spawn(sleep(period));
-                if !schedule.perform1(stop.clone()).await {
-                    break;
+                {
+                    let schedule = schedule.clone();
+                    let stop = stop.clone();
+                    tokio::task::spawn(async move {
+                        if !schedule.perform1(stop.clone()).await {
+                            stop.store(true, SeqCst);
+                        }
+                    });
                 }
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(100).await;
+                    sleep(precision).await;
                 }
             }
             // 3 结束.
@@ -824,11 +847,12 @@ impl Timer {
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay1();
+            let precision: u64 = schedule.precision1();
             let period: u64 = schedule.sleep_after_perform1();
             // 1 初始延迟 开始.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(100).await;
+                sleep(precision).await;
             }
             schedule.initialize1().await;
             while !stop.load(SeqCst) {
@@ -838,7 +862,7 @@ impl Timer {
                 }
                 let sl = tokio::task::spawn(sleep(period));
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(100).await;
+                    sleep(precision).await;
                 }
             }
             // 3 结束.
@@ -995,9 +1019,10 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             // 2 初始延迟 开始.
             let delay: u64 = schedule.delay1();
+            let precision: u64 = schedule.precision1();
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(100).await;
+                sleep(precision).await;
             }
             schedule.initialize1().await;
             let second = &table[0];
@@ -1023,7 +1048,7 @@ impl Timer {
                     }
                 }
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(100).await;
+                    sleep(precision).await;
                 }
             }
             // 4 结束.
@@ -1052,21 +1077,28 @@ impl Timer {
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay2();
+            let precision: u64 = schedule.precision2();
             let period: u64 = schedule.sleep_before_perform2();
             // 1 初始延迟 开始.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(200).await;
+                sleep(precision).await;
             }
             schedule.initialize2().await;
             while !stop.load(SeqCst) {
                 // 2 等待并执行.
                 let sl = tokio::task::spawn(sleep(period));
-                if !schedule.perform2(stop.clone()).await {
-                    break;
+                {
+                    let schedule = schedule.clone();
+                    let stop = stop.clone();
+                    tokio::task::spawn(async move {
+                        if !schedule.perform2(stop.clone()).await {
+                            stop.store(true, SeqCst);
+                        }
+                    });
                 }
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(200).await;
+                    sleep(precision).await;
                 }
             }
             // 3 结束.
@@ -1081,11 +1113,12 @@ impl Timer {
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay2();
+            let precision: u64 = schedule.precision2();
             let period: u64 = schedule.sleep_after_perform2();
             // 1 初始延迟 开始.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(200).await;
+                sleep(precision).await;
             }
             schedule.initialize2().await;
             while !stop.load(SeqCst) {
@@ -1095,7 +1128,7 @@ impl Timer {
                 }
                 let sl = tokio::task::spawn(sleep(period));
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(200).await;
+                    sleep(precision).await;
                 }
             }
             // 3 结束.
@@ -1252,9 +1285,10 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             // 2 初始延迟 开始.
             let delay: u64 = schedule.delay2();
+            let precision: u64 = schedule.precision2();
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(100).await;
+                sleep(precision).await;
             }
             schedule.initialize2().await;
             let second = &table[0];
@@ -1280,7 +1314,7 @@ impl Timer {
                     }
                 }
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(100).await;
+                    sleep(precision).await;
                 }
             }
             // 4 结束.
@@ -1309,21 +1343,28 @@ impl Timer {
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay3();
+            let precision: u64 = schedule.precision3();
             let period: u64 = schedule.sleep_before_perform3();
             // 1 初始延迟 开始.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(300).await;
+                sleep(precision).await;
             }
             schedule.initialize3().await;
             while !stop.load(SeqCst) {
                 // 2 等待并执行.
                 let sl = tokio::task::spawn(sleep(period));
-                if !schedule.perform3(stop.clone()).await {
-                    break;
+                {
+                    let schedule = schedule.clone();
+                    let stop = stop.clone();
+                    tokio::task::spawn(async move {
+                        if !schedule.perform3(stop.clone()).await {
+                            stop.store(true, SeqCst);
+                        }
+                    });
                 }
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(300).await;
+                    sleep(precision).await;
                 }
             }
             // 3 结束.
@@ -1338,11 +1379,12 @@ impl Timer {
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay3();
+            let precision: u64 = schedule.precision3();
             let period: u64 = schedule.sleep_after_perform3();
             // 1 初始延迟 开始.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(300).await;
+                sleep(precision).await;
             }
             schedule.initialize3().await;
             while !stop.load(SeqCst) {
@@ -1352,7 +1394,7 @@ impl Timer {
                 }
                 let sl = tokio::task::spawn(sleep(period));
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(300).await;
+                    sleep(precision).await;
                 }
             }
             // 3 结束.
@@ -1509,9 +1551,10 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             // 2 初始延迟 开始.
             let delay: u64 = schedule.delay3();
+            let precision: u64 = schedule.precision3();
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(100).await;
+                sleep(precision).await;
             }
             schedule.initialize3().await;
             let second = &table[0];
@@ -1537,7 +1580,7 @@ impl Timer {
                     }
                 }
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(100).await;
+                    sleep(precision).await;
                 }
             }
             // 4 结束.
@@ -1566,21 +1609,28 @@ impl Timer {
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay4();
+            let precision: u64 = schedule.precision4();
             let period: u64 = schedule.sleep_before_perform4();
             // 1 初始延迟 开始.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(400).await;
+                sleep(precision).await;
             }
             schedule.initialize4().await;
             while !stop.load(SeqCst) {
                 // 2 等待并执行.
                 let sl = tokio::task::spawn(sleep(period));
-                if !schedule.perform4(stop.clone()).await {
-                    break;
+                {
+                    let schedule = schedule.clone();
+                    let stop = stop.clone();
+                    tokio::task::spawn(async move {
+                        if !schedule.perform4(stop.clone()).await {
+                            stop.store(true, SeqCst);
+                        }
+                    });
                 }
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(400).await;
+                    sleep(precision).await;
                 }
             }
             // 3 结束.
@@ -1595,11 +1645,12 @@ impl Timer {
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay4();
+            let precision: u64 = schedule.precision4();
             let period: u64 = schedule.sleep_after_perform4();
             // 1 初始延迟 开始.
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(400).await;
+                sleep(precision).await;
             }
             schedule.initialize4().await;
             while !stop.load(SeqCst) {
@@ -1609,7 +1660,7 @@ impl Timer {
                 }
                 let sl = tokio::task::spawn(sleep(period));
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(400).await;
+                    sleep(precision).await;
                 }
             }
             // 3 结束.
@@ -1766,9 +1817,10 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             // 2 初始延迟 开始.
             let delay: u64 = schedule.delay4();
+            let precision: u64 = schedule.precision4();
             let sl = tokio::task::spawn(sleep(delay));
             while !stop.load(SeqCst) && !sl.is_finished() {
-                sleep(100).await;
+                sleep(precision).await;
             }
             schedule.initialize4().await;
             let second = &table[0];
@@ -1794,7 +1846,7 @@ impl Timer {
                     }
                 }
                 while !stop.load(SeqCst) && !sl.is_finished() {
-                    sleep(100).await;
+                    sleep(precision).await;
                 }
             }
             // 4 结束.
