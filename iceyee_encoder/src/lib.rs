@@ -9,90 +9,7 @@
 
 // Use.
 
-use std::string::FromUtf8Error;
-
 // Enum.
-
-/// Error.
-///
-/// - @see [Base64Encoder]
-#[derive(Debug, Clone, PartialEq)]
-pub enum Base64Error {
-    InvalidLength(usize),
-    UnexpectedCharacter(char),
-}
-
-impl std::fmt::Display for Base64Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            Self::InvalidLength(length) => {
-                f.write_str(&format!("Base64Error, 无效的长度, length={}", length))?;
-            }
-            Self::UnexpectedCharacter(character) => {
-                f.write_str(&format!(
-                    "Base64Error, 出现未预期字符, character={}",
-                    character
-                ))?;
-            }
-        }
-        return Ok(());
-    }
-}
-
-impl std::error::Error for Base64Error {}
-
-/// Error.
-///
-/// - @see [HexEncoder]
-#[derive(Debug, Clone, PartialEq)]
-pub enum HexError {
-    InvalidLength(usize),
-    UnexpectedCharacter(char),
-}
-
-impl std::fmt::Display for HexError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            Self::InvalidLength(length) => {
-                f.write_str(&format!("HexError, 无效的长度, length={}", length))?;
-            }
-            Self::UnexpectedCharacter(character) => {
-                f.write_str(&format!(
-                    "HexError, 出现未预期字符, character={}",
-                    character
-                ))?;
-            }
-        }
-        return Ok(());
-    }
-}
-
-impl std::error::Error for HexError {}
-
-/// Error.
-///
-/// - @see [UrlEncoder]
-#[derive(Debug, Clone, PartialEq)]
-pub enum UrlError {
-    InvalidFormat,
-    FromUtf8Error(FromUtf8Error),
-}
-
-impl std::fmt::Display for UrlError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            Self::InvalidFormat => {
-                f.write_str("UrlError, 错误格式")?;
-            }
-            Self::FromUtf8Error(e) => {
-                f.write_str(&format!("UrlError, {}", e.to_string()))?;
-            }
-        }
-        return Ok(());
-    }
-}
-
-impl std::error::Error for UrlError {}
 
 // Trait.
 
@@ -178,9 +95,9 @@ impl Base64Encoder {
 
     /// 解码.
     ///
-    /// - @exception [Base64Error::InvalidLength] 无效的长度.
-    /// - @exception [Base64Error::UnexpectedCharacter] 出现未预期的字符.
-    pub fn decode(input: &str) -> Result<Vec<u8>, Base64Error> {
+    /// - @exception 无效的长度.
+    /// - @exception 出现未预期的字符.
+    pub fn decode(input: &str) -> Result<Vec<u8>, String> {
         let input: String = input.to_string();
         const TABLE: [u8; 0x100] = [
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -204,7 +121,7 @@ impl Base64Encoder {
             return Ok(Vec::<u8>::new());
         }
         if length % 4 != 0 {
-            return Err(Base64Error::InvalidLength(length));
+            return Err(iceyee_error::a!("无效的长度", length));
         }
         let input_data: &[u8] = input.as_bytes();
         for x in 0..input_data.len() {
@@ -212,7 +129,7 @@ impl Base64Encoder {
             if TABLE[c as usize] != 255 || c == b'=' && input_data.len() <= x + 2 {
                 // 正常.
             } else {
-                return Err(Base64Error::UnexpectedCharacter(c as char));
+                return Err(iceyee_error::a!("出现未预期的字符", (c as char)));
             }
         }
         let new_length: usize = if input_data[input_data.len() - 2] == b'=' {
@@ -291,13 +208,13 @@ impl HexEncoder {
 
     /// 解码.
     ///
-    /// - @exception [HexError::InvalidLength] 无效的长度.
-    /// - @exception [HexError::UnexpectedCharacter] 出现未预期的字符.
-    pub fn decode(input: &str) -> Result<Vec<u8>, HexError> {
+    /// - @exception 无效的长度.
+    /// - @exception 出现未预期的字符.
+    pub fn decode(input: &str) -> Result<Vec<u8>, String> {
         let input: String = input.to_string();
         let length: usize = input.len();
         if length % 2 != 0 {
-            return Err(HexError::InvalidLength(length));
+            return Err(iceyee_error::a!("无效的长度", length));
         }
         let mut output: Vec<u8> = Vec::new();
         let input: &[u8] = input.as_bytes();
@@ -314,7 +231,7 @@ impl HexEncoder {
                 b'A'..=b'F' => {
                     high = input[x * 2] - b'A' + 10;
                 }
-                _ => return Err(HexError::UnexpectedCharacter(input[x * 2] as char)),
+                _ => return Err(iceyee_error::a!("出现未预期的字符", (input[x * 2] as char))),
             }
             match input[x * 2 + 1] {
                 b'0'..=b'9' => {
@@ -326,7 +243,12 @@ impl HexEncoder {
                 b'A'..=b'F' => {
                     low = input[x * 2 + 1] - b'A' + 10;
                 }
-                _ => return Err(HexError::UnexpectedCharacter(input[x * 2 + 1] as char)),
+                _ => {
+                    return Err(iceyee_error::a!(
+                        "出现未预期的字符",
+                        (input[x * 2 + 1] as char)
+                    ))
+                }
             }
             let b: u8 = (high << 4) | (low << 0);
             output.push(b);
@@ -357,13 +279,13 @@ impl HexEncoder {
 
     /// 解码64位整数.
     ///
-    /// - @exception [HexError::InvalidLength] 长度超过16.
-    /// - @exception [HexError::UnexpectedCharacter] 出现未预期的字符.
-    pub fn decode_number(input: &str) -> Result<u64, HexError> {
+    /// - @exception 长度超过16.
+    /// - @exception 出现未预期的字符.
+    pub fn decode_number(input: &str) -> Result<u64, String> {
         let v1: &[u8] = input.as_bytes();
         if 16 < v1.len() {
             // 长度过长.
-            return Err(HexError::InvalidLength(v1.len()));
+            return Err(iceyee_error::a!("无效的长度", v1.len()));
         }
         let mut output: u64 = 0;
         for x in 0..v1.len() {
@@ -381,7 +303,7 @@ impl HexEncoder {
                     output |= (v1[x] - b'a' + 10) as u64;
                 }
                 any => {
-                    return Err(HexError::UnexpectedCharacter(any as char));
+                    return Err(iceyee_error::a!("出现未预期的字符", (any as char)));
                 }
             }
         }
@@ -421,9 +343,9 @@ impl UrlEncoder {
 
     /// 解码.
     ///
-    /// - @exception [UrlError::InvalidFormat] 错误的格式.
-    /// - @exception [UrlError::FromUtf8Error] 解码后的内容不是UTF-8编码.
-    pub fn decode(cipher: &str) -> Result<String, UrlError> {
+    /// - @exception 错误的格式.
+    /// - @exception 解码后的内容不是UTF-8编码.
+    pub fn decode(cipher: &str) -> Result<String, String> {
         let cipher: String = cipher.to_string();
         enum Status {
             Normal,
@@ -455,7 +377,7 @@ impl UrlEncoder {
                         status = Status::Low;
                         high = *x - b'A' + 10;
                     }
-                    _ => return Err(UrlError::InvalidFormat),
+                    _ => return Err(iceyee_error::a!("错误的格式")),
                 },
                 Status::Low => match *x {
                     b'0'..=b'9' => {
@@ -473,16 +395,15 @@ impl UrlEncoder {
                         low = *x - b'A' + 10;
                         plain.push((high << 4) | (low << 0));
                     }
-                    _ => return Err(UrlError::InvalidFormat),
+                    _ => return Err(iceyee_error::a!("错误的格式")),
                 },
             }
         }
         match status {
             Status::Normal => {}
-            _ => return Err(UrlError::InvalidFormat),
+            _ => return Err(iceyee_error::a!("错误的格式")),
         }
-        // # std::string::FromUtf8Error
-        let plain: String = String::from_utf8(plain).map_err(|e| UrlError::FromUtf8Error(e))?;
+        let plain: String = String::from_utf8(plain).map_err(|e| iceyee_error::a!(e))?;
         return Ok(plain);
     }
 }

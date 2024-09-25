@@ -7,7 +7,6 @@
 // Use.
 
 use iceyee_encoder::UrlEncoder;
-use iceyee_encoder::UrlError;
 
 // Enum.
 
@@ -35,11 +34,14 @@ pub fn test_url_encoder() {
     println!("测试decode功能.");
     for (x, y) in table {
         println!("{x} <decode> {y}");
-        assert_eq!(UrlEncoder::decode(x).expect("test_url.rs 417"), y);
+        assert_eq!(UrlEncoder::decode(x).expect("NEVER"), y);
     }
     println!("测试decode异常输入.");
-    assert_eq!(UrlEncoder::decode("%%"), Err(UrlError::InvalidFormat));
-    assert_eq!(UrlEncoder::decode("%3%45"), Err(UrlError::InvalidFormat));
-    assert_eq!(UrlEncoder::decode("%34%5"), Err(UrlError::InvalidFormat));
+    println!("%%");
+    println!("%3%45");
+    println!("%34%5");
+    assert!(UrlEncoder::decode("%%").is_err());
+    assert!(UrlEncoder::decode("%3%45").is_err());
+    assert!(UrlEncoder::decode("%34%5").is_err());
     return;
 }
