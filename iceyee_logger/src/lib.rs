@@ -28,7 +28,7 @@
 // Use.
 
 use iceyee_time::DateTime;
-use iceyee_time::Schedule;
+use iceyee_time::Schedule1;
 use iceyee_time::Timer;
 use std::future::Future;
 use std::pin::Pin;
@@ -114,12 +114,12 @@ pub struct Logger {
 /// 更新时间.
 struct ScheduleUpdateTime(Arc<Logger>);
 
-impl Schedule for ScheduleUpdateTime {
-    fn sleep_after_perform(&self) -> u64 {
-        1
+impl Schedule1 for ScheduleUpdateTime {
+    fn sleep_after_perform1(&self) -> u64 {
+        100
     }
 
-    fn perform<'a, 'b>(
+    fn perform1<'a, 'b>(
         &'a self,
         _stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
@@ -136,12 +136,12 @@ impl Schedule for ScheduleUpdateTime {
 /// 文件重命名.
 struct ScheduleRename(Arc<Logger>);
 
-impl Schedule for ScheduleRename {
-    fn schedule_by_pattern(&self) -> String {
+impl Schedule1 for ScheduleRename {
+    fn schedule_by_pattern1(&self) -> String {
         "01 00 00 * * *".to_string()
     }
 
-    fn perform<'a, 'b>(
+    fn perform1<'a, 'b>(
         &'a self,
         _stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
@@ -236,12 +236,12 @@ impl Schedule for ScheduleRename {
 /// 删除两个月前的文件.
 struct ScheduleDeleteOld(Arc<Logger>);
 
-impl Schedule for ScheduleDeleteOld {
-    fn schedule_by_pattern(&self) -> String {
+impl Schedule1 for ScheduleDeleteOld {
+    fn schedule_by_pattern1(&self) -> String {
         "01 01 00 * * *".to_string()
     }
 
-    fn perform<'a, 'b>(
+    fn perform1<'a, 'b>(
         &'a self,
         _stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
@@ -300,12 +300,12 @@ impl Schedule for ScheduleDeleteOld {
 /// 刷新缓存.
 struct ScheduleFlush(Arc<Logger>);
 
-impl Schedule for ScheduleFlush {
-    fn schedule_by_pattern(&self) -> String {
+impl Schedule1 for ScheduleFlush {
+    fn schedule_by_pattern1(&self) -> String {
         "00 * * * * *".to_string()
     }
 
-    fn perform<'a, 'b>(
+    fn perform1<'a, 'b>(
         &'a self,
         _stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
@@ -365,19 +365,19 @@ impl Logger {
         }
         // 更新时间.
         this.timer
-            .schedule(ScheduleUpdateTime(this.clone()).wrap())
+            .schedule1(ScheduleUpdateTime(this.clone()).wrap1())
             .await;
         // 重命名.
         this.timer
-            .schedule(ScheduleRename(this.clone()).wrap())
+            .schedule1(ScheduleRename(this.clone()).wrap1())
             .await;
         // 删除两个月前的文件.
         this.timer
-            .schedule(ScheduleDeleteOld(this.clone()).wrap())
+            .schedule1(ScheduleDeleteOld(this.clone()).wrap1())
             .await;
         // 更新缓存.
         this.timer
-            .schedule(ScheduleFlush(this.clone()).wrap())
+            .schedule1(ScheduleFlush(this.clone()).wrap1())
             .await;
         return this;
     }
@@ -534,7 +534,7 @@ pub async fn init(
 ) {
     let mut logger = LOGGER.lock().await;
     if logger.is_some() {
-        logger.as_mut().expect("NEVER").timer.stop().await;
+        logger.as_mut().expect("NEVER").timer.stop_and_wait().await;
     }
     *logger = Some(Logger::new(level, project_name, target_directory).await);
     return;
@@ -558,9 +558,7 @@ macro_rules! debug {
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
-                if !x.ends_with('\n') {
-                    message.push_str(" ");
-                }
+                message.push_str(" ");
             )*
             iceyee_logger::print(iceyee_logger::Level::Debug, &message).await;
         }
@@ -575,9 +573,7 @@ macro_rules! info {
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
-                if !x.ends_with('\n') {
-                    message.push_str(" ");
-                }
+                message.push_str(" ");
             )*
             iceyee_logger::print(iceyee_logger::Level::Info, &message).await;
         }
@@ -592,9 +588,7 @@ macro_rules! warn {
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
-                if !x.ends_with('\n') {
-                    message.push_str(" ");
-                }
+                message.push_str(" ");
             )*
             iceyee_logger::print(iceyee_logger::Level::Warn, &message).await;
         }
@@ -610,9 +604,7 @@ macro_rules! error {
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
-                if !x.ends_with('\n') {
-                    message.push_str(" ");
-                }
+                message.push_str(" ");
             )*
             iceyee_logger::print(iceyee_logger::Level::Error, &message).await;
         }
