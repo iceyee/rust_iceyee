@@ -20,10 +20,12 @@ thread_local! {
 // Struct.
 
 /// 随机数.
+///
+/// 种子是线程变量.
 pub struct Random;
 
 impl Random {
-    /// 设置种子, 种子是线程局部变量.
+    /// 设置种子, 种子是线程变量.
     pub fn set_seed(s: u64) {
         SEED.with(|seed| seed.set(s));
         return;
