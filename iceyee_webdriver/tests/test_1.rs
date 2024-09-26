@@ -20,7 +20,7 @@ use thirtyfour::WebDriver;
 #[tokio::test]
 pub async fn _1() {
     println!("");
-    let (driver, _child) = iceyee_webdriver::chrome(false)
+    let (driver, _child) = iceyee_webdriver::chrome(false, None, None)
         .await
         .expect("test_1.rs 017");
     if let Err(e) = _2(&driver).await {
@@ -49,4 +49,18 @@ pub async fn _2(driver: &WebDriver) -> WebDriverResult<()> {
     println!("{}", cookie.0);
     println!("{}", cookie.1);
     return Ok(());
+}
+
+// #[tokio::test]
+pub async fn _3() {
+    println!("");
+    let (driver, _child) =
+        iceyee_webdriver::chrome(false, None, Some("localhost:1082".to_string()))
+            .await
+            .expect("test_1.rs 017");
+    iceyee_time::sleep(3_000).await;
+    let _ = driver.goto("https://steamcommunity.com/").await;
+    iceyee_time::sleep(20_000).await;
+    let _ = driver.quit().await;
+    return;
 }
