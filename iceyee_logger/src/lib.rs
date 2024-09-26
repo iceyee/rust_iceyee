@@ -558,7 +558,9 @@ macro_rules! debug {
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
-                message.push_str(" ");
+                if !message.ends_with("\n") {
+                    message.push_str(" ");
+                }
             )*
             iceyee_logger::print(iceyee_logger::Level::Debug, &message).await;
         }
@@ -573,7 +575,9 @@ macro_rules! info {
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
-                message.push_str(" ");
+                if !message.ends_with("\n") {
+                    message.push_str(" ");
+                }
             )*
             iceyee_logger::print(iceyee_logger::Level::Info, &message).await;
         }
@@ -588,7 +592,9 @@ macro_rules! warn {
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
-                message.push_str(" ");
+                if !message.ends_with("\n") {
+                    message.push_str(" ");
+                }
             )*
             iceyee_logger::print(iceyee_logger::Level::Warn, &message).await;
         }
@@ -604,7 +610,9 @@ macro_rules! error {
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
-                message.push_str(" ");
+                if !message.ends_with("\n") {
+                    message.push_str(" ");
+                }
             )*
             iceyee_logger::print(iceyee_logger::Level::Error, &message).await;
         }

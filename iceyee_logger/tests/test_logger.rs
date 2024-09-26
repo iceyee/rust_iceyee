@@ -26,7 +26,7 @@ pub async fn init_test() {
     return;
 }
 
-// #[tokio::test]
+#[tokio::test]
 pub async fn test_no_init() {
     #[allow(dead_code)]
     #[derive(Clone, Debug, Default)]
@@ -44,7 +44,7 @@ pub async fn test_no_init() {
     iceyee_logger::warn_object!(&a001);
     iceyee_logger::warn!(2, "hello world debug.", "second", "third", "fourth");
     iceyee_logger::error_object!(&a001, &a001);
-    iceyee_logger::error!(3, "hello world debug.", "second", "third", "fourth");
+    iceyee_logger::error!(3, "hello world debug.\n", "second\n", "third\n", "fourth\n");
     return;
 }
 
