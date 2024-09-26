@@ -85,5 +85,6 @@ pub fn test_url() {
     assert!("https:///p?a=1&b=2&c=3".parse::<Url>().is_err());
     assert!("https://www.baidu.com:".parse::<Url>().is_err());
     assert!("https://www.baidu.com:999999".parse::<Url>().is_err());
+    println!("{:?}", "https://www.baidu.com:999999".parse::<Url>());
     return;
 }

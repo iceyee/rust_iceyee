@@ -13,7 +13,6 @@ pub use crate::http::Response;
 
 use crate::http::Args;
 use crate::http::Url;
-use crate::http::UrlError;
 use async_compression::tokio::bufread::GzipDecoder;
 use iceyee_encoder::Base64Encoder;
 use iceyee_random::Random;
@@ -21,7 +20,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::future::Future;
 use std::io::Error as StdIoError;
-use std::io::ErrorKind as StdIoErrorKind;
 use std::ops::DerefMut;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -48,12 +46,12 @@ pub trait Proxy: AsyncRead + AsyncWrite + Send + Sync + Unpin {
         target_host: &str,
         target_port: u16,
         using_ssl: bool,
-    ) -> Pin<Box<dyn Future<Output = Result<(), StdIoError>> + Send + 'b>>
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
     where
         'a: 'b;
 
     /// 关闭连接.
-    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
     where
         'a: 'b;
 
@@ -112,7 +110,7 @@ impl Drop for WrapProxy {
         if Arc::strong_count(&self.0) == 1 {
             let proxy = self.0.clone();
             tokio::task::spawn(async move {
-                proxy.lock().await.close().await;
+                let _ = proxy.lock().await.close().await;
             });
         }
     }
@@ -142,7 +140,7 @@ impl Proxy for NoProxy {
         target_host: &str,
         target_port: u16,
         using_ssl: bool,
-    ) -> Pin<Box<dyn Future<Output = Result<(), StdIoError>> + Send + 'b>>
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
     where
         'a: 'b,
     {
@@ -155,18 +153,20 @@ impl Proxy for NoProxy {
             );
             self.logger.push_str(&message);
             let plain_socket: TokioTcpStream =
-                TokioTcpStream::connect((target_host.clone(), target_port)).await?;
+                TokioTcpStream::connect((target_host.clone(), target_port))
+                    .await
+                    .map_err(|e| iceyee_error::a!(e))?;
             if !using_ssl {
                 self.plain_socket = Some(plain_socket);
             } else {
                 self.logger.push_str("建立tls\r\n");
                 let connector = tokio_native_tls::native_tls::TlsConnector::new()
-                    .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| iceyee_error::a!(e))?;
                 let connector = tokio_native_tls::TlsConnector::from(connector);
                 let ssl_socket: TlsStream<TokioTcpStream> = connector
                     .connect(&target_host, plain_socket)
                     .await
-                    .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| iceyee_error::a!(e))?;
                 self.ssl_socket = Some(ssl_socket);
             }
             let message: String = format!("连接耗时: {}ms\r\n", iceyee_time::now() - t);
@@ -175,26 +175,31 @@ impl Proxy for NoProxy {
         });
     }
 
-    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
     where
         'a: 'b,
     {
         return Box::pin(async move {
             self.logger.push_str("\r\n---- Connection close ----\r\n");
             if self.plain_socket.is_some() {
-                if let Err(e) = self.plain_socket.as_mut().expect("NEVER").shutdown().await {
-                    self.logger.push_str("Err: ");
-                    self.logger.push_str(e.to_string().as_str());
-                }
+                self.plain_socket
+                    .as_mut()
+                    .expect("NEVER")
+                    .shutdown()
+                    .await
+                    .map_err(|e| iceyee_error::a!(e))?;
                 self.plain_socket = None;
             }
             if self.ssl_socket.is_some() {
-                if let Err(e) = self.ssl_socket.as_mut().expect("NEVER").shutdown().await {
-                    self.logger.push_str("Err: ");
-                    self.logger.push_str(e.to_string().as_str());
-                }
+                self.ssl_socket
+                    .as_mut()
+                    .expect("NEVER")
+                    .shutdown()
+                    .await
+                    .map_err(|e| iceyee_error::a!(e))?;
                 self.ssl_socket = None;
             }
+            Ok(())
         });
     }
 
@@ -237,7 +242,7 @@ impl Proxy for HttpProxy {
         target_host: &str,
         target_port: u16,
         using_ssl: bool,
-    ) -> Pin<Box<dyn Future<Output = Result<(), StdIoError>> + Send + 'b>>
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
     where
         'a: 'b,
     {
@@ -251,7 +256,9 @@ impl Proxy for HttpProxy {
             self.logger.push_str(&message);
             // 1 连接代理.
             let mut plain_socket: TokioTcpStream =
-                TokioTcpStream::connect((self.proxy_host.clone(), self.proxy_port)).await?;
+                TokioTcpStream::connect((self.proxy_host.clone(), self.proxy_port))
+                    .await
+                    .map_err(|e| iceyee_error::a!(e))?;
             // 2 CONNECT.
             let mut request: Request = Request::default();
             request.method = "CONNECT".to_string();
@@ -276,7 +283,10 @@ impl Proxy for HttpProxy {
                     .header
                     .insert("Proxy-Authorization".to_string(), auth.clone());
             }
-            plain_socket.write(request.to_string().as_bytes()).await?;
+            plain_socket
+                .write(request.to_string().as_bytes())
+                .await
+                .map_err(|e| iceyee_error::a!(e))?;
             // CONNECT响应.
             let response: Response = Response::read_from(&mut plain_socket, None).await?;
             if 200 <= response.status_code && response.status_code < 300 {
@@ -292,7 +302,7 @@ impl Proxy for HttpProxy {
                     "请求代理连接失败 @proxy='{}:{}'",
                     self.proxy_host, self.proxy_port
                 );
-                Err(StdIoError::new(StdIoErrorKind::ConnectionRefused, message))?;
+                return Err(iceyee_error::a!(message));
             }
             // 3 tls握手.
             if !using_ssl {
@@ -300,12 +310,12 @@ impl Proxy for HttpProxy {
             } else {
                 self.logger.push_str("建立tls\r\n");
                 let connector = tokio_native_tls::native_tls::TlsConnector::new()
-                    .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| iceyee_error::a!(e))?;
                 let connector = tokio_native_tls::TlsConnector::from(connector);
                 let ssl_socket: TlsStream<TokioTcpStream> = connector
                     .connect(&target_host, plain_socket)
                     .await
-                    .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| iceyee_error::a!(e))?;
                 self.ssl_socket = Some(ssl_socket);
             }
             let message: String = format!("连接耗时: {}ms\r\n", iceyee_time::now() - t);
@@ -314,26 +324,31 @@ impl Proxy for HttpProxy {
         });
     }
 
-    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
     where
         'a: 'b,
     {
         return Box::pin(async move {
             self.logger.push_str("\r\n---- Connection close ----\r\n");
             if self.plain_socket.is_some() {
-                if let Err(e) = self.plain_socket.as_mut().expect("NEVER").shutdown().await {
-                    self.logger.push_str("Err: ");
-                    self.logger.push_str(e.to_string().as_str());
-                }
+                self.plain_socket
+                    .as_mut()
+                    .expect("NEVER")
+                    .shutdown()
+                    .await
+                    .map_err(|e| iceyee_error::a!(e))?;
                 self.plain_socket = None;
             }
             if self.ssl_socket.is_some() {
-                if let Err(e) = self.ssl_socket.as_mut().expect("NEVER").shutdown().await {
-                    self.logger.push_str("Err: ");
-                    self.logger.push_str(e.to_string().as_str());
-                }
+                self.ssl_socket
+                    .as_mut()
+                    .expect("NEVER")
+                    .shutdown()
+                    .await
+                    .map_err(|e| iceyee_error::a!(e))?;
                 self.ssl_socket = None;
             }
+            Ok(())
         });
     }
 
@@ -376,7 +391,7 @@ impl Proxy for Socks5Proxy {
         target_host: &str,
         target_port: u16,
         using_ssl: bool,
-    ) -> Pin<Box<dyn Future<Output = Result<(), StdIoError>> + Send + 'b>>
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
     where
         'a: 'b,
     {
@@ -390,7 +405,9 @@ impl Proxy for Socks5Proxy {
             self.logger.push_str(&message);
             // 1 连接代理.
             let mut plain_socket: TokioTcpStream =
-                TokioTcpStream::connect((self.proxy_host.clone(), self.proxy_port)).await?;
+                TokioTcpStream::connect((self.proxy_host.clone(), self.proxy_port))
+                    .await
+                    .map_err(|e| iceyee_error::a!(e))?;
             // 2 认证.
             // client:
             // +----+----------+----------+
@@ -411,18 +428,21 @@ impl Proxy for Socks5Proxy {
             //   o X’03’ to X’7F’ IANA ASSIGNED
             //   o X’80’ to X’FE’ RESERVED FOR PRIVATE METHODS
             //   o X’FF’ NO ACCEPTABLE METHODS
-            plain_socket.write(&[0x05u8, 0x02, 0x00, 0x02]).await?;
+            plain_socket
+                .write(&[0x05u8, 0x02, 0x00, 0x02])
+                .await
+                .map_err(|e| iceyee_error::a!(e))?;
             let mut buffer: [u8; 0xFFF] = [0; 0xFFF];
-            let length: usize = plain_socket.read(&mut buffer).await?;
+            let length: usize = plain_socket
+                .read(&mut buffer)
+                .await
+                .map_err(|e| iceyee_error::a!(e))?;
             if length != 2 {
-                Err(StdIoError::new(StdIoErrorKind::Other, "非预期."))?;
+                return Err(iceyee_error::a!("非预期"));
             }
             if buffer[1] == 0xFF {
                 // 认证被拒绝.
-                Err(StdIoError::new(
-                    StdIoErrorKind::ConnectionRefused,
-                    "代理认证被拒绝.",
-                ))?;
+                return Err(iceyee_error::a!("代理认证被拒绝"));
             } else if buffer[1] == 0x02 {
                 // USERNAME/PASSWORD.
                 // client:
@@ -447,7 +467,10 @@ impl Proxy for Socks5Proxy {
                     auth.extend_from_slice(username);
                     auth.push(password.len() as u8);
                     auth.extend_from_slice(password);
-                    plain_socket.write(&auth).await?;
+                    plain_socket
+                        .write(&auth)
+                        .await
+                        .map_err(|e| iceyee_error::a!(e))?;
                     // server:
                     // +----+--------+
                     // |VER | STATUS |
@@ -455,14 +478,14 @@ impl Proxy for Socks5Proxy {
                     // | 1  |   1    |
                     // +----+--------+
                     // 返回STATUS, 0x00表示成功.
-                    let length: usize = plain_socket.read(&mut buffer).await?;
+                    let length: usize = plain_socket
+                        .read(&mut buffer)
+                        .await
+                        .map_err(|e| iceyee_error::a!(e))?;
                     if length != 2 {
-                        Err(StdIoError::new(StdIoErrorKind::Other, "非预期."))?;
+                        return Err(iceyee_error::a!("非预期"));
                     } else if buffer[1] != 0x00 {
-                        Err(StdIoError::new(
-                            StdIoErrorKind::ConnectionRefused,
-                            "代理认证失败.",
-                        ))?;
+                        return Err(iceyee_error::a!("代理认证失败"));
                     }
                 }
             }
@@ -494,7 +517,10 @@ impl Proxy for Socks5Proxy {
             request.extend_from_slice(target_host.as_bytes());
             request.push(((target_port >> 8) & 0xFF) as u8);
             request.push(((target_port >> 0) & 0xFF) as u8);
-            plain_socket.write(&request).await?;
+            plain_socket
+                .write(&request)
+                .await
+                .map_err(|e| iceyee_error::a!(e))?;
             // server:
             // +----+-----+-------+------+----------+----------+
             // |VER | REP |  RSV  | ATYP | BND.ADDR | BND.PORT |
@@ -520,54 +546,33 @@ impl Proxy for Socks5Proxy {
             //   o IP V6 address: X’04’
             // o BND.ADDR server bound address
             // o BND.PORT server bound port in network octet order
-            let length: usize = plain_socket.read(&mut buffer).await?;
+            let length: usize = plain_socket
+                .read(&mut buffer)
+                .await
+                .map_err(|e| iceyee_error::a!(e))?;
             if length < 4 {
-                Err(StdIoError::new(StdIoErrorKind::Other, "非预期."))?;
+                return Err(iceyee_error::a!("非预期"));
             }
             if buffer[1] == 0x00 {
                 // succeeded.
             } else if buffer[1] == 0x01 {
-                Err(StdIoError::new(
-                    StdIoErrorKind::Other,
-                    "general SOCKS server failure",
-                ))?;
+                return Err(iceyee_error::a!("general SOCKS server failure"));
             } else if buffer[1] == 0x02 {
-                Err(StdIoError::new(
-                    StdIoErrorKind::ConnectionRefused,
-                    "connection not allowed by ruleset",
-                ))?;
+                return Err(iceyee_error::a!("connection not allowed by ruleset"));
             } else if buffer[1] == 0x03 {
-                Err(StdIoError::new(
-                    StdIoErrorKind::NetworkUnreachable,
-                    "Network unreachable",
-                ))?;
+                return Err(iceyee_error::a!("Network unreachable"));
             } else if buffer[1] == 0x04 {
-                Err(StdIoError::new(
-                    StdIoErrorKind::HostUnreachable,
-                    "Host unreachable",
-                ))?;
+                return Err(iceyee_error::a!("Host unreachable"));
             } else if buffer[1] == 0x05 {
-                Err(StdIoError::new(
-                    StdIoErrorKind::ConnectionRefused,
-                    "Connection refused",
-                ))?;
+                return Err(iceyee_error::a!("Connection refused"));
             } else if buffer[1] == 0x06 {
-                Err(StdIoError::new(StdIoErrorKind::TimedOut, "TTL expired"))?;
+                return Err(iceyee_error::a!("TTL expired"));
             } else if buffer[1] == 0x07 {
-                Err(StdIoError::new(
-                    StdIoErrorKind::InvalidInput,
-                    "Command not supported",
-                ))?;
+                return Err(iceyee_error::a!("Command not supported"));
             } else if buffer[1] == 0x08 {
-                Err(StdIoError::new(
-                    StdIoErrorKind::Unsupported,
-                    "Address type not supported",
-                ))?;
+                return Err(iceyee_error::a!("Address type not supported"));
             } else if buffer[1] == 0x09 {
-                Err(StdIoError::new(
-                    StdIoErrorKind::Other,
-                    "to X’FF’ unassigned",
-                ))?;
+                return Err(iceyee_error::a!("to X’FF’ unassigned"));
             }
             // 4 tls握手.
             if !using_ssl {
@@ -575,12 +580,12 @@ impl Proxy for Socks5Proxy {
             } else {
                 self.logger.push_str("建立tls\r\n");
                 let connector = tokio_native_tls::native_tls::TlsConnector::new()
-                    .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| iceyee_error::a!(e))?;
                 let connector = tokio_native_tls::TlsConnector::from(connector);
                 let ssl_socket: TlsStream<TokioTcpStream> = connector
                     .connect(&target_host, plain_socket)
                     .await
-                    .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| iceyee_error::a!(e))?;
                 self.ssl_socket = Some(ssl_socket);
             }
             let message: String = format!("连接耗时: {}ms\r\n", iceyee_time::now() - t);
@@ -589,26 +594,31 @@ impl Proxy for Socks5Proxy {
         });
     }
 
-    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
     where
         'a: 'b,
     {
         return Box::pin(async move {
             self.logger.push_str("\r\n---- Connection close ----\r\n");
             if self.plain_socket.is_some() {
-                if let Err(e) = self.plain_socket.as_mut().expect("NEVER").shutdown().await {
-                    self.logger.push_str("Err: ");
-                    self.logger.push_str(e.to_string().as_str());
-                }
+                self.plain_socket
+                    .as_mut()
+                    .expect("NEVER")
+                    .shutdown()
+                    .await
+                    .map_err(|e| iceyee_error::a!(e))?;
                 self.plain_socket = None;
             }
             if self.ssl_socket.is_some() {
-                if let Err(e) = self.ssl_socket.as_mut().expect("NEVER").shutdown().await {
-                    self.logger.push_str("Err: ");
-                    self.logger.push_str(e.to_string().as_str());
-                }
+                self.ssl_socket
+                    .as_mut()
+                    .expect("NEVER")
+                    .shutdown()
+                    .await
+                    .map_err(|e| iceyee_error::a!(e))?;
                 self.ssl_socket = None;
             }
+            Ok(())
         });
     }
 
@@ -843,11 +853,14 @@ impl HttpClient {
         return self;
     }
 
-    pub fn set_url<S>(mut self, s: S) -> Result<Self, UrlError>
+    pub fn set_url<S>(mut self, s: S) -> Result<Self, String>
     where
         S: ToString,
     {
-        let url: Url = s.to_string().parse::<Url>()?;
+        let url: Url = s
+            .to_string()
+            .parse::<Url>()
+            .map_err(|e| iceyee_error::b!(e, "parse url"))?;
         self.request
             .header
             .insert("Host".to_string(), url.host.clone());
@@ -931,16 +944,17 @@ impl HttpClient {
     async fn send_001(
         &mut self,
         proxy: &mut tokio::sync::MutexGuard<'_, Box<dyn Proxy>>,
-    ) -> Result<Response, StdIoError> {
+    ) -> Result<Response, String> {
         // 1 连接.
         if proxy.is_closed() {
             let url: &Url = self.url.as_ref().expect("NEVER");
             proxy
                 .connect(&url.host, url.port, url.protocol == "https:")
-                .await?;
+                .await
+                .map_err(|e| iceyee_error::b!(e, "连接失败"))?;
         }
         if proxy.is_closed() {
-            return Err(StdIoError::new(StdIoErrorKind::ConnectionReset, "连接失败"));
+            return Err(iceyee_error::a!("连接失败"));
         }
         // 2 请求头.
         for (key, value) in [
@@ -962,7 +976,10 @@ impl HttpClient {
         let header: String = self.request.to_string();
         proxy.get_logger().push_str("\r\n---- Request ----\r\n");
         proxy.get_logger().push_str(&header);
-        proxy.write(header.as_bytes()).await?;
+        proxy
+            .write(header.as_bytes())
+            .await
+            .map_err(|e| iceyee_error::a!(e))?;
         // 4 写请求正文.
         match String::from_utf8(self.request.body.clone()) {
             Ok(s) => proxy.get_logger().push_str(&s),
@@ -975,7 +992,10 @@ impl HttpClient {
             ),
         }
         if self.request.body.len() != 0 {
-            proxy.write(self.request.body.as_slice()).await?;
+            proxy
+                .write(self.request.body.as_slice())
+                .await
+                .map_err(|e| iceyee_error::a!(e))?;
         }
         // 5 解析响应.
         proxy.get_logger().push_str("\r\n---- Response ----\r\n");
@@ -990,7 +1010,8 @@ impl HttpClient {
             let mut body: Vec<u8> = Vec::new();
             GzipDecoder::new(response.body.as_slice())
                 .read_to_end(&mut body)
-                .await?;
+                .await
+                .map_err(|e| iceyee_error::a!(e))?;
             response.body = body;
         }
         match String::from_utf8(response.body.clone()) {
@@ -1011,7 +1032,10 @@ impl HttpClient {
             .to_lowercase()
             .contains("close")
         {
-            proxy.close().await;
+            proxy
+                .close()
+                .await
+                .map_err(|e| iceyee_error::b!(e, "close proxy"))?;
         }
         return Ok(response);
     }
@@ -1019,9 +1043,9 @@ impl HttpClient {
     pub async fn send(
         mut self,
         mut proxy: Option<WrapProxy>,
-    ) -> Result<(Response, String), StdIoError> {
+    ) -> Result<(Response, String), String> {
         if self.url.is_none() {
-            Err(StdIoError::new(StdIoErrorKind::Other, "未设置url"))?;
+            return Err(iceyee_error::a!("未设置url"));
         }
         let t: i64 = iceyee_time::now();
         if proxy.is_none() {
@@ -1031,13 +1055,22 @@ impl HttpClient {
         let mut proxy = proxy.0.lock().await;
         proxy.get_logger().clear();
         proxy.get_logger().push_str("\r\n---- Start ----\r\n");
-        let r = self.send_001(&mut proxy).await;
+        let r = self
+            .send_001(&mut proxy)
+            .await
+            .map_err(|e| iceyee_error::b!(e, "send request"));
         if r.is_err() {
             proxy.get_logger().push_str("\r\n---- Exception ----\r\n");
             proxy
                 .get_logger()
                 .push_str(r.as_ref().expect_err("NEVER").to_string().as_str());
-            proxy.close().await;
+            if let Err(e) = proxy
+                .close()
+                .await
+                .map_err(|e| iceyee_error::b!(e, "close proxy"))
+            {
+                proxy.get_logger().push_str(&e);
+            }
         }
         let message: String = format!(
             "\r\n---- End ----\r\n总耗时: {}ms\r\n",
@@ -1055,15 +1088,15 @@ impl HttpClient {
     /// ```
     /// HttpClient::new()
     ///     .set_url(url)
-    ///     .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?
+    ///     .map_err(|e| iceyee_error::b!(e, ""))?
     ///     .set_header("Connection", "close")
     ///     .send(None)
     ///     .await;
     /// ```
-    pub async fn get(url: &str) -> Result<(Response, String), StdIoError> {
+    pub async fn get(url: &str) -> Result<(Response, String), String> {
         return HttpClient::new()
             .set_url(url)
-            .map_err(|e| StdIoError::new(StdIoErrorKind::Other, e.to_string()))?
+            .map_err(|e| iceyee_error::b!(e, ""))?
             .set_header("Connection", "close")
             .send(None)
             .await;

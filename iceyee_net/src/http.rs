@@ -12,9 +12,6 @@ pub mod server;
 
 use iceyee_encoder::UrlEncoder;
 use std::collections::HashMap;
-use std::error::Error as StdError;
-use std::io::Error as StdIoError;
-use std::io::ErrorKind as StdIoErrorKind;
 use std::time::Duration;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
@@ -243,37 +240,37 @@ enum State {
     Fragment,
 }
 
-/// Error.
-#[derive(Clone, Debug)]
-pub struct UrlError {
-    link: String,
-    state: State,
-    index: usize,
-    message: String,
-}
-
-impl UrlError {
-    fn new(link: &str, state: &State, index: usize, message: String) -> Self {
-        return Self {
-            link: link.to_string(),
-            state: state.clone(),
-            index: index,
-            message: message,
-        };
-    }
-}
-
-impl std::fmt::Display for UrlError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        return write!(
-            f,
-            "UrlError, 错误的格式, @link={}, @state={:?}, @index={}, @message={}",
-            self.link, self.state, self.index, self.message
-        );
-    }
-}
-
-impl StdError for UrlError {}
+// /// Error.
+// #[derive(Clone, Debug)]
+// pub struct UrlError {
+//     link: String,
+//     state: State,
+//     index: usize,
+//     message: String,
+// }
+//
+// impl UrlError {
+//     fn new(link: &str, state: &State, index: usize, message: String) -> Self {
+//         return Self {
+//             link: link.to_string(),
+//             state: state.clone(),
+//             index: index,
+//             message: message,
+//         };
+//     }
+// }
+//
+// impl std::fmt::Display for UrlError {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+//         return write!(
+//             f,
+//             "UrlError, 错误的格式, @link={}, @state={:?}, @index={}, @message={}",
+//             self.link, self.state, self.index, self.message
+//         );
+//     }
+// }
+//
+// impl StdError for UrlError {}
 
 /// 统一资源定位器, Uniform Resource Locator.
 ///
@@ -302,7 +299,7 @@ impl std::default::Default for Url {
 }
 
 impl std::str::FromStr for Url {
-    type Err = UrlError;
+    type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let link: String = s.to_string();
@@ -318,9 +315,9 @@ impl std::str::FromStr for Url {
                 State::Protocol => {
                     if value[index] == b'/' {
                         let protocol: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
+                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
                         if !protocol.ends_with(":") {
-                            Err(UrlError::new(&link, &state, index, "".to_string()))?;
+                            Err(iceyee_error::a!("@link=", link, "@index=", index))?;
                         }
                         url.protocol = protocol;
                         buffer.clear();
@@ -334,9 +331,9 @@ impl std::str::FromStr for Url {
                 State::Host => match value[index] {
                     b':' | b'/' | b'?' | b'#' => {
                         let host: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
+                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
                         if host.len() == 0 {
-                            Err(UrlError::new(&link, &state, index, "".to_string()))?;
+                            Err(iceyee_error::a!("@link=", link, "@index=", index))?;
                         }
                         url.host = host;
                         buffer.clear();
@@ -370,11 +367,11 @@ impl std::str::FromStr for Url {
                 State::Port => match value[index] {
                     b'/' | b'?' | b'#' => {
                         let port: u16 = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?
+                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?
                             .parse::<u16>()
-                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
+                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
                         if port == 0 {
-                            Err(UrlError::new(&link, &state, index, "".to_string()))?;
+                            Err(iceyee_error::a!("@link=", link, "@index=", index))?;
                         }
                         url.port = port;
                         buffer.clear();
@@ -404,7 +401,7 @@ impl std::str::FromStr for Url {
                 State::Path => match value[index] {
                     b'?' | b'#' => {
                         let path: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
+                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
                         url.path = path;
                         buffer.clear();
                         match value[index] {
@@ -429,7 +426,7 @@ impl std::str::FromStr for Url {
                 State::Query => match value[index] {
                     b'#' => {
                         let query: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
+                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
                         url.query = Some(query);
                         buffer.clear();
                         state = State::Fragment;
@@ -448,39 +445,39 @@ impl std::str::FromStr for Url {
         } // while index < length
         match state {
             State::Protocol => {
-                Err(UrlError::new(&link, &state, index, "".to_string()))?;
+                Err(iceyee_error::a!("@link=", link, "@index=", index))?;
             }
             State::Host => {
                 let host: String = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
+                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
                 if host.len() == 0 {
-                    Err(UrlError::new(&link, &state, index, "".to_string()))?;
+                    Err(iceyee_error::a!("@link=", link, "@index=", index))?;
                 }
                 url.host = host;
             }
             State::Port => {
                 let port: u16 = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?
+                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?
                     .parse::<u16>()
-                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
+                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
                 if port == 0 {
-                    Err(UrlError::new(&link, &state, index, "".to_string()))?;
+                    Err(iceyee_error::a!("@link=", link, "@index=", index))?;
                 }
                 url.port = port;
             }
             State::Path => {
                 let path: String = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
+                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
                 url.path = path;
             }
             State::Query => {
                 let query: String = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
+                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
                 url.query = Some(query);
             }
             State::Fragment => {
                 let fragment: String = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| UrlError::new(&link, &state, index, e.to_string()))?;
+                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
                 url.fragment = Some(fragment);
             }
         }
@@ -614,7 +611,7 @@ impl Request {
     /// 解析数据.
     ///
     /// - @param timeout 超时, 可选, 默认1分钟.
-    pub async fn read_from<R>(mut input: R, timeout: Option<u64>) -> Result<Request, StdIoError>
+    pub async fn read_from<R>(mut input: R, timeout: Option<u64>) -> Result<Request, String>
     where
         R: AsyncRead + Unpin,
     {
@@ -646,14 +643,11 @@ impl Request {
                 )
                 .await
                 {
-                    Ok(length) => length?,
-                    Err(_) => return Err(StdIoError::new(StdIoErrorKind::TimedOut, "TimedOut")),
+                    Ok(length) => length.map_err(|e| iceyee_error::a!(e))?,
+                    Err(_) => return Err(iceyee_error::a!("TimedOut")),
                 };
                 if length == 0 {
-                    return Err(StdIoError::new(
-                        StdIoErrorKind::UnexpectedEof,
-                        "UnexpectedEof",
-                    ));
+                    return Err(iceyee_error::a!("UnexpectedEof"));
                 }
                 buffer.extend(&buf, length);
             }
@@ -687,12 +681,8 @@ impl Request {
                 State::Method => {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
-                            request.method = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "String::from_utf8().",
-                                )
-                            })?;
+                            request.method = String::from_utf8(bytes.clone())
+                                .map_err(|e| iceyee_error::a!(e))?;
                             bytes.clear();
                             state = State::PathSpace;
                             break;
@@ -700,7 +690,7 @@ impl Request {
                             bytes.push(buffer.block[x]);
                             x += 1;
                             if 0xFF < bytes.len() {
-                                Err(StdIoError::new(std::io::ErrorKind::Other, "大小非预期."))?;
+                                return Err(iceyee_error::a!("大小非预期"));
                             }
                         }
                     }
@@ -708,12 +698,8 @@ impl Request {
                 State::Path => {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
-                            request.path = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "String::from_utf8().",
-                                )
-                            })?;
+                            request.path = String::from_utf8(bytes.clone())
+                                .map_err(|e| iceyee_error::a!(e))?;
                             bytes.clear();
                             state = State::VersionSpace;
                             if request.path.contains("?") {
@@ -728,10 +714,7 @@ impl Request {
                             bytes.push(buffer.block[x]);
                             x += 1;
                             if 0xFFF < bytes.len() {
-                                Err(StdIoError::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "大小非预期.",
-                                ))?;
+                                return Err(iceyee_error::a!("大小非预期"));
                             }
                         }
                     }
@@ -739,12 +722,8 @@ impl Request {
                 State::Version => {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
-                            request.version = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "String::from_utf8().",
-                                )
-                            })?;
+                            request.version = String::from_utf8(bytes.clone())
+                                .map_err(|e| iceyee_error::a!(e))?;
                             bytes.clear();
                             state = State::Header;
                             needed = 4;
@@ -753,10 +732,7 @@ impl Request {
                             bytes.push(buffer.block[x]);
                             x += 1;
                             if 0xFF < bytes.len() {
-                                Err(StdIoError::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "大小非预期.",
-                                ))?;
+                                return Err(iceyee_error::a!("大小非预期"));
                             }
                         }
                     }
@@ -768,13 +744,8 @@ impl Request {
                             && buffer.block[x + 2] == b'\r'
                             && buffer.block[x + 3] == b'\n'
                         {
-                            let header: String =
-                                String::from_utf8(bytes.clone()).map_err(|_| {
-                                    StdIoError::new(
-                                        std::io::ErrorKind::InvalidData,
-                                        "String::from_utf8().",
-                                    )
-                                })?;
+                            let header: String = String::from_utf8(bytes.clone())
+                                .map_err(|e| iceyee_error::a!(e))?;
                             bytes.clear();
                             state = State::BodySpace;
                             for line in header.split("\r\n") {
@@ -790,10 +761,7 @@ impl Request {
                             bytes.push(buffer.block[x]);
                             x += 1;
                             if 0xFFFF < bytes.len() {
-                                Err(StdIoError::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "大小非预期.",
-                                ))?;
+                                return Err(iceyee_error::a!("大小非预期"));
                             }
                         }
                     }
@@ -811,12 +779,10 @@ impl Request {
                             .unwrap()
                             .trim()
                             .parse::<usize>()
-                            .map_err(|_| {
-                                StdIoError::new(std::io::ErrorKind::InvalidData, "String::parse().")
-                            })?
+                            .map_err(|e| iceyee_error::a!(e))?
                     };
                     if 0x3FFFFFFF < needed {
-                        Err(StdIoError::new(std::io::ErrorKind::Other, "大小非预期."))?;
+                        return Err(iceyee_error::a!("大小非预期"));
                     }
                 }
                 State::Body => {
@@ -920,7 +886,7 @@ impl Response {
     /// 解析数据.
     ///
     /// - @param timeout 超时, 可选, 默认1分钟.
-    pub async fn read_from<R>(mut input: R, timeout: Option<u64>) -> Result<Response, StdIoError>
+    pub async fn read_from<R>(mut input: R, timeout: Option<u64>) -> Result<Response, String>
     where
         R: AsyncRead + Unpin,
     {
@@ -956,14 +922,11 @@ impl Response {
                 )
                 .await
                 {
-                    Ok(length) => length?,
-                    Err(_) => return Err(StdIoError::new(StdIoErrorKind::TimedOut, "TimedOut")),
+                    Ok(length) => length.map_err(|e| iceyee_error::a!(e))?,
+                    Err(_) => return Err(iceyee_error::a!("TimedOut")),
                 };
                 if length == 0 {
-                    return Err(StdIoError::new(
-                        StdIoErrorKind::UnexpectedEof,
-                        "UnexpectedEof",
-                    ));
+                    return Err(iceyee_error::a!("UnexpectedEof"));
                 }
                 buffer.extend(&buf, length);
             }
@@ -982,12 +945,8 @@ impl Response {
                 State::Version => {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
-                            response.version = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "String::from_utf8().",
-                                )
-                            })?;
+                            response.version = String::from_utf8(bytes.clone())
+                                .map_err(|e| iceyee_error::a!(e))?;
                             bytes.clear();
                             state = State::StatusCodeSpace;
                             break;
@@ -1011,19 +970,9 @@ impl Response {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
                             response.status_code = String::from_utf8(bytes.clone())
-                                .map_err(|_| {
-                                    StdIoError::new(
-                                        std::io::ErrorKind::Other,
-                                        "String::from_utf8().",
-                                    )
-                                })?
+                                .map_err(|e| iceyee_error::a!(e))?
                                 .parse::<u16>()
-                                .map_err(|_| {
-                                    StdIoError::new(
-                                        std::io::ErrorKind::InvalidData,
-                                        "String::parse().",
-                                    )
-                                })?;
+                                .map_err(|e| iceyee_error::a!(e))?;
                             bytes.clear();
                             state = State::StatusSpace;
                             needed = 2;
@@ -1052,12 +1001,8 @@ impl Response {
                 State::Status => {
                     while x + 1 < buffer.length {
                         if buffer.block[x] == b'\r' && buffer.block[x + 1] == b'\n' {
-                            response.status = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "String::from_utf8().",
-                                )
-                            })?;
+                            response.status = String::from_utf8(bytes.clone())
+                                .map_err(|e| iceyee_error::a!(e))?;
                             bytes.clear();
                             state = State::Header;
                             needed = 4;
@@ -1075,12 +1020,8 @@ impl Response {
                             && buffer.block[x + 2] == b'\r'
                             && buffer.block[x + 3] == b'\n'
                         {
-                            let a001: String = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "String::from_utf8().",
-                                )
-                            })?;
+                            let a001: String = String::from_utf8(bytes.clone())
+                                .map_err(|e| iceyee_error::a!(e))?;
                             bytes.clear();
                             for line in a001.split("\r\n") {
                                 if line.contains(":") {
@@ -1106,9 +1047,7 @@ impl Response {
                     if response.header.contains_key("Content-Length") {
                         needed = response.header.get("Content-Length").unwrap().as_slice()[0]
                             .parse::<usize>()
-                            .map_err(|_| {
-                                StdIoError::new(std::io::ErrorKind::InvalidData, "String::parse().")
-                            })?;
+                            .map_err(|e| iceyee_error::a!(e))?;
                         state = State::Body;
                     } else if response.header.contains_key("Transfer-Encoding") {
                         needed = 2;
@@ -1138,18 +1077,10 @@ impl Response {
                 State::ChunkSize => {
                     while x + 1 < buffer.length {
                         if buffer.block[x] == b'\r' && buffer.block[x + 1] == b'\n' {
-                            let a001: String = String::from_utf8(bytes.clone()).map_err(|_| {
-                                StdIoError::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "String::from_utf8().",
-                                )
-                            })?;
-                            needed = usize::from_str_radix(&a001, 16).map_err(|_| {
-                                StdIoError::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "usize::from_str_radix().",
-                                )
-                            })?;
+                            let a001: String = String::from_utf8(bytes.clone())
+                                .map_err(|e| iceyee_error::a!(e))?;
+                            needed = usize::from_str_radix(&a001, 16)
+                                .map_err(|e| iceyee_error::a!(e))?;
                             bytes.clear();
                             if needed == 0 {
                                 needed = 2;
@@ -1184,10 +1115,7 @@ impl Response {
                 }
                 State::ChunkSpace => {
                     if buffer.block[0] != b'\r' || buffer.block[1] != b'\n' {
-                        return Err(StdIoError::new(
-                            std::io::ErrorKind::InvalidData,
-                            "非预期的格式.",
-                        ));
+                        return Err(iceyee_error::a!("非预期的格式"));
                     }
                     bytes.clear();
                     x += 2;
@@ -1196,10 +1124,7 @@ impl Response {
                 }
                 State::ChunkEnd => {
                     if buffer.block[0] != b'\r' || buffer.block[1] != b'\n' {
-                        return Err(StdIoError::new(
-                            std::io::ErrorKind::InvalidData,
-                            "非预期的格式.",
-                        ));
+                        return Err(iceyee_error::a!("非预期的格式"));
                     }
                     buffer.roll(2);
                     break 'A;
