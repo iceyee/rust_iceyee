@@ -15,14 +15,10 @@
 use cookie::SameSite;
 use iceyee_random::Random;
 use std::process::Child;
-use thirtyfour::error::WebDriverError;
-use thirtyfour::error::WebDriverResult;
-use thirtyfour::By;
+use thirtyfour::common::capabilities::desiredcapabilities::Proxy as WebProxy;
+use thirtyfour::prelude::*;
 use thirtyfour::ChromeCapabilities;
-use thirtyfour::Cookie;
 use thirtyfour::EdgeCapabilities;
-use thirtyfour::WebDriver;
-use thirtyfour::WebElement;
 use tokio::io::AsyncWriteExt;
 
 // Enum.
@@ -33,7 +29,11 @@ use tokio::io::AsyncWriteExt;
 
 // Function.
 
-pub async fn chrome(headless: bool) -> WebDriverResult<(WebDriver, Child)> {
+pub async fn chrome(
+    headless: bool,
+    http_proxy: Option<String>,
+    socks5_proxy: Option<String>,
+) -> WebDriverResult<(WebDriver, Child)> {
     let port: u64 = Random::next() % 0x7FFF + 0xFFF;
     let child = std::process::Command::new("chromium.chromedriver")
         .arg("--log-level=WARNING")
@@ -46,6 +46,22 @@ pub async fn chrome(headless: bool) -> WebDriverResult<(WebDriver, Child)> {
     options.add_chrome_arg("--no-sandbox")?;
     if headless {
         options.set_headless()?;
+    }
+    let proxy: WebProxy = WebProxy::Manual {
+        ftp_proxy: None,
+        http_proxy: http_proxy.clone(),
+        ssl_proxy: None,
+        socks_proxy: socks5_proxy.clone(),
+        socks_version: Some(5),
+        socks_username: None,
+        socks_password: None,
+        no_proxy: None,
+    };
+    if http_proxy.is_some() || socks5_proxy.is_some() {
+        options.insert(
+            "proxy".to_string(),
+            serde_json::to_value(proxy).map_err(|e| WebDriverError::Json(e))?,
+        );
     }
     iceyee_logger::info!("打开浏览器");
     iceyee_logger::info_object!(&options);
@@ -71,15 +87,37 @@ pub async fn chrome(headless: bool) -> WebDriverResult<(WebDriver, Child)> {
     return Ok((driver, child));
 }
 
-pub async fn edge() -> WebDriverResult<(WebDriver, Child)> {
+pub async fn edge(
+    headless: bool,
+    http_proxy: Option<String>,
+    socks5_proxy: Option<String>,
+) -> WebDriverResult<(WebDriver, Child)> {
+    let _headless = if headless { "--headless" } else { " " };
     let port: u64 = Random::next() % 0x7FFF + 0xFFF;
     let child = std::process::Command::new("msedgedriver")
+        .arg(_headless)
         .arg("--log-level=WARNING")
         .arg("--port=".to_string() + port.to_string().as_str())
         .spawn()
         .expect("start msedgedriver");
     iceyee_time::sleep(3_000).await;
-    let options: EdgeCapabilities = EdgeCapabilities::new();
+    let mut options: EdgeCapabilities = EdgeCapabilities::new();
+    let proxy: WebProxy = WebProxy::Manual {
+        ftp_proxy: None,
+        http_proxy: http_proxy.clone(),
+        ssl_proxy: None,
+        socks_proxy: socks5_proxy.clone(),
+        socks_version: Some(5),
+        socks_username: None,
+        socks_password: None,
+        no_proxy: None,
+    };
+    if http_proxy.is_some() || socks5_proxy.is_some() {
+        options.insert(
+            "proxy".to_string(),
+            serde_json::to_value(proxy).map_err(|e| WebDriverError::Json(e))?,
+        );
+    }
     iceyee_logger::info!("打开浏览器");
     iceyee_logger::info_object!(&options);
     let url: String = format!("http://localhost:{port}");

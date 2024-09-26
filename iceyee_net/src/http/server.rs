@@ -33,8 +33,6 @@ use iceyee_random::Random;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::future::Future;
-use std::io::Error as StdIoError;
-use std::io::ErrorKind as StdIoErrorKind;
 use std::net::IpAddr;
 use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
@@ -536,12 +534,14 @@ impl HttpServer {
     /// 启动服务器.
     ///
     /// - @return 改变状态, 使得服务器停止.
-    pub async fn test(mut self, address: &str, port: u16) -> Result<Arc<AtomicBool>, StdIoError> {
+    pub async fn test(mut self, address: &str, port: u16) -> Result<Arc<AtomicBool>, String> {
         iceyee_logger::warn!("HTTPSERVER START AT", address, port);
         self.filters_before_work
             .push(self.filter_host.clone().wrap());
-        let listener: TokioTcpListener = TokioTcpListener::bind((address, port)).await?;
-        let address = listener.local_addr()?;
+        let listener: TokioTcpListener = TokioTcpListener::bind((address, port))
+            .await
+            .map_err(|e| iceyee_error::a!(e))?;
+        let address = listener.local_addr().map_err(|e| iceyee_error::a!(e))?;
         let server = Arc::new(self);
         let _server = server.clone();
         let semaphore: Arc<Semaphore> = Arc::new(Semaphore::new(0));
@@ -578,10 +578,11 @@ impl HttpServer {
                                     Some(server.connection_timeout),
                                 )
                                 .await
+                                .map_err(|e| iceyee_error::b!(e, "read request"))
                                 {
                                     Ok(r) => r,
                                     Err(e) => {
-                                        if let StdIoErrorKind::TimedOut = e.kind() {
+                                        if e.contains("TimedOut") {
                                             iceyee_logger::debug!("超时异常断开连接", ip, id);
                                             break;
                                         } else {
@@ -594,7 +595,10 @@ impl HttpServer {
                                 let mut context: Context =
                                     Self::build_context(server.clone(), request, id.clone()).await;
                                 let close: bool = Self::process(server, &mut context).await;
-                                if let Err(e) = Self::write_to_tcp(&mut tcp, &context).await {
+                                if let Err(e) = Self::write_to_tcp(&mut tcp, &context)
+                                    .await
+                                    .map_err(|e| iceyee_error::b!(e, "write to tcp"))
+                                {
                                     iceyee_logger::debug!("输出异常断开连接", ip, id);
                                     iceyee_logger::error!(e);
                                     break;
@@ -638,8 +642,10 @@ impl HttpServer {
     }
 
     /// 启动服务器.
-    pub async fn start(self, address: &str, port: u16) -> Result<(), StdIoError> {
-        let mut stop = Self::test(self, address, port).await?;
+    pub async fn start(self, address: &str, port: u16) -> Result<(), String> {
+        let mut stop = Self::test(self, address, port)
+            .await
+            .map_err(|e| iceyee_error::b!(e, ""))?;
         println!("---- 输入[Ctrl+C]停止. ----");
         tokio::signal::ctrl_c().await.expect("");
         println!("---- 退出服务端. ----");
@@ -869,10 +875,13 @@ impl HttpServer {
         return close;
     }
 
-    async fn write_to_tcp(tcp: &mut TokioTcpStream, context: &Context) -> Result<(), StdIoError> {
+    async fn write_to_tcp(tcp: &mut TokioTcpStream, context: &Context) -> Result<(), String> {
         tcp.write_all(context.response.to_string().as_bytes())
-            .await?;
-        tcp.write_all(context.response.body.as_slice()).await?;
+            .await
+            .map_err(|e| iceyee_error::a!(e))?;
+        tcp.write_all(context.response.body.as_slice())
+            .await
+            .map_err(|e| iceyee_error::a!(e))?;
         return Ok(());
     }
 

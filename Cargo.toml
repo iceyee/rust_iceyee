@@ -5,5 +5,5 @@
 # **************************************************
 #                                                   
 [workspace]
-members = ["iceyee_config", "iceyee_encoder", "iceyee_logger", "iceyee_net", "iceyee_random", "iceyee_time", "iceyee_webdriver"]
+members = ["iceyee_config", "iceyee_encoder", "iceyee_error", "iceyee_logger", "iceyee_net", "iceyee_random", "iceyee_time", "iceyee_webdriver"]
 resolver = "2"

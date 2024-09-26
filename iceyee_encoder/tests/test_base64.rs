@@ -7,7 +7,6 @@
 // Use.
 
 use iceyee_encoder::Base64Encoder;
-use iceyee_encoder::Base64Error;
 
 // Enum.
 
@@ -35,36 +34,22 @@ pub fn test_base64_encoder() {
     for (x, y) in table {
         println!("{y} <decode> {x}");
         assert_eq!(
-            String::from_utf8(Base64Encoder::decode(y).expect("test_base64.rs 529"))
-                .expect("test_base64.rs 889"),
+            String::from_utf8(Base64Encoder::decode(y).expect("NEVER")).expect("NEVER"),
             x
         );
     }
     println!("测试异常输入.");
-    Base64Encoder::decode("/234").expect("test_base64.rs 033");
-    assert_eq!(
-        Base64Encoder::decode("12345"),
-        Err(Base64Error::InvalidLength(5)),
-    );
-    assert_eq!(
-        Base64Encoder::decode("123456"),
-        Err(Base64Error::InvalidLength(6))
-    );
-    assert_eq!(
-        Base64Encoder::decode("1234567"),
-        Err(Base64Error::InvalidLength(7))
-    );
-    assert_eq!(
-        Base64Encoder::decode("123@"),
-        Err(Base64Error::UnexpectedCharacter('@'))
-    );
-    assert_eq!(
-        Base64Encoder::decode("123#"),
-        Err(Base64Error::UnexpectedCharacter('#'))
-    );
-    assert_eq!(
-        Base64Encoder::decode("@23#"),
-        Err(Base64Error::UnexpectedCharacter('@'))
-    );
+    println!("12345");
+    println!("123456");
+    println!("1234567");
+    println!("123@");
+    println!("123#");
+    println!("@23#");
+    assert!(Base64Encoder::decode("12345").is_err());
+    assert!(Base64Encoder::decode("123456").is_err());
+    assert!(Base64Encoder::decode("1234567").is_err());
+    assert!(Base64Encoder::decode("123@").is_err());
+    assert!(Base64Encoder::decode("123#").is_err());
+    assert!(Base64Encoder::decode("@23#").is_err());
     return;
 }

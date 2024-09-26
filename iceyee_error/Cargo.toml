@@ -5,16 +5,26 @@
 # **************************************************
 #                                                   
 [package]
-name = "iceyee_encoder"
+name = "iceyee_error"
 version = "10.0.0"
 edition = "2021"
 
-description = "Base64Encoder, HexEncoder, UrlEncoder."
-keywords = ["iceyee", "base64", "hex", "url"]
+description = "Error Message."
+keywords = ["error"]
 license = "Apache-2.0"
-repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_encoder/"
+repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_error/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iceyee_error = "10"
+# async-compression = { version = "0.4", features = ["all"] }
+# iceyee_encoder = "8"
+# iceyee_logger = "8"
+# iceyee_random = "8"
+# iceyee_time = "8"
+# lettre = "0.11" 
+# native-tls = "0.2"
+# serde = { version = "1.0", features = ["derive"] }
+# serde_json = "1.0"
+# tokio = { version = "1", features = ["full"] }
+# tokio-native-tls = "0.3"

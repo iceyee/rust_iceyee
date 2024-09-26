@@ -7,6 +7,7 @@
 // Use.
 
 use iceyee_time::Schedule1;
+use iceyee_time::Schedule2;
 use iceyee_time::Timer;
 use std::future::Future;
 use std::pin::Pin;
@@ -53,7 +54,7 @@ impl Schedule1 for A {
 
     fn perform1<'a, 'b>(
         &'a self,
-        stop: Arc<AtomicBool>,
+        _stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
     where
         'a: 'b,
@@ -68,16 +69,16 @@ impl Schedule1 for A {
 
 struct B;
 
-impl Schedule1 for B {
-    fn delay1(&self) -> u64 {
+impl Schedule2 for B {
+    fn delay2(&self) -> u64 {
         1_000
     }
 
-    fn sleep_after_perform1(&self) -> u64 {
+    fn sleep_after_perform2(&self) -> u64 {
         1_000
     }
 
-    fn initialize1<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn initialize2<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
@@ -87,7 +88,7 @@ impl Schedule1 for B {
         });
     }
 
-    fn finish1<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    fn finish2<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
@@ -97,9 +98,9 @@ impl Schedule1 for B {
         });
     }
 
-    fn perform1<'a, 'b>(
+    fn perform2<'a, 'b>(
         &'a self,
-        stop: Arc<AtomicBool>,
+        _stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
     where
         'a: 'b,
@@ -141,7 +142,7 @@ impl Schedule1 for C {
 
     fn perform1<'a, 'b>(
         &'a self,
-        stop: Arc<AtomicBool>,
+        _stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
     where
         'a: 'b,
@@ -169,7 +170,7 @@ pub async fn test_timer_drop() {
     println!("主线等5秒.");
     println!("当前时间戳{}", iceyee_time::now_seconds());
     timer.schedule1(A.wrap1()).await;
-    timer.schedule1(B.wrap1()).await;
+    timer.schedule2(B.wrap2()).await;
     iceyee_time::sleep(5_000).await;
     println!("主线等待结束");
     {

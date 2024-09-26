@@ -9,6 +9,7 @@
 //!
 //! - @see [async_compression](../async_compression/index.html)
 //! - @see [iceyee_encoder](../iceyee_encoder/index.html)
+//! - @see [iceyee_error](../iceyee_error/index.html)
 //! - @see [iceyee_logger](../iceyee_logger/index.html)
 //! - @see [iceyee_random](../iceyee_random/index.html)
 //! - @see [iceyee_time](../iceyee_time/index.html)
@@ -19,7 +20,7 @@
 //! - @see [tokio](../tokio/index.html)
 //! - @see [tokio_native_tls](../tokio_native_tls/index.html)
 
-#![feature(get_mut_unchecked)]
+// #![feature(get_mut_unchecked)]
 #![feature(io_error_more)]
 
 pub mod http;

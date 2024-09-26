@@ -22,12 +22,13 @@ use iceyee_net::http::client::Socks5Proxy;
 #[allow(unused_variables)]
 pub async fn test_httpclient_socks5_proxy() {
     println!("");
-    let proxy = Socks5Proxy::new("localhost", 1082, None).wrap();
+    let proxy = Socks5Proxy::new("120.26.58.198", 10002, Some("iceyee:74591870")).wrap();
     let proxy = Socks5Proxy::new("vpn.iceyee.cn", 10002, Some("iceyee:74591870")).wrap();
-    let url: &str = "http://www.baidu.com/";
+    let proxy = Socks5Proxy::new("localhost", 1082, None).wrap();
     let url: &str = "https://buff.163.com/api/asset/get_brief_asset/";
     let url: &str = "https://buff.163.com/";
     let url: &str = "https://www.c5game.com/";
+    let url: &str = "http://www.baidu.com/";
     let url: &str = "https://www.baidu.com/";
     let url: &str = "http://ip-api.com/json/";
     let _ = HttpClient::new()
