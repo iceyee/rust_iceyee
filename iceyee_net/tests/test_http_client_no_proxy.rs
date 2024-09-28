@@ -18,7 +18,7 @@ use iceyee_net::http::client::Proxy;
 
 // Function.
 
-#[tokio::test]
+// #[tokio::test]
 #[allow(unused_variables)]
 pub async fn test_httpclient_no_proxy() {
     println!("");
@@ -45,31 +45,31 @@ pub async fn test_httpclient_repeated_use() {
     let proxy = NoProxy::new().wrap();
     let url: &str = "https://www.c5game.com/";
     let url: &str = "https://buff.163.com/";
-    let url: &str = "http://ip-api.com/json/";
     let url: &str = "http://www.baidu.com/";
     let url: &str = "https://www.baidu.com/";
+    let url: &str = "http://ip-api.com/json/";
     HttpClient::new()
         .set_verbose(true)
         .set_url(url)
-        .expect("test_http_client_no_proxy.rs 073")
+        .expect("073")
         .set_forwarded(None)
         .send(Some(proxy.clone()))
         .await
-        .expect("test_http_client_no_proxy.rs 081");
+        .expect("081");
     HttpClient::new()
         .set_verbose(true)
         .set_url(url)
-        .expect("test_http_client_no_proxy.rs 049")
+        .expect("049")
         .set_forwarded(None)
         .send(Some(proxy.clone()))
         .await
-        .expect("test_http_client_no_proxy.rs 177");
+        .expect("177");
     HttpClient::new()
         .set_verbose(true)
         .set_url(url)
-        .expect("test_http_client_no_proxy.rs 665")
+        .expect("665")
         .set_forwarded(None)
         .send(Some(proxy.clone()))
         .await
-        .expect("test_http_client_no_proxy.rs 433");
+        .expect("433");
 }

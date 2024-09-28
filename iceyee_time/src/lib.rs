@@ -22,7 +22,7 @@ use tokio::task::JoinHandle;
 use tokio::time::Sleep;
 
 const ONE_MILLISECOND: i64 = 1;
-const ONE_SECOND: i64 = 1000 * ONE_MILLISECOND;
+const ONE_SECOND: i64 = 1_000 * ONE_MILLISECOND;
 const ONE_MINUTE: i64 = 60 * ONE_SECOND;
 const ONE_HOUR: i64 = 60 * ONE_MINUTE;
 const ONE_DAY: i64 = 24 * ONE_HOUR;
@@ -719,7 +719,7 @@ impl ToString for DateTime {
             self.hour,
             self.minute,
             self.second,
-            self.timestamp % 1000
+            self.timestamp % 1_000
         );
         let v2: &str = if self.offset.0 == 0 {
             ""
@@ -745,19 +745,11 @@ impl ToString for DateTime {
 
 impl PartialOrd for DateTime {
     fn partial_cmp(&self, other: &Self) -> Option<CmpOrdering> {
-        if self.timestamp < other.timestamp {
-            return Some(CmpOrdering::Less);
-        } else if self.timestamp == other.timestamp {
-            return Some(CmpOrdering::Equal);
-        } else if self.timestamp > other.timestamp {
-            return Some(CmpOrdering::Greater);
-        } else {
-            return None;
-        }
+        return self.timestamp.partial_cmp(&other.timestamp);
     }
 }
 
-/// 时钟.
+/// 定时器.
 ///
 /// @see [Schedule1]
 #[derive(Clone)]
@@ -766,13 +758,12 @@ pub struct Timer {
     stop: Arc<AtomicBool>,
 }
 
-/// 默认的时钟, 这是全局变量.
+/// 默认的定时器, 这是全局变量.
 impl std::default::Default for Timer {
     fn default() -> Self {
         use std::sync::Mutex;
-
         static TIMER: Mutex<Option<Timer>> = Mutex::new(None);
-        let mut timer = TIMER.lock().expect("Mutex::lock()");
+        let mut timer = TIMER.lock().expect("Mutex::lock");
         if timer.is_none() {
             *timer = Some(Timer::new());
         }
@@ -781,10 +772,10 @@ impl std::default::Default for Timer {
 }
 
 impl Drop for Timer {
-    /// 关闭时钟.
+    /// 关闭定时器.
     fn drop(&mut self) {
         if Arc::get_mut(&mut self.thread_handles).is_some() {
-            println!("Timer::drop().");
+            println!("Timer::drop");
             self.stop.store(true, SeqCst);
         }
         return;
@@ -792,7 +783,7 @@ impl Drop for Timer {
 }
 
 impl Timer {
-    /// 创建新的时钟, 默认开启状态.
+    /// 创建新的定时器, 默认开启状态.
     pub fn new() -> Self {
         return Timer {
             thread_handles: Arc::new(TokioMutex::new(Vec::new())),
@@ -800,7 +791,7 @@ impl Timer {
         };
     }
 
-    /// 启动时钟.
+    /// 启动定时器.
     pub async fn start(&self) {
         if !self.stop.load(SeqCst) {
             return;
@@ -810,14 +801,14 @@ impl Timer {
         return;
     }
 
-    /// 停止时钟.
+    /// 停止定时器.
     pub async fn stop(&self) {
         self.stop.store(true, SeqCst);
         self.thread_handles.lock().await.clear();
         return;
     }
 
-    /// 停止时钟并等待所有任务结束.
+    /// 停止定时器并等待所有任务结束.
     pub async fn stop_and_wait(&self) {
         let mut thread_handles = self.thread_handles.lock().await;
         self.stop.store(true, SeqCst);
@@ -839,7 +830,7 @@ impl Timer {
         } else if schedule.schedule_by_pattern1().len() != 0 {
             self.schedule_1_3(schedule).await;
         } else {
-            panic!("trait Schedule必须实现sleep_before_perform(),sleep_after_perform(),schedule_pattern()中的任意一个.");
+            panic!("trait [Schedule]必须实现 sleep_before_perform, sleep_after_perform, schedule_pattern 中的任意一个");
         }
         return;
     }
@@ -851,11 +842,11 @@ impl Timer {
             let period: u64 = schedule.sleep_before_perform1();
             // 1 初始延迟 开始.
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -875,11 +866,11 @@ impl Timer {
                     });
                 }
                 {
-                    let a = period / 1000;
-                    let b = period % 1000;
+                    let a = period / 1_000;
+                    let b = period % 1_000;
                     for _ in 0..a {
                         if !stop.load(SeqCst) {
-                            sleep(1000).await;
+                            sleep(1_000).await;
                         }
                     }
                     if !stop.load(SeqCst) && 0 < b {
@@ -902,11 +893,11 @@ impl Timer {
             let period: u64 = schedule.sleep_after_perform1();
             // 1 初始延迟 开始.
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -920,11 +911,11 @@ impl Timer {
                     break;
                 }
                 {
-                    let a = period / 1000;
-                    let b = period % 1000;
+                    let a = period / 1_000;
+                    let b = period % 1_000;
                     for _ in 0..a {
                         if !stop.load(SeqCst) {
-                            sleep(1000).await;
+                            sleep(1_000).await;
                         }
                     }
                     if !stop.load(SeqCst) && 0 < b {
@@ -1048,25 +1039,25 @@ impl Timer {
                     table[index].1
                 } else {
                     String::from_utf8(min)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 let max: u64 = if max.len() == 0 {
                     table[index].2
                 } else {
                     String::from_utf8(max)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 let separation: u64 = if separation.len() == 0 {
                     1
                 } else {
                     String::from_utf8(separation)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 if min < table[index].1
                     || table[index].2 < min
@@ -1087,11 +1078,11 @@ impl Timer {
             // 2 初始延迟 开始.
             let delay: u64 = schedule.delay1();
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -1123,7 +1114,7 @@ impl Timer {
                         }
                     });
                 }
-                let t: u64 = 200 + 1000 - now() as u64 % 1000;
+                let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
             // 4 结束.
@@ -1143,7 +1134,7 @@ impl Timer {
         } else if schedule.schedule_by_pattern2().len() != 0 {
             self.schedule_2_3(schedule).await;
         } else {
-            panic!("trait Schedule必须实现sleep_before_perform(),sleep_after_perform(),schedule_pattern()中的任意一个.");
+            panic!("trait [Schedule]必须实现 sleep_before_perform, sleep_after_perform, schedule_pattern 中的任意一个");
         }
         return;
     }
@@ -1155,11 +1146,11 @@ impl Timer {
             let period: u64 = schedule.sleep_before_perform2();
             // 1 初始延迟 开始.
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -1179,11 +1170,11 @@ impl Timer {
                     });
                 }
                 {
-                    let a = period / 1000;
-                    let b = period % 1000;
+                    let a = period / 1_000;
+                    let b = period % 1_000;
                     for _ in 0..a {
                         if !stop.load(SeqCst) {
-                            sleep(1000).await;
+                            sleep(1_000).await;
                         }
                     }
                     if !stop.load(SeqCst) && 0 < b {
@@ -1206,11 +1197,11 @@ impl Timer {
             let period: u64 = schedule.sleep_after_perform2();
             // 1 初始延迟 开始.
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -1224,11 +1215,11 @@ impl Timer {
                     break;
                 }
                 {
-                    let a = period / 1000;
-                    let b = period % 1000;
+                    let a = period / 1_000;
+                    let b = period % 1_000;
                     for _ in 0..a {
                         if !stop.load(SeqCst) {
-                            sleep(1000).await;
+                            sleep(1_000).await;
                         }
                     }
                     if !stop.load(SeqCst) && 0 < b {
@@ -1352,25 +1343,25 @@ impl Timer {
                     table[index].1
                 } else {
                     String::from_utf8(min)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 let max: u64 = if max.len() == 0 {
                     table[index].2
                 } else {
                     String::from_utf8(max)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 let separation: u64 = if separation.len() == 0 {
                     1
                 } else {
                     String::from_utf8(separation)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 if min < table[index].1
                     || table[index].2 < min
@@ -1391,11 +1382,11 @@ impl Timer {
             // 2 初始延迟 开始.
             let delay: u64 = schedule.delay2();
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -1427,7 +1418,7 @@ impl Timer {
                         }
                     });
                 }
-                let t: u64 = 200 + 1000 - now() as u64 % 1000;
+                let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
             // 4 结束.
@@ -1447,7 +1438,7 @@ impl Timer {
         } else if schedule.schedule_by_pattern3().len() != 0 {
             self.schedule_3_3(schedule).await;
         } else {
-            panic!("trait Schedule必须实现sleep_before_perform(),sleep_after_perform(),schedule_pattern()中的任意一个.");
+            panic!("trait [Schedule]必须实现 sleep_before_perform, sleep_after_perform, schedule_pattern 中的任意一个");
         }
         return;
     }
@@ -1459,11 +1450,11 @@ impl Timer {
             let period: u64 = schedule.sleep_before_perform3();
             // 1 初始延迟 开始.
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -1483,11 +1474,11 @@ impl Timer {
                     });
                 }
                 {
-                    let a = period / 1000;
-                    let b = period % 1000;
+                    let a = period / 1_000;
+                    let b = period % 1_000;
                     for _ in 0..a {
                         if !stop.load(SeqCst) {
-                            sleep(1000).await;
+                            sleep(1_000).await;
                         }
                     }
                     if !stop.load(SeqCst) && 0 < b {
@@ -1510,11 +1501,11 @@ impl Timer {
             let period: u64 = schedule.sleep_after_perform3();
             // 1 初始延迟 开始.
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -1528,11 +1519,11 @@ impl Timer {
                     break;
                 }
                 {
-                    let a = period / 1000;
-                    let b = period % 1000;
+                    let a = period / 1_000;
+                    let b = period % 1_000;
                     for _ in 0..a {
                         if !stop.load(SeqCst) {
-                            sleep(1000).await;
+                            sleep(1_000).await;
                         }
                     }
                     if !stop.load(SeqCst) && 0 < b {
@@ -1656,25 +1647,25 @@ impl Timer {
                     table[index].1
                 } else {
                     String::from_utf8(min)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 let max: u64 = if max.len() == 0 {
                     table[index].2
                 } else {
                     String::from_utf8(max)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 let separation: u64 = if separation.len() == 0 {
                     1
                 } else {
                     String::from_utf8(separation)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 if min < table[index].1
                     || table[index].2 < min
@@ -1695,11 +1686,11 @@ impl Timer {
             // 2 初始延迟 开始.
             let delay: u64 = schedule.delay3();
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -1731,7 +1722,7 @@ impl Timer {
                         }
                     });
                 }
-                let t: u64 = 200 + 1000 - now() as u64 % 1000;
+                let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
             // 4 结束.
@@ -1751,7 +1742,7 @@ impl Timer {
         } else if schedule.schedule_by_pattern4().len() != 0 {
             self.schedule_4_3(schedule).await;
         } else {
-            panic!("trait Schedule必须实现sleep_before_perform(),sleep_after_perform(),schedule_pattern()中的任意一个.");
+            panic!("trait [Schedule]必须实现 sleep_before_perform, sleep_after_perform, schedule_pattern 中的任意一个");
         }
         return;
     }
@@ -1763,11 +1754,11 @@ impl Timer {
             let period: u64 = schedule.sleep_before_perform4();
             // 1 初始延迟 开始.
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -1787,11 +1778,11 @@ impl Timer {
                     });
                 }
                 {
-                    let a = period / 1000;
-                    let b = period % 1000;
+                    let a = period / 1_000;
+                    let b = period % 1_000;
                     for _ in 0..a {
                         if !stop.load(SeqCst) {
-                            sleep(1000).await;
+                            sleep(1_000).await;
                         }
                     }
                     if !stop.load(SeqCst) && 0 < b {
@@ -1814,11 +1805,11 @@ impl Timer {
             let period: u64 = schedule.sleep_after_perform4();
             // 1 初始延迟 开始.
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -1832,11 +1823,11 @@ impl Timer {
                     break;
                 }
                 {
-                    let a = period / 1000;
-                    let b = period % 1000;
+                    let a = period / 1_000;
+                    let b = period % 1_000;
                     for _ in 0..a {
                         if !stop.load(SeqCst) {
-                            sleep(1000).await;
+                            sleep(1_000).await;
                         }
                     }
                     if !stop.load(SeqCst) && 0 < b {
@@ -1960,25 +1951,25 @@ impl Timer {
                     table[index].1
                 } else {
                     String::from_utf8(min)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 let max: u64 = if max.len() == 0 {
                     table[index].2
                 } else {
                     String::from_utf8(max)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 let separation: u64 = if separation.len() == 0 {
                     1
                 } else {
                     String::from_utf8(separation)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 if min < table[index].1
                     || table[index].2 < min
@@ -1999,11 +1990,11 @@ impl Timer {
             // 2 初始延迟 开始.
             let delay: u64 = schedule.delay4();
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -2035,7 +2026,7 @@ impl Timer {
                         }
                     });
                 }
-                let t: u64 = 200 + 1000 - now() as u64 % 1000;
+                let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
             // 4 结束.
@@ -2055,7 +2046,7 @@ impl Timer {
         } else if schedule.schedule_by_pattern5().len() != 0 {
             self.schedule_5_3(schedule).await;
         } else {
-            panic!("trait Schedule必须实现sleep_before_perform(),sleep_after_perform(),schedule_pattern()中的任意一个.");
+            panic!("trait [Schedule]必须实现 sleep_before_perform, sleep_after_perform, schedule_pattern 中的任意一个");
         }
         return;
     }
@@ -2067,11 +2058,11 @@ impl Timer {
             let period: u64 = schedule.sleep_before_perform5();
             // 1 初始延迟 开始.
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -2091,11 +2082,11 @@ impl Timer {
                     });
                 }
                 {
-                    let a = period / 1000;
-                    let b = period % 1000;
+                    let a = period / 1_000;
+                    let b = period % 1_000;
                     for _ in 0..a {
                         if !stop.load(SeqCst) {
-                            sleep(1000).await;
+                            sleep(1_000).await;
                         }
                     }
                     if !stop.load(SeqCst) && 0 < b {
@@ -2118,11 +2109,11 @@ impl Timer {
             let period: u64 = schedule.sleep_after_perform5();
             // 1 初始延迟 开始.
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -2136,11 +2127,11 @@ impl Timer {
                     break;
                 }
                 {
-                    let a = period / 1000;
-                    let b = period % 1000;
+                    let a = period / 1_000;
+                    let b = period % 1_000;
                     for _ in 0..a {
                         if !stop.load(SeqCst) {
-                            sleep(1000).await;
+                            sleep(1_000).await;
                         }
                     }
                     if !stop.load(SeqCst) && 0 < b {
@@ -2264,25 +2255,25 @@ impl Timer {
                     table[index].1
                 } else {
                     String::from_utf8(min)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 let max: u64 = if max.len() == 0 {
                     table[index].2
                 } else {
                     String::from_utf8(max)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 let separation: u64 = if separation.len() == 0 {
                     1
                 } else {
                     String::from_utf8(separation)
-                        .expect("String::from_utf8()")
+                        .expect("String::from_utf8")
                         .parse::<u64>()
-                        .expect("str::parse()")
+                        .expect("str::parse")
                 };
                 if min < table[index].1
                     || table[index].2 < min
@@ -2303,11 +2294,11 @@ impl Timer {
             // 2 初始延迟 开始.
             let delay: u64 = schedule.delay5();
             {
-                let a = delay / 1000;
-                let b = delay % 1000;
+                let a = delay / 1_000;
+                let b = delay % 1_000;
                 for _ in 0..a {
                     if !stop.load(SeqCst) {
-                        sleep(1000).await;
+                        sleep(1_000).await;
                     }
                 }
                 if !stop.load(SeqCst) && 0 < b {
@@ -2339,7 +2330,7 @@ impl Timer {
                         }
                     });
                 }
-                let t: u64 = 200 + 1000 - now() as u64 % 1000;
+                let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
             // 4 结束.
@@ -2388,7 +2379,7 @@ pub fn now() -> i64 {
         if gettimeofday(&mut tv, &mut tz) != 0 {
             return 0;
         }
-        return tv.tv_sec as i64 * 1000 + tv.tv_usec as i64 / 1000;
+        return tv.tv_sec as i64 * 1_000 + tv.tv_usec as i64 / 1_000;
     }
     #[cfg(target_os = "windows")]
     unsafe {
@@ -2429,13 +2420,13 @@ pub fn now() -> i64 {
         GetLocalTime(&mut st);
         let mut t: c_long = 0;
         time(&mut t);
-        return t as i64 * 1000 + st.wMilliseconds as i64;
+        return t as i64 * 1_000 + st.wMilliseconds as i64;
     }
 }
 
 /// 当前系统的时间戳, 单位:秒.
 pub fn now_seconds() -> i64 {
-    return now() / 1000;
+    return now() / 1_000;
 }
 
 /// 延时, 单位:毫秒.
