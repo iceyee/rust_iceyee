@@ -29,6 +29,9 @@
 
 use iceyee_time::DateTime;
 use iceyee_time::Schedule1;
+use iceyee_time::Schedule2;
+use iceyee_time::Schedule3;
+use iceyee_time::Schedule4;
 use iceyee_time::Timer;
 use std::future::Future;
 use std::pin::Pin;
@@ -45,14 +48,16 @@ static LOGGER: TokioMutex<Option<Arc<Logger>>> = TokioMutex::const_new(None);
 
 // Enum.
 
-/// 日志等级, 从低到高分别是
+/// 日志等级.
+///
+/// 从低到高分别是
 /// [Debug](Level::Debug),
 /// [Info](Level::Info),
 /// [Warn](Level::Warn),
 /// [Error](Level::Error)
 /// .
 /// 默认[Info](Level::Info).
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum Level {
     Debug,
     #[default]
@@ -84,6 +89,14 @@ impl Into<u64> for Level {
     }
 }
 
+impl PartialOrd for Level {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let x: u64 = self.clone().into();
+        let y: u64 = other.clone().into();
+        return x.partial_cmp(&y);
+    }
+}
+
 impl ToString for Level {
     fn to_string(&self) -> String {
         return match self {
@@ -91,6 +104,17 @@ impl ToString for Level {
             Self::Info => "INFO ".to_string(),
             Self::Warn => "WARN ".to_string(),
             Self::Error => "ERROR".to_string(),
+        };
+    }
+}
+
+impl Level {
+    pub fn to_string_with_color(&self) -> String {
+        return match self {
+            Self::Debug => "\x1b[37mDEBUG\x1b[0m".to_string(),
+            Self::Info => "\x1b[34mINFO \x1b[0m".to_string(),
+            Self::Warn => "\x1b[33mWARN \x1b[0m".to_string(),
+            Self::Error => "\x1b[31mERROR\x1b[0m".to_string(),
         };
     }
 }
@@ -112,9 +136,8 @@ pub struct Logger {
 }
 
 /// 更新时间.
-struct ScheduleUpdateTime(Arc<Logger>);
 
-impl Schedule1 for ScheduleUpdateTime {
+impl Schedule1 for Logger {
     fn sleep_after_perform1(&self) -> u64 {
         100
     }
@@ -127,21 +150,19 @@ impl Schedule1 for ScheduleUpdateTime {
         'a: 'b,
     {
         return Box::pin(async {
-            *self.0.time.lock().await = DateTime::new().to_string();
+            *self.time.lock().await = DateTime::new().to_string();
             return true;
         });
     }
 }
 
 /// 文件重命名.
-struct ScheduleRename(Arc<Logger>);
-
-impl Schedule1 for ScheduleRename {
-    fn schedule_by_pattern1(&self) -> String {
+impl Schedule2 for Logger {
+    fn schedule_by_pattern2(&self) -> String {
         "01 00 00 * * *".to_string()
     }
 
-    fn perform1<'a, 'b>(
+    fn perform2<'a, 'b>(
         &'a self,
         _stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
@@ -149,48 +170,32 @@ impl Schedule1 for ScheduleRename {
         'a: 'b,
     {
         return Box::pin(async {
-            if self.0.project_name.is_none()
-                || self.0.project_name.as_ref().expect("NEVER").trim().len() == 0
-            {
+            if self.project_name.is_none() {
                 return true;
             }
-            let project_name: String = self
-                .0
-                .project_name
-                .as_ref()
-                .expect("NEVER")
-                .trim()
-                .to_string();
-            let target_directory: String = match &self.0.target_directory {
-                Some(target_directory) => {
-                    if target_directory.trim().len() != 0 {
-                        target_directory.trim().to_string()
-                    } else {
-                        default_target()
-                    }
-                }
-                None => default_target(),
-            };
+            let project_name: String = self.project_name.as_ref().expect("NEVER").clone();
+            let target_directory: String =
+                self.target_directory.clone().unwrap_or(default_target());
             let path: String = target_directory.clone() + "/" + &project_name;
             // 刷新缓存, 然后关闭文件.
-            let mut warn_file = self.0.warn_file.lock().await;
+            let mut warn_file = self.warn_file.lock().await;
             if warn_file.is_some() {
                 warn_file
                     .as_mut()
                     .expect("NEVER")
                     .flush()
                     .await
-                    .expect("File::flush()");
+                    .expect("File::flush");
             }
             *warn_file = None;
-            let mut error_file = self.0.error_file.lock().await;
+            let mut error_file = self.error_file.lock().await;
             if error_file.is_some() {
                 error_file
                     .as_mut()
                     .expect("NEVER")
                     .flush()
                     .await
-                    .expect("File::flush()");
+                    .expect("File::flush");
             }
             *error_file = None;
             // 重命名.
@@ -202,23 +207,21 @@ impl Schedule1 for ScheduleRename {
             );
             let warn_file_from: String = path.clone() + "/" + &project_name + "_warn.log";
             let error_file_from: String = path.clone() + "/" + &project_name + "_error.log";
-            let warn_file_to: String =
-                path.clone() + "/" + &project_name + "_warn" + &date + ".log";
-            let error_file_to: String =
-                path.clone() + "/" + &project_name + "_error" + &date + ".log";
+            let warn_file_to: String = path.clone() + "/" + &project_name + &date + "_warn.log";
+            let error_file_to: String = path.clone() + "/" + &project_name + &date + "_error.log";
             tokio::fs::rename(&warn_file_from, &warn_file_to)
                 .await
-                .expect("fs::rename()");
+                .expect("fs::rename");
             tokio::fs::rename(&error_file_from, &error_file_to)
                 .await
-                .expect("fs::rename()");
+                .expect("fs::rename");
             *warn_file = Some(
                 OpenOptions::new()
                     .create(true)
                     .append(true)
                     .open(warn_file_from)
                     .await
-                    .expect("File::open()"),
+                    .expect("File::open"),
             );
             *error_file = Some(
                 OpenOptions::new()
@@ -226,7 +229,7 @@ impl Schedule1 for ScheduleRename {
                     .append(true)
                     .open(error_file_from)
                     .await
-                    .expect("File::open()"),
+                    .expect("File::open"),
             );
             return true;
         });
@@ -234,14 +237,12 @@ impl Schedule1 for ScheduleRename {
 }
 
 /// 删除两个月前的文件.
-struct ScheduleDeleteOld(Arc<Logger>);
-
-impl Schedule1 for ScheduleDeleteOld {
-    fn schedule_by_pattern1(&self) -> String {
+impl Schedule3 for Logger {
+    fn schedule_by_pattern3(&self) -> String {
         "01 01 00 * * *".to_string()
     }
 
-    fn perform1<'a, 'b>(
+    fn perform3<'a, 'b>(
         &'a self,
         _stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
@@ -249,47 +250,31 @@ impl Schedule1 for ScheduleDeleteOld {
         'a: 'b,
     {
         return Box::pin(async {
-            if self.0.project_name.is_none()
-                || self.0.project_name.as_ref().expect("NEVER").trim().len() == 0
-            {
+            if self.project_name.is_none() {
                 return true;
             }
-            let project_name: String = self
-                .0
-                .project_name
-                .as_ref()
-                .expect("NEVER")
-                .trim()
-                .to_string();
-            let target_directory: String = match &self.0.target_directory {
-                Some(target_directory) => {
-                    if target_directory.trim().len() != 0 {
-                        target_directory.trim().to_string()
-                    } else {
-                        default_target()
-                    }
-                }
-                None => default_target(),
-            };
+            let project_name: String = self.project_name.as_ref().expect("NEVER").clone();
+            let target_directory: String =
+                self.target_directory.clone().unwrap_or(default_target());
             let path: String = target_directory.clone() + "/" + &project_name;
-            let mut dirs = tokio::fs::read_dir(&path).await.expect("fs::read_dir()");
+            let mut dirs = tokio::fs::read_dir(&path).await.expect("fs::read_dir");
             // 删除两个月前的文件.
             while let Ok(Some(entry)) = dirs.next_entry().await {
                 let t = entry
                     .metadata()
                     .await
-                    .expect("Entry::metadata()")
+                    .expect("Entry::metadata")
                     .modified()
-                    .expect("metadata().modified()");
+                    .expect("Entry::metadata::modified");
                 if 1 * 60 * 60 * 24 * 60
                     < SystemTime::now()
                         .duration_since(t)
-                        .expect("time::duration_since()")
+                        .expect("time::duration_since")
                         .as_secs()
                 {
                     tokio::fs::remove_file(entry.path().as_path())
                         .await
-                        .expect("fs::remove_file()");
+                        .expect("fs::remove_file");
                 }
             }
             return true;
@@ -298,14 +283,12 @@ impl Schedule1 for ScheduleDeleteOld {
 }
 
 /// 刷新缓存.
-struct ScheduleFlush(Arc<Logger>);
-
-impl Schedule1 for ScheduleFlush {
-    fn schedule_by_pattern1(&self) -> String {
+impl Schedule4 for Logger {
+    fn schedule_by_pattern4(&self) -> String {
         "00 * * * * *".to_string()
     }
 
-    fn perform1<'a, 'b>(
+    fn perform4<'a, 'b>(
         &'a self,
         _stop: Arc<AtomicBool>,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'b>>
@@ -313,27 +296,56 @@ impl Schedule1 for ScheduleFlush {
         'a: 'b,
     {
         return Box::pin(async {
-            let mut warn_file = self.0.warn_file.lock().await;
+            let mut warn_file = self.warn_file.lock().await;
             if warn_file.is_some() {
                 warn_file
                     .as_mut()
                     .expect("NEVER")
                     .flush()
                     .await
-                    .expect("File::flush()");
+                    .expect("File::flush");
             }
             drop(warn_file);
-            let mut error_file = self.0.error_file.lock().await;
+            let mut error_file = self.error_file.lock().await;
             if error_file.is_some() {
                 error_file
                     .as_mut()
                     .expect("NEVER")
                     .flush()
                     .await
-                    .expect("File::flush()");
+                    .expect("File::flush");
             }
             drop(error_file);
             return true;
+        });
+    }
+
+    fn finish4<'a, 'b>(&'a self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        return Box::pin(async move {
+            let mut warn_file = self.warn_file.lock().await;
+            if warn_file.is_some() {
+                warn_file
+                    .as_mut()
+                    .expect("NEVER")
+                    .flush()
+                    .await
+                    .expect("File::flush");
+            }
+            drop(warn_file);
+            let mut error_file = self.error_file.lock().await;
+            if error_file.is_some() {
+                error_file
+                    .as_mut()
+                    .expect("NEVER")
+                    .flush()
+                    .await
+                    .expect("File::flush");
+            }
+            drop(error_file);
+            return;
         });
     }
 }
@@ -344,15 +356,16 @@ impl Logger {
         project_name: Option<&str>,
         target_directory: Option<&str>,
     ) -> Arc<Self> {
-        let level: Level = level.unwrap_or(Level::default());
-        let timer = Timer::new();
-        let time: TokioMutex<String> = TokioMutex::new(DateTime::new().to_string());
         let this: Logger = Logger {
-            timer: timer,
-            time: time,
-            level: level,
-            project_name: project_name.map(|x| x.to_string()),
-            target_directory: target_directory.map(|x| x.to_string()),
+            timer: Timer::new(),
+            time: TokioMutex::new(DateTime::new().to_string()),
+            level: level.unwrap_or(Level::default()),
+            project_name: project_name
+                .map(|x| x.trim().to_string())
+                .filter(|x| x.len() != 0),
+            target_directory: target_directory
+                .map(|x| x.trim().to_string())
+                .filter(|x| x.len() != 0),
             warn_file: TokioMutex::new(None),
             error_file: TokioMutex::new(None),
         };
@@ -364,47 +377,23 @@ impl Logger {
             *this.error_file.lock().await = error_file;
         }
         // 更新时间.
-        this.timer
-            .schedule1(ScheduleUpdateTime(this.clone()).wrap1())
-            .await;
+        this.timer.schedule1(this.clone()).await;
         // 重命名.
-        this.timer
-            .schedule1(ScheduleRename(this.clone()).wrap1())
-            .await;
+        this.timer.schedule2(this.clone()).await;
         // 删除两个月前的文件.
-        this.timer
-            .schedule1(ScheduleDeleteOld(this.clone()).wrap1())
-            .await;
+        this.timer.schedule3(this.clone()).await;
         // 更新缓存.
-        this.timer
-            .schedule1(ScheduleFlush(this.clone()).wrap1())
-            .await;
+        this.timer.schedule4(this.clone()).await;
         return this;
     }
 
     // 创建目录文件.
     async fn create_file(logger: Arc<Logger>) -> (Option<File>, Option<File>) {
-        if logger.project_name.is_none()
-            || logger.project_name.as_ref().expect("NEVER").trim().len() == 0
-        {
+        if logger.project_name.is_none() {
             return (None, None);
         }
-        let project_name: String = logger
-            .project_name
-            .as_ref()
-            .expect("NEVER")
-            .trim()
-            .to_string();
-        let target_directory: String = match &logger.target_directory {
-            Some(target_directory) => {
-                if target_directory.trim().len() != 0 {
-                    target_directory.trim().to_string()
-                } else {
-                    default_target()
-                }
-            }
-            None => default_target(),
-        };
+        let project_name: String = logger.project_name.as_ref().expect("NEVER").clone();
+        let target_directory: String = logger.target_directory.clone().unwrap_or(default_target());
         let path: String = target_directory.clone() + "/" + &project_name;
         let _ = tokio::fs::create_dir_all(&path).await;
         let warn_file: String = path.clone() + "/" + &project_name + "_warn.log";
@@ -414,13 +403,13 @@ impl Logger {
             .append(true)
             .open(warn_file)
             .await
-            .expect("File::open()");
+            .expect("File::open");
         let error_file: File = OpenOptions::new()
             .create(true)
             .append(true)
             .open(error_file)
             .await
-            .expect("File::open()");
+            .expect("File::open");
         return (Some(warn_file), Some(error_file));
     }
 
@@ -430,75 +419,78 @@ impl Logger {
         if stdout.is_none() {
             *stdout = Some(tokio::io::stdout());
         }
-        let x: u64 = level.clone().into();
-        let y: u64 = self.level.clone().into();
-        if x < y {
+        if level < self.level {
             return;
         }
-        // /// 日志.
-        // // #[allow(dead_code)]
-        // pub struct Logger {
-        //     timer: Timer,
-        //     time: AtomicPtr<String>,
-        //     time_buffer: TokioMutex<[String; 2]>,
-        //     time_index: AtomicUsize,
-        //     level: Level,
-        //     project_name: Option<String>,
-        //     target_directory: Option<String>,
-        //     warn_file: TokioMutex<Option<File>>,
-        //     error_file: TokioMutex<Option<File>>,
-        // }
         let time: String = self.time.lock().await.clone();
         let message: String = message.to_string().replace("\n", "\n    ");
         match level {
             Level::Debug | Level::Info => {
-                let message: String = format!("\n{} {} # {}\n", time, level.to_string(), message);
+                let message_a: String = format!(
+                    "\n{} {} # {}\n",
+                    time,
+                    level.to_string_with_color(),
+                    message
+                );
+                // let message_b: String = format!("\n{} {} # {}\n", time, level.to_string(), message);
                 stdout
                     .as_mut()
                     .expect("NEVER")
-                    .write_all(message.as_bytes())
+                    .write_all(message_a.as_bytes())
                     .await
-                    .expect("Stdout::write()");
+                    .expect("Stdout::write");
                 drop(stdout);
             }
             Level::Warn => {
-                let message: String = format!("\n{} {} # {}\n", time, level.to_string(), message);
+                let message_a: String = format!(
+                    "\n{} {} # {}\n",
+                    time,
+                    level.to_string_with_color(),
+                    message
+                );
+                let message_b: String = format!("\n{} {} # {}\n", time, level.to_string(), message);
                 stdout
                     .as_mut()
                     .expect("NEVER")
-                    .write_all(message.as_bytes())
+                    .write_all(message_a.as_bytes())
                     .await
-                    .expect("Stdout::write()");
+                    .expect("Stdout::write");
                 drop(stdout);
                 let mut warn_file = self.warn_file.lock().await;
                 if warn_file.is_some() {
                     warn_file
                         .as_mut()
                         .expect("NEVER")
-                        .write_all(message.as_bytes())
+                        .write_all(message_b.as_bytes())
                         .await
-                        .expect("File::write()");
+                        .expect("File::write");
                 }
                 drop(warn_file);
             }
             Level::Error => {
-                let message: String =
+                let message_a: String = format!(
+                    "\n{} {} # \n    {}\n",
+                    time,
+                    level.to_string_with_color(),
+                    message
+                );
+                let message_b: String =
                     format!("\n{} {} # \n    {}\n", time, level.to_string(), message);
                 stdout
                     .as_mut()
                     .expect("NEVER")
-                    .write_all(message.as_bytes())
+                    .write_all(message_a.as_bytes())
                     .await
-                    .expect("File::write()");
+                    .expect("File::write");
                 drop(stdout);
                 let mut error_file = self.error_file.lock().await;
                 if error_file.is_some() {
                     error_file
                         .as_mut()
                         .expect("NEVER")
-                        .write_all(message.as_bytes())
+                        .write_all(message_b.as_bytes())
                         .await
-                        .expect("File::write()");
+                        .expect("File::write");
                 }
                 drop(error_file);
             }
@@ -554,7 +546,7 @@ pub async fn print(level: Level, message: &str) {
 macro_rules! debug {
     ($($x:expr),* $(,)?) => {
         {
-            let mut message: String = String::new();
+            let mut message: String = String::with_capacity(0xFF);
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
@@ -571,7 +563,7 @@ macro_rules! debug {
 macro_rules! info {
     ($($x:expr),* $(,)?) => {
         {
-            let mut message: String = String::new();
+            let mut message: String = String::with_capacity(0xFF);
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
@@ -588,7 +580,7 @@ macro_rules! info {
 macro_rules! warn {
     ($($x:expr),* $(,)?) => {
         {
-            let mut message: String = String::new();
+            let mut message: String = String::with_capacity(0xFF);
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
@@ -605,8 +597,8 @@ macro_rules! warn {
 macro_rules! error {
     ($($x:expr),* $(,)?) => {
         {
-            let mut message: String = String::new();
-            message.push_str(&format!("{}:{}:{} {} | \n", file!(), line!(), column!(), module_path!()));
+            let mut message: String = String::with_capacity(0xFF);
+            message.push_str(&format!("{}:{}:{} {} # \n", file!(), line!(), column!(), module_path!()));
             $(
                 let x: String = $x.to_string();
                 message.push_str(&x);
@@ -623,7 +615,7 @@ macro_rules! error {
 macro_rules! debug_object {
     ($($x:expr),* $(,)?) => {
         {
-            let mut message: String = String::new();
+            let mut message: String = String::with_capacity(0xFF);
             $(
                 message.push_str(&format!("\n{:?}", $x));
             )*
@@ -636,7 +628,7 @@ macro_rules! debug_object {
 macro_rules! info_object {
     ($($x:expr),* $(,)?) => {
         {
-            let mut message: String = String::new();
+            let mut message: String = String::with_capacity(0xFF);
             $(
                 message.push_str(&format!("\n{:?}", $x));
             )*
@@ -649,7 +641,7 @@ macro_rules! info_object {
 macro_rules! warn_object {
     ($($x:expr),* $(,)?) => {
         {
-            let mut message: String = String::new();
+            let mut message: String = String::with_capacity(0xFF);
             $(
                 message.push_str(&format!("\n{:?}", $x));
             )*
@@ -662,7 +654,7 @@ macro_rules! warn_object {
 macro_rules! error_object {
     ($($x:expr),* $(,)?) => {
         {
-            let mut message: String = String::new();
+            let mut message: String = String::with_capacity(0xFF);
             message.push_str(&format!("{}:{}:{} {} | ", file!(), line!(), column!(), module_path!()));
             $(
                 message.push_str(&format!("\n{:?}", $x));
