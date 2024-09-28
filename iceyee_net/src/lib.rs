@@ -20,9 +20,6 @@
 //! - @see [tokio](../tokio/index.html)
 //! - @see [tokio_native_tls](../tokio_native_tls/index.html)
 
-// #![feature(get_mut_unchecked)]
-#![feature(io_error_more)]
-
 pub mod http;
 pub mod smtp;
 

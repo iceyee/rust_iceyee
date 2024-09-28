@@ -12,7 +12,6 @@
 use lettre::address::Address;
 use lettre::message::Message;
 use lettre::transport::smtp::authentication::Credentials;
-use lettre::transport::smtp::Error as SmtpError;
 use lettre::transport::smtp::SmtpTransport;
 use lettre::Transport;
 
@@ -49,21 +48,23 @@ impl MailAgent {
         to: &str,
         title: &str,
         body: &str,
-    ) -> Result<(), SmtpError> {
+    ) -> Result<(), String> {
         let message = Message::builder()
             .sender(name.parse::<Address>().unwrap().into())
             .from(name.parse::<Address>().unwrap().into())
             .to(to.parse::<Address>().unwrap().into())
             .subject(title)
             .body(body.to_string())
-            .expect("MessageBuilder::body()");
+            .map_err(|e| iceyee_error::a!(e))?;
         let a001: Vec<u8> = message.formatted();
-        let a002: String = String::from_utf8(a001).expect("NEVER");
+        let a002: String = String::from_utf8(a001).map_err(|e| iceyee_error::a!(e))?;
         iceyee_logger::warn!("\n", a002);
-        SmtpTransport::relay(server)?
+        SmtpTransport::relay(server)
+            .map_err(|e| iceyee_error::a!(e))?
             .credentials(Credentials::new(name.to_string(), auth.to_string()))
             .build()
-            .send(&message)?;
+            .send(&message)
+            .map_err(|e| iceyee_error::a!(e))?;
         return Ok(());
     }
 }

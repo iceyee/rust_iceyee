@@ -51,7 +51,7 @@ pub trait Proxy: AsyncRead + AsyncWrite + Send + Sync + Unpin {
         'a: 'b;
 
     /// 关闭连接.
-    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
+    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b;
 
@@ -171,35 +171,25 @@ impl Proxy for NoProxy {
             }
             let message: String = format!("连接耗时: {}ms\r\n", iceyee_time::now() - t);
             self.logger.push_str(&message);
-            Ok(())
+            return Ok(());
         });
     }
 
-    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
+    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
         return Box::pin(async move {
             self.logger.push_str("\r\n---- Connection close ----\r\n");
             if self.plain_socket.is_some() {
-                self.plain_socket
-                    .as_mut()
-                    .expect("NEVER")
-                    .shutdown()
-                    .await
-                    .map_err(|e| iceyee_error::a!(e))?;
+                let _ = self.plain_socket.as_mut().expect("NEVER").shutdown().await;
                 self.plain_socket = None;
             }
             if self.ssl_socket.is_some() {
-                self.ssl_socket
-                    .as_mut()
-                    .expect("NEVER")
-                    .shutdown()
-                    .await
-                    .map_err(|e| iceyee_error::a!(e))?;
+                let _ = self.ssl_socket.as_mut().expect("NEVER").shutdown().await;
                 self.ssl_socket = None;
             }
-            Ok(())
+            return;
         });
     }
 
@@ -288,7 +278,9 @@ impl Proxy for HttpProxy {
                 .await
                 .map_err(|e| iceyee_error::a!(e))?;
             // CONNECT响应.
-            let response: Response = Response::read_from(&mut plain_socket, None).await?;
+            let response: Response = Response::read_from(&mut plain_socket, None)
+                .await
+                .map_err(|e| iceyee_error::b!(e, ""))?;
             if 200 <= response.status_code && response.status_code < 300 {
                 // 请求代理连接成功.
             } else {
@@ -320,35 +312,25 @@ impl Proxy for HttpProxy {
             }
             let message: String = format!("连接耗时: {}ms\r\n", iceyee_time::now() - t);
             self.logger.push_str(&message);
-            Ok(())
+            return Ok(());
         });
     }
 
-    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
+    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
         return Box::pin(async move {
             self.logger.push_str("\r\n---- Connection close ----\r\n");
             if self.plain_socket.is_some() {
-                self.plain_socket
-                    .as_mut()
-                    .expect("NEVER")
-                    .shutdown()
-                    .await
-                    .map_err(|e| iceyee_error::a!(e))?;
+                let _ = self.plain_socket.as_mut().expect("NEVER").shutdown().await;
                 self.plain_socket = None;
             }
             if self.ssl_socket.is_some() {
-                self.ssl_socket
-                    .as_mut()
-                    .expect("NEVER")
-                    .shutdown()
-                    .await
-                    .map_err(|e| iceyee_error::a!(e))?;
+                let _ = self.ssl_socket.as_mut().expect("NEVER").shutdown().await;
                 self.ssl_socket = None;
             }
-            Ok(())
+            return;
         });
     }
 
@@ -590,35 +572,25 @@ impl Proxy for Socks5Proxy {
             }
             let message: String = format!("连接耗时: {}ms\r\n", iceyee_time::now() - t);
             self.logger.push_str(&message);
-            Ok(())
+            return Ok(());
         });
     }
 
-    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'b>>
+    fn close<'a, 'b>(&'a mut self) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
     {
         return Box::pin(async move {
             self.logger.push_str("\r\n---- Connection close ----\r\n");
             if self.plain_socket.is_some() {
-                self.plain_socket
-                    .as_mut()
-                    .expect("NEVER")
-                    .shutdown()
-                    .await
-                    .map_err(|e| iceyee_error::a!(e))?;
+                let _ = self.plain_socket.as_mut().expect("NEVER").shutdown().await;
                 self.plain_socket = None;
             }
             if self.ssl_socket.is_some() {
-                self.ssl_socket
-                    .as_mut()
-                    .expect("NEVER")
-                    .shutdown()
-                    .await
-                    .map_err(|e| iceyee_error::a!(e))?;
+                let _ = self.ssl_socket.as_mut().expect("NEVER").shutdown().await;
                 self.ssl_socket = None;
             }
-            Ok(())
+            return;
         });
     }
 
@@ -860,7 +832,7 @@ impl HttpClient {
         let url: Url = s
             .to_string()
             .parse::<Url>()
-            .map_err(|e| iceyee_error::b!(e, "parse url"))?;
+            .map_err(|e| iceyee_error::b!(e, ""))?;
         self.request
             .header
             .insert("Host".to_string(), url.host.clone());
@@ -951,7 +923,7 @@ impl HttpClient {
             proxy
                 .connect(&url.host, url.port, url.protocol == "https:")
                 .await
-                .map_err(|e| iceyee_error::b!(e, "连接失败"))?;
+                .map_err(|e| iceyee_error::b!(e, ""))?;
         }
         if proxy.is_closed() {
             return Err(iceyee_error::a!("连接失败"));
@@ -999,7 +971,9 @@ impl HttpClient {
         }
         // 5 解析响应.
         proxy.get_logger().push_str("\r\n---- Response ----\r\n");
-        let mut response = Response::read_from(proxy.deref_mut(), self.timeout.clone()).await?;
+        let mut response = Response::read_from(proxy.deref_mut(), self.timeout.clone())
+            .await
+            .map_err(|e| iceyee_error::b!(e, ""))?;
         proxy.get_logger().push_str(response.to_string().as_str());
         if response.header.contains_key("Content-Encoding")
             && response.header.get("Content-Encoding").expect("NEVER")[0]
@@ -1032,10 +1006,7 @@ impl HttpClient {
             .to_lowercase()
             .contains("close")
         {
-            proxy
-                .close()
-                .await
-                .map_err(|e| iceyee_error::b!(e, "close proxy"))?;
+            proxy.close().await;
         }
         return Ok(response);
     }
@@ -1058,19 +1029,13 @@ impl HttpClient {
         let r = self
             .send_001(&mut proxy)
             .await
-            .map_err(|e| iceyee_error::b!(e, "send request"));
+            .map_err(|e| iceyee_error::b!(e, ""));
         if r.is_err() {
             proxy.get_logger().push_str("\r\n---- Exception ----\r\n");
             proxy
                 .get_logger()
                 .push_str(r.as_ref().expect_err("NEVER").to_string().as_str());
-            if let Err(e) = proxy
-                .close()
-                .await
-                .map_err(|e| iceyee_error::b!(e, "close proxy"))
-            {
-                proxy.get_logger().push_str(&e);
-            }
+            proxy.close().await;
         }
         let message: String = format!(
             "\r\n---- End ----\r\n总耗时: {}ms\r\n",
@@ -1103,10 +1068,8 @@ impl HttpClient {
     }
 
     pub async fn get_expect_string(url: &str) -> String {
-        let (response, _) = Self::get(url)
-            .await
-            .expect("HttpClient::get_expect_string()");
-        return String::from_utf8(response.body).expect("String::from_utf8()");
+        let (response, _) = Self::get(url).await.expect("HttpClient::get_expect_string");
+        return String::from_utf8(response.body).expect("String::from_utf8");
     }
 }
 

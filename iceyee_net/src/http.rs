@@ -240,38 +240,6 @@ enum State {
     Fragment,
 }
 
-// /// Error.
-// #[derive(Clone, Debug)]
-// pub struct UrlError {
-//     link: String,
-//     state: State,
-//     index: usize,
-//     message: String,
-// }
-//
-// impl UrlError {
-//     fn new(link: &str, state: &State, index: usize, message: String) -> Self {
-//         return Self {
-//             link: link.to_string(),
-//             state: state.clone(),
-//             index: index,
-//             message: message,
-//         };
-//     }
-// }
-//
-// impl std::fmt::Display for UrlError {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-//         return write!(
-//             f,
-//             "UrlError, 错误的格式, @link={}, @state={:?}, @index={}, @message={}",
-//             self.link, self.state, self.index, self.message
-//         );
-//     }
-// }
-//
-// impl StdError for UrlError {}
-
 /// 统一资源定位器, Uniform Resource Locator.
 ///
 /// http_URL = "http:" "//" host \[ ":" port \] \[ abs_path \]
