@@ -297,7 +297,7 @@ impl HexEncoder {
                     output <<= 4;
                     output |= (v1[x] - b'a' + 10) as u64;
                 }
-                any => {
+                _ => {
                     return Err(iceyee_error::a!("出现未预期的字符"));
                 }
             }
