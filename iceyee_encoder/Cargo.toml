@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_encoder"
-version = "10.0.0"
+version = "11.0.0"
 edition = "2021"
 
 description = "Base64Encoder, HexEncoder, UrlEncoder."
@@ -17,4 +17,4 @@ repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_encoder/"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iceyee_error = "10"
+iceyee_error = "11"

@@ -45,11 +45,29 @@ pub fn test_base64_encoder() {
     println!("123@");
     println!("123#");
     println!("@23#");
-    assert!(Base64Encoder::decode("12345").is_err());
-    assert!(Base64Encoder::decode("123456").is_err());
-    assert!(Base64Encoder::decode("1234567").is_err());
-    assert!(Base64Encoder::decode("123@").is_err());
-    assert!(Base64Encoder::decode("123#").is_err());
-    assert!(Base64Encoder::decode("@23#").is_err());
+    assert_eq!(
+        Base64Encoder::decode("12345").map_err(|x| x.contains("无效的长度")),
+        Err(true)
+    );
+    assert_eq!(
+        Base64Encoder::decode("123456").map_err(|x| x.contains("无效的长度")),
+        Err(true)
+    );
+    assert_eq!(
+        Base64Encoder::decode("1234567").map_err(|x| x.contains("无效的长度")),
+        Err(true)
+    );
+    assert_eq!(
+        Base64Encoder::decode("123@").map_err(|x| x.contains("出现未预期的字符")),
+        Err(true)
+    );
+    assert_eq!(
+        Base64Encoder::decode("123#").map_err(|x| x.contains("出现未预期的字符")),
+        Err(true)
+    );
+    assert_eq!(
+        Base64Encoder::decode("@23#").map_err(|x| x.contains("出现未预期的字符")),
+        Err(true)
+    );
     return;
 }

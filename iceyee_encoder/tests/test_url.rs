@@ -40,8 +40,17 @@ pub fn test_url_encoder() {
     println!("%%");
     println!("%3%45");
     println!("%34%5");
-    assert!(UrlEncoder::decode("%%").is_err());
-    assert!(UrlEncoder::decode("%3%45").is_err());
-    assert!(UrlEncoder::decode("%34%5").is_err());
+    assert_eq!(
+        UrlEncoder::decode("%%").map_err(|x| x.contains("错误的格式")),
+        Err(true)
+    );
+    assert_eq!(
+        UrlEncoder::decode("%3%45").map_err(|x| x.contains("错误的格式")),
+        Err(true)
+    );
+    assert_eq!(
+        UrlEncoder::decode("%34%5").map_err(|x| x.contains("错误的格式")),
+        Err(true)
+    );
     return;
 }

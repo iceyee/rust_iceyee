@@ -35,11 +35,26 @@ fn test_hex_encoder() {
     println!("12@456abcd");
     println!("123456a#cd");
     println!("123456abcg");
-    assert!(HexEncoder::decode("123456a").is_err());
-    assert!(HexEncoder::decode("123456abc").is_err());
-    assert!(HexEncoder::decode("12@456abcd").is_err());
-    assert!(HexEncoder::decode("123456a#cd").is_err());
-    assert!(HexEncoder::decode("123456abcg").is_err());
+    assert_eq!(
+        HexEncoder::decode("123456a").map_err(|x| x.contains("无效的长度")),
+        Err(true)
+    );
+    assert_eq!(
+        HexEncoder::decode("123456abc").map_err(|x| x.contains("无效的长度")),
+        Err(true)
+    );
+    assert_eq!(
+        HexEncoder::decode("12@456abcd").map_err(|x| x.contains("出现未预期的字符")),
+        Err(true)
+    );
+    assert_eq!(
+        HexEncoder::decode("123456a#cd").map_err(|x| x.contains("出现未预期的字符")),
+        Err(true)
+    );
+    assert_eq!(
+        HexEncoder::decode("123456abcg").map_err(|x| x.contains("出现未预期的字符")),
+        Err(true)
+    );
     let table = [
         ("0123456789", 0x0123456789u64),
         ("0123456789abcdef", 0x0123456789ABCDEFu64),
@@ -60,9 +75,21 @@ fn test_hex_encoder() {
     println!("0123456789ABCDEF01");
     println!("-123456789");
     println!("012345678z");
-    assert!(HexEncoder::decode_number("0123456789ABCDEF0").is_err());
-    assert!(HexEncoder::decode_number("0123456789ABCDEF01").is_err());
-    assert!(HexEncoder::decode_number("-123456789").is_err());
-    assert!(HexEncoder::decode_number("012345678z").is_err());
+    assert_eq!(
+        HexEncoder::decode_number("0123456789ABCDEF0").map_err(|x| x.contains("长度超过16")),
+        Err(true)
+    );
+    assert_eq!(
+        HexEncoder::decode_number("0123456789ABCDEF01").map_err(|x| x.contains("长度超过16")),
+        Err(true)
+    );
+    assert_eq!(
+        HexEncoder::decode_number("-123456789").map_err(|x| x.contains("出现未预期的字符")),
+        Err(true)
+    );
+    assert_eq!(
+        HexEncoder::decode_number("012345678z").map_err(|x| x.contains("出现未预期的字符")),
+        Err(true)
+    );
     return;
 }

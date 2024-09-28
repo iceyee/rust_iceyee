@@ -121,7 +121,7 @@ impl Base64Encoder {
             return Ok(Vec::<u8>::new());
         }
         if length % 4 != 0 {
-            return Err(iceyee_error::a!("无效的长度", length));
+            return Err(iceyee_error::a!("无效的长度"));
         }
         let input_data: &[u8] = input.as_bytes();
         for x in 0..input_data.len() {
@@ -129,7 +129,7 @@ impl Base64Encoder {
             if TABLE[c as usize] != 255 || c == b'=' && input_data.len() <= x + 2 {
                 // 正常.
             } else {
-                return Err(iceyee_error::a!("出现未预期的字符", (c as char)));
+                return Err(iceyee_error::a!("出现未预期的字符"));
             }
         }
         let new_length: usize = if input_data[input_data.len() - 2] == b'=' {
@@ -214,7 +214,7 @@ impl HexEncoder {
         let input: String = input.to_string();
         let length: usize = input.len();
         if length % 2 != 0 {
-            return Err(iceyee_error::a!("无效的长度", length));
+            return Err(iceyee_error::a!("无效的长度"));
         }
         let mut output: Vec<u8> = Vec::new();
         let input: &[u8] = input.as_bytes();
@@ -231,7 +231,7 @@ impl HexEncoder {
                 b'A'..=b'F' => {
                     high = input[x * 2] - b'A' + 10;
                 }
-                _ => return Err(iceyee_error::a!("出现未预期的字符", (input[x * 2] as char))),
+                _ => return Err(iceyee_error::a!("出现未预期的字符")),
             }
             match input[x * 2 + 1] {
                 b'0'..=b'9' => {
@@ -243,12 +243,7 @@ impl HexEncoder {
                 b'A'..=b'F' => {
                     low = input[x * 2 + 1] - b'A' + 10;
                 }
-                _ => {
-                    return Err(iceyee_error::a!(
-                        "出现未预期的字符",
-                        (input[x * 2 + 1] as char)
-                    ))
-                }
+                _ => return Err(iceyee_error::a!("出现未预期的字符")),
             }
             let b: u8 = (high << 4) | (low << 0);
             output.push(b);
@@ -285,7 +280,7 @@ impl HexEncoder {
         let v1: &[u8] = input.as_bytes();
         if 16 < v1.len() {
             // 长度过长.
-            return Err(iceyee_error::a!("无效的长度", v1.len()));
+            return Err(iceyee_error::a!("长度超过16"));
         }
         let mut output: u64 = 0;
         for x in 0..v1.len() {
@@ -303,7 +298,7 @@ impl HexEncoder {
                     output |= (v1[x] - b'a' + 10) as u64;
                 }
                 any => {
-                    return Err(iceyee_error::a!("出现未预期的字符", (any as char)));
+                    return Err(iceyee_error::a!("出现未预期的字符"));
                 }
             }
         }
@@ -344,7 +339,7 @@ impl UrlEncoder {
     /// 解码.
     ///
     /// - @exception 错误的格式.
-    /// - @exception 解码后的内容不是UTF-8编码.
+    /// - @exception 内容不是UTF-8编码.
     pub fn decode(cipher: &str) -> Result<String, String> {
         let cipher: String = cipher.to_string();
         enum Status {
@@ -403,7 +398,8 @@ impl UrlEncoder {
             Status::Normal => {}
             _ => return Err(iceyee_error::a!("错误的格式")),
         }
-        let plain: String = String::from_utf8(plain).map_err(|e| iceyee_error::a!(e))?;
+        let plain: String =
+            String::from_utf8(plain).map_err(|_| iceyee_error::a!("内容不是UTF-8编码"))?;
         return Ok(plain);
     }
 }
