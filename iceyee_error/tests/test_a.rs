@@ -22,6 +22,7 @@ pub fn a() {
     let a003 = iceyee_error::a!("hello", "world");
     let a004 = iceyee_error::b!(&a003, "how", "are", "you");
     let a005 = iceyee_error::b!(&a004, "thank", "you");
+    let a006 = iceyee_error::b!(&a005);
     println!("创建默认异常");
     println!("{}", a001);
     println!("创建异常, 参数'hello world'");
@@ -32,5 +33,7 @@ pub fn a() {
     println!("{}", a004);
     println!("继承异常, 参数'thank', 'you'");
     println!("{}", a005);
+    println!("继承异常, 无参数");
+    println!("{}", a006);
     return;
 }
