@@ -144,17 +144,17 @@ pub async fn wait_url(driver: &WebDriver, url: &str, equal: bool) -> WebDriverRe
     iceyee_logger::info!("wait_url", url);
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
-        stdout.write_all(b"\r").await.expect("Stdout::write_all()");
+        stdout.write_all(b"\r").await.expect("Stdout::write_all");
         stdout
             .write_all(x.to_string().as_bytes())
             .await
-            .expect("Stdout::write_all()");
-        stdout.flush().await.expect("Stdout::flush()");
+            .expect("Stdout::write_all");
+        stdout.flush().await.expect("Stdout::flush");
         if (driver.current_url().await?.as_str() == url && equal)
             || (driver.current_url().await?.as_str() != url && !equal)
         {
-            stdout.write_all(b"\r").await.expect("Stdout::write_all()");
-            stdout.flush().await.expect("Stdout::flush()");
+            stdout.write_all(b"\r").await.expect("Stdout::write_all");
+            stdout.flush().await.expect("Stdout::flush");
             iceyee_time::sleep(1_000).await;
             return Ok(());
         }
@@ -167,15 +167,15 @@ pub async fn wait_ready(driver: &WebDriver) -> WebDriverResult<()> {
     iceyee_logger::info!("wait_ready");
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
-        stdout.write_all(b"\r").await.expect("Stdout::write_all()");
+        stdout.write_all(b"\r").await.expect("Stdout::write_all");
         stdout
             .write_all(x.to_string().as_bytes())
             .await
-            .expect("Stdout::write_all()");
-        stdout.flush().await.expect("Stdout::flush()");
+            .expect("Stdout::write_all");
+        stdout.flush().await.expect("Stdout::flush");
         if driver.status().await?.ready {
-            stdout.write_all(b"\r").await.expect("Stdout::write_all()");
-            stdout.flush().await.expect("Stdout::flush()");
+            stdout.write_all(b"\r").await.expect("Stdout::write_all");
+            stdout.flush().await.expect("Stdout::flush");
             iceyee_time::sleep(1_000).await;
             return Ok(());
         }
@@ -188,15 +188,15 @@ pub async fn wait_element(driver: &WebDriver, css: &str, number: usize) -> WebDr
     iceyee_logger::info!("wait_element", css, number);
     let mut stdout = tokio::io::stdout();
     for x in 0..60 {
-        stdout.write_all(b"\r").await.expect("Stdout::write_all()");
+        stdout.write_all(b"\r").await.expect("Stdout::write_all");
         stdout
             .write_all(x.to_string().as_bytes())
             .await
-            .expect("Stdout::write_all()");
-        stdout.flush().await.expect("Stdout::flush()");
+            .expect("Stdout::write_all");
+        stdout.flush().await.expect("Stdout::flush");
         if number <= driver.find_all(By::Css(css)).await?.len() {
-            stdout.write_all(b"\r").await.expect("Stdout::write_all()");
-            stdout.flush().await.expect("Stdout::flush()");
+            stdout.write_all(b"\r").await.expect("Stdout::write_all");
+            stdout.flush().await.expect("Stdout::flush");
             return Ok(());
         }
         iceyee_time::sleep(1_000).await;

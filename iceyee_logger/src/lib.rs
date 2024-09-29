@@ -22,6 +22,19 @@
 //! iceyee_logger::error!(3, "hello world debug.", "second", "third", "fourth");
 //! ```
 //!
+//! # Output
+//! ```text
+//! 2024-09-29T12:12:44.917+08:00 DEBUG # 0 hello world debug. second third fourth
+//!
+//! 2024-09-29T12:12:44.917+08:00 INFO  # 1 hello world debug. second third fourth
+//!
+//! 2024-09-29T12:12:44.917+08:00 WARN  # 2 hello world debug. second third fourth
+//!
+//! 2024-09-29T12:12:44.917+08:00 ERROR #
+//!     iceyee_logger/tests/test_logger.rs:59:5 test_logger #
+//!     3 hello world debug. second third fourth
+//! ```
+//!
 //! - @see [iceyee_time](../iceyee_time/index.html)
 //! - @see [tokio](../tokio/index.html)
 
@@ -260,11 +273,11 @@ impl Schedule3 for Logger {
             let mut dirs = tokio::fs::read_dir(&path).await.expect("fs::read_dir");
             // 删除两个月前的文件.
             while let Ok(Some(entry)) = dirs.next_entry().await {
-                let t = entry
+                let t: SystemTime = entry
                     .metadata()
                     .await
-                    .expect("Entry::metadata")
-                    .modified()
+                    .map(|x| x.modified())
+                    .expect("Entry::metadata::modified")
                     .expect("Entry::metadata::modified");
                 if 1 * 60 * 60 * 24 * 60
                     < SystemTime::now()

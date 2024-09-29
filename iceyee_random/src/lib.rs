@@ -73,10 +73,11 @@ impl Random {
             0xF4B1F470ABDA3652,
             0x10A7C3C4A75EF01E,
         ];
-        for x in 0..16 {
+        const N: usize = 2;
+        for x in 0..N {
             seed = (seed << 63) | (seed >> 1);
             seed ^= TABLE[x];
-            seed = ((seed as u128) + (TABLE[x + 16] as u128)) as u64;
+            seed = ((seed as u128) + (TABLE[x + N] as u128)) as u64;
         }
         SEED.with(|s| s.set(seed));
         return seed;

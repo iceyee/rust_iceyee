@@ -168,7 +168,7 @@ impl ToString for Args {
         let mut keys = Vec::from_iter(self.hm.keys());
         keys.sort();
         for key in keys {
-            for value in self.hm.get(key).unwrap() {
+            for value in self.hm.get(key).expect("") {
                 if output.len() == 0 {
                     output.push_str("?");
                 } else {
@@ -283,9 +283,9 @@ impl std::str::FromStr for Url {
                 State::Protocol => {
                     if value[index] == b'/' {
                         let protocol: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
+                            .map_err(|e| iceyee_error::a!(e, link))?;
                         if !protocol.ends_with(":") {
-                            Err(iceyee_error::a!("@link=", link, "@index=", index))?;
+                            return Err(iceyee_error::a!(link));
                         }
                         url.protocol = protocol;
                         buffer.clear();
@@ -299,9 +299,9 @@ impl std::str::FromStr for Url {
                 State::Host => match value[index] {
                     b':' | b'/' | b'?' | b'#' => {
                         let host: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
+                            .map_err(|e| iceyee_error::a!(e, link))?;
                         if host.len() == 0 {
-                            Err(iceyee_error::a!("@link=", link, "@index=", index))?;
+                            return Err(iceyee_error::a!(link));
                         }
                         url.host = host;
                         buffer.clear();
@@ -335,11 +335,11 @@ impl std::str::FromStr for Url {
                 State::Port => match value[index] {
                     b'/' | b'?' | b'#' => {
                         let port: u16 = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?
+                            .map_err(|e| iceyee_error::a!(e, link))?
                             .parse::<u16>()
-                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
+                            .map_err(|e| iceyee_error::a!(e, link))?;
                         if port == 0 {
-                            Err(iceyee_error::a!("@link=", link, "@index=", index))?;
+                            return Err(iceyee_error::a!(link));
                         }
                         url.port = port;
                         buffer.clear();
@@ -369,7 +369,7 @@ impl std::str::FromStr for Url {
                 State::Path => match value[index] {
                     b'?' | b'#' => {
                         let path: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
+                            .map_err(|e| iceyee_error::a!(e, link))?;
                         url.path = path;
                         buffer.clear();
                         match value[index] {
@@ -394,7 +394,7 @@ impl std::str::FromStr for Url {
                 State::Query => match value[index] {
                     b'#' => {
                         let query: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
+                            .map_err(|e| iceyee_error::a!(e, link))?;
                         url.query = Some(query);
                         buffer.clear();
                         state = State::Fragment;
@@ -413,39 +413,39 @@ impl std::str::FromStr for Url {
         } // while index < length
         match state {
             State::Protocol => {
-                Err(iceyee_error::a!("@link=", link, "@index=", index))?;
+                return Err(iceyee_error::a!(link));
             }
             State::Host => {
-                let host: String = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
+                let host: String =
+                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::a!(e, link))?;
                 if host.len() == 0 {
-                    Err(iceyee_error::a!("@link=", link, "@index=", index))?;
+                    return Err(iceyee_error::a!(link));
                 }
                 url.host = host;
             }
             State::Port => {
                 let port: u16 = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?
+                    .map_err(|e| iceyee_error::a!(e, link))?
                     .parse::<u16>()
-                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
+                    .map_err(|e| iceyee_error::a!(e, link))?;
                 if port == 0 {
-                    Err(iceyee_error::a!("@link=", link, "@index=", index))?;
+                    return Err(iceyee_error::a!(link));
                 }
                 url.port = port;
             }
             State::Path => {
-                let path: String = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
+                let path: String =
+                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::a!(e, link))?;
                 url.path = path;
             }
             State::Query => {
-                let query: String = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
+                let query: String =
+                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::a!(e, link))?;
                 url.query = Some(query);
             }
             State::Fragment => {
-                let fragment: String = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| iceyee_error::a!("@link=", link, "@index=", index, e))?;
+                let fragment: String =
+                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::a!(e, link))?;
                 url.fragment = Some(fragment);
             }
         }
