@@ -280,7 +280,7 @@ impl Proxy for HttpProxy {
             // CONNECT响应.
             let response: Response = Response::read_from(&mut plain_socket, None)
                 .await
-                .map_err(|e| iceyee_error::b!(e, ""))?;
+                .map_err(|e| iceyee_error::b!(e))?;
             if 200 <= response.status_code && response.status_code < 300 {
                 // 请求代理连接成功.
             } else {
@@ -832,7 +832,7 @@ impl HttpClient {
         let url: Url = s
             .to_string()
             .parse::<Url>()
-            .map_err(|e| iceyee_error::b!(e, ""))?;
+            .map_err(|e| iceyee_error::b!(e))?;
         self.request
             .header
             .insert("Host".to_string(), url.host.clone());
@@ -878,14 +878,14 @@ impl HttpClient {
         if s.is_none() {
             let ip: String = format!(
                 "{}.{}.{}.{}, {}.{}.{}.{}",
-                Random::next() % 256,
-                Random::next() % 256,
-                Random::next() % 256,
-                Random::next() % 256,
-                Random::next() % 256,
-                Random::next() % 256,
-                Random::next() % 256,
-                Random::next() % 256,
+                Random::next_less_than(256),
+                Random::next_less_than(256),
+                Random::next_less_than(256),
+                Random::next_less_than(256),
+                Random::next_less_than(256),
+                Random::next_less_than(256),
+                Random::next_less_than(256),
+                Random::next_less_than(256),
             );
             self.request
                 .header
@@ -913,7 +913,51 @@ impl HttpClient {
         return self;
     }
 
-    async fn send_001(
+    /// 发送请求.
+    ///
+    /// @return
+    ///    - Response 返回响应.
+    ///    - String logger.
+    ///    - String Error.
+    pub async fn send(
+        mut self,
+        mut proxy: Option<WrapProxy>,
+    ) -> Result<(Response, String), String> {
+        if self.url.is_none() {
+            return Err(iceyee_error::a!("未设置url"));
+        }
+        let t: i64 = iceyee_time::now();
+        if proxy.is_none() {
+            proxy = Some(NoProxy::new().wrap());
+        }
+        let proxy = proxy.expect("NEVER");
+        let mut proxy = proxy.0.lock().await;
+        proxy.get_logger().clear();
+        proxy.get_logger().push_str("\r\n---- Start ----\r\n");
+        let r = self
+            .send_(&mut proxy)
+            .await
+            .map_err(|e| iceyee_error::b!(e));
+        if r.is_err() {
+            proxy.get_logger().push_str("\r\n---- Exception ----\r\n");
+            proxy
+                .get_logger()
+                .push_str(r.as_ref().expect_err("NEVER").to_string().as_str());
+            proxy.close().await;
+        }
+        let message: String = format!(
+            "\r\n---- End ----\r\n总耗时: {}ms\r\n",
+            iceyee_time::now() - t
+        );
+        proxy.get_logger().push_str(&message);
+        let logger: String = proxy.get_logger().clone();
+        if self.verbose {
+            println!("{}", &logger);
+        }
+        return Ok((r?, logger));
+    }
+
+    async fn send_(
         &mut self,
         proxy: &mut tokio::sync::MutexGuard<'_, Box<dyn Proxy>>,
     ) -> Result<Response, String> {
@@ -923,7 +967,7 @@ impl HttpClient {
             proxy
                 .connect(&url.host, url.port, url.protocol == "https:")
                 .await
-                .map_err(|e| iceyee_error::b!(e, ""))?;
+                .map_err(|e| iceyee_error::b!(e))?;
         }
         if proxy.is_closed() {
             return Err(iceyee_error::a!("连接失败"));
@@ -973,7 +1017,7 @@ impl HttpClient {
         proxy.get_logger().push_str("\r\n---- Response ----\r\n");
         let mut response = Response::read_from(proxy.deref_mut(), self.timeout.clone())
             .await
-            .map_err(|e| iceyee_error::b!(e, ""))?;
+            .map_err(|e| iceyee_error::b!(e))?;
         proxy.get_logger().push_str(response.to_string().as_str());
         if response.header.contains_key("Content-Encoding")
             && response.header.get("Content-Encoding").expect("NEVER")[0]
@@ -1011,49 +1055,11 @@ impl HttpClient {
         return Ok(response);
     }
 
-    pub async fn send(
-        mut self,
-        mut proxy: Option<WrapProxy>,
-    ) -> Result<(Response, String), String> {
-        if self.url.is_none() {
-            return Err(iceyee_error::a!("未设置url"));
-        }
-        let t: i64 = iceyee_time::now();
-        if proxy.is_none() {
-            proxy = Some(NoProxy::new().wrap());
-        }
-        let proxy = proxy.expect("NEVER");
-        let mut proxy = proxy.0.lock().await;
-        proxy.get_logger().clear();
-        proxy.get_logger().push_str("\r\n---- Start ----\r\n");
-        let r = self
-            .send_001(&mut proxy)
-            .await
-            .map_err(|e| iceyee_error::b!(e, ""));
-        if r.is_err() {
-            proxy.get_logger().push_str("\r\n---- Exception ----\r\n");
-            proxy
-                .get_logger()
-                .push_str(r.as_ref().expect_err("NEVER").to_string().as_str());
-            proxy.close().await;
-        }
-        let message: String = format!(
-            "\r\n---- End ----\r\n总耗时: {}ms\r\n",
-            iceyee_time::now() - t
-        );
-        proxy.get_logger().push_str(&message);
-        let logger: String = proxy.get_logger().clone();
-        if self.verbose {
-            println!("{}", &logger);
-        }
-        return Ok((r?, logger));
-    }
-
     /// 等效于如下代码.
     /// ```
     /// HttpClient::new()
     ///     .set_url(url)
-    ///     .map_err(|e| iceyee_error::b!(e, ""))?
+    ///     .map_err(|e| iceyee_error::b!(e))?
     ///     .set_header("Connection", "close")
     ///     .send(None)
     ///     .await;
@@ -1061,7 +1067,7 @@ impl HttpClient {
     pub async fn get(url: &str) -> Result<(Response, String), String> {
         return HttpClient::new()
             .set_url(url)
-            .map_err(|e| iceyee_error::b!(e, ""))?
+            .map_err(|e| iceyee_error::b!(e))?
             .set_header("Connection", "close")
             .send(None)
             .await;

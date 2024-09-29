@@ -33,7 +33,7 @@ impl MailAgent {
         title: &str,
         body: &str,
     ) -> bool {
-        if let Err(e) = Self::send_email(server, name, auth, to, title, body).await {
+        if let Err(e) = Self::send_(server, name, auth, to, title, body).await {
             iceyee_logger::error!(e);
             return false;
         } else {
@@ -41,7 +41,7 @@ impl MailAgent {
         }
     }
 
-    async fn send_email(
+    async fn send_(
         server: &str,
         name: &str,
         auth: &str,
