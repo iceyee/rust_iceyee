@@ -56,14 +56,19 @@ fn test_hex_encoder() {
         Err(true)
     );
     let table = [
-        ("0123456789", 0x0123456789u64),
-        ("0123456789abcdef", 0x0123456789ABCDEFu64),
-        ("0123456789ABCDEF", 0x0123456789ABCDEFu64),
+        ("0123456789", 0x0123456789),
+        ("012_345_678_9", 0x0123456789),
+        ("012_345_678 9", 0x0123456789),
+        ("1FFF_FFFF_FFFF_FFFF_FFFF", 0x1FFFFFFFFFFFFFFF),
+        ("0123456789abcdef", 0x0123456789ABCDEF),
+        ("0123456789ABCDEF", 0x0123456789ABCDEF),
     ];
     println!("测试encode_number功能.");
     for (x, y) in table {
         println!("0x{y:x} <encode_number> {x}");
-        assert_eq!(HexEncoder::encode_number(y), x.to_uppercase());
+        let mut x = x.to_uppercase().replace(" ", "").replace("_", "");
+        x.truncate(16);
+        assert_eq!(HexEncoder::encode_number(y), x);
     }
     println!("测试decode_number功能.");
     for (x, y) in table {
@@ -71,18 +76,8 @@ fn test_hex_encoder() {
         assert_eq!(HexEncoder::decode_number(x).expect("NEVER"), y);
     }
     println!("测试decode_number异常输入.");
-    println!("0123456789ABCDEF0");
-    println!("0123456789ABCDEF01");
     println!("-123456789");
     println!("012345678z");
-    assert_eq!(
-        HexEncoder::decode_number("0123456789ABCDEF0").map_err(|x| x.contains("长度超过16")),
-        Err(true)
-    );
-    assert_eq!(
-        HexEncoder::decode_number("0123456789ABCDEF01").map_err(|x| x.contains("长度超过16")),
-        Err(true)
-    );
     assert_eq!(
         HexEncoder::decode_number("-123456789").map_err(|x| x.contains("出现未预期的字符")),
         Err(true)
