@@ -187,8 +187,10 @@ impl Schedule2 for Logger {
                 return true;
             }
             let project_name: String = self.project_name.as_ref().expect("NEVER").clone();
-            let target_directory: String =
-                self.target_directory.clone().unwrap_or(default_target());
+            let target_directory: String = self
+                .target_directory
+                .clone()
+                .unwrap_or_else(|| default_target());
             let path: String = target_directory.clone() + "/" + &project_name;
             // 刷新缓存, 然后关闭文件.
             let mut warn_file = self.warn_file.lock().await;
@@ -267,8 +269,10 @@ impl Schedule3 for Logger {
                 return true;
             }
             let project_name: String = self.project_name.as_ref().expect("NEVER").clone();
-            let target_directory: String =
-                self.target_directory.clone().unwrap_or(default_target());
+            let target_directory: String = self
+                .target_directory
+                .clone()
+                .unwrap_or_else(|| default_target());
             let path: String = target_directory.clone() + "/" + &project_name;
             let mut dirs = tokio::fs::read_dir(&path).await.expect("fs::read_dir");
             // 删除两个月前的文件.
@@ -372,7 +376,7 @@ impl Logger {
         let this: Logger = Logger {
             timer: Timer::new(),
             time: TokioMutex::new(DateTime::new().to_string()),
-            level: level.unwrap_or(Level::default()),
+            level: level.unwrap_or_else(|| Level::default()),
             project_name: project_name
                 .map(|x| x.trim().to_string())
                 .filter(|x| x.len() != 0),
@@ -406,7 +410,10 @@ impl Logger {
             return (None, None);
         }
         let project_name: String = logger.project_name.as_ref().expect("NEVER").clone();
-        let target_directory: String = logger.target_directory.clone().unwrap_or(default_target());
+        let target_directory: String = logger
+            .target_directory
+            .clone()
+            .unwrap_or_else(|| default_target());
         let path: String = target_directory.clone() + "/" + &project_name;
         let _ = tokio::fs::create_dir_all(&path).await;
         let warn_file: String = path.clone() + "/" + &project_name + "_warn.log";
@@ -516,11 +523,11 @@ impl Logger {
 
 /// 日志的默认路径.
 pub fn default_target() -> String {
-    return home() + "/.iceyee_log";
+    return home_dir() + "/.iceyee_log";
 }
 
 /// 用户主目录.
-pub fn home() -> String {
+pub fn home_dir() -> String {
     #[cfg(target_os = "linux")]
     {
         return std::env::var("HOME").expect("std::env::var('HOME')");
