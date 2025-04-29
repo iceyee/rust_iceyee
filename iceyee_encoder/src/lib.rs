@@ -274,28 +274,24 @@ impl HexEncoder {
 
     /// 解码64位整数.
     ///
-    /// - @exception 长度超过16.
     /// - @exception 出现未预期的字符.
     pub fn decode_number(input: &str) -> Result<u64, String> {
-        let v1: &[u8] = input.as_bytes();
-        if 16 < v1.len() {
-            // 长度过长.
-            return Err(iceyee_error::a!("长度超过16"));
-        }
+        let mut input: String = input.to_string().replace(" ", "").replace("_", "");
+        input.truncate(16);
         let mut output: u64 = 0;
-        for x in 0..v1.len() {
-            match v1[x] {
+        for x in input.as_bytes().iter() {
+            match x {
                 b'0'..=b'9' => {
                     output <<= 4;
-                    output |= (v1[x] - b'0') as u64;
-                }
-                b'A'..=b'F' => {
-                    output <<= 4;
-                    output |= (v1[x] - b'A' + 10) as u64;
+                    output |= (x - b'0') as u64;
                 }
                 b'a'..=b'f' => {
                     output <<= 4;
-                    output |= (v1[x] - b'a' + 10) as u64;
+                    output |= (x - b'a' + 10) as u64;
+                }
+                b'A'..=b'F' => {
+                    output <<= 4;
+                    output |= (x - b'A' + 10) as u64;
                 }
                 _ => {
                     return Err(iceyee_error::a!("出现未预期的字符"));
@@ -303,6 +299,446 @@ impl HexEncoder {
             }
         }
         return Ok(output);
+    }
+}
+
+/// 进制编码.
+#[derive(Clone, Debug)]
+pub struct RadixEncoder;
+
+impl RadixEncoder {
+    /// 字符串转64位整数.
+    ///
+    /// - @exception 出现未预期的字符.
+    pub fn string_to_u64(input: &str) -> Result<u64, String> {
+        enum Radix {
+            Binary,
+            Octal,
+            Hexadecimal,
+        }
+        let mut input: String = input.to_string().replace(" ", "").replace("_", "");
+        let radix: Radix = if input.starts_with("0b") {
+            input = input[2..].to_string();
+            input.truncate(64);
+            Radix::Binary
+        } else if input.starts_with("0o") {
+            input = input[2..].to_string();
+            input.truncate(22);
+            Radix::Octal
+        } else if input.starts_with("0x") {
+            input = input[2..].to_string();
+            input.truncate(16);
+            Radix::Hexadecimal
+        } else {
+            Radix::Hexadecimal
+        };
+        let mut output: u64 = 0;
+        match radix {
+            Radix::Binary => {
+                for x in input.as_bytes().iter() {
+                    match x {
+                        b'0'..=b'1' => {
+                            output <<= 1;
+                            output |= (x - b'0') as u64;
+                        }
+                        _ => {
+                            return Err(iceyee_error::a!("出现未预期的字符"));
+                        }
+                    }
+                }
+            }
+            Radix::Octal => {
+                for x in input.as_bytes().iter() {
+                    match x {
+                        b'0'..=b'7' => {
+                            output <<= 3;
+                            output |= (x - b'0') as u64;
+                        }
+                        _ => {
+                            return Err(iceyee_error::a!("出现未预期的字符"));
+                        }
+                    }
+                }
+            }
+            Radix::Hexadecimal => {
+                for x in input.as_bytes().iter() {
+                    match x {
+                        b'0'..=b'9' => {
+                            output <<= 4;
+                            output |= (x - b'0') as u64;
+                        }
+                        b'a'..=b'f' => {
+                            output <<= 4;
+                            output |= (x - b'a' + 10) as u64;
+                        }
+                        b'A'..=b'F' => {
+                            output <<= 4;
+                            output |= (x - b'A' + 10) as u64;
+                        }
+                        _ => {
+                            return Err(iceyee_error::a!("出现未预期的字符"));
+                        }
+                    }
+                }
+            }
+        }
+        return Ok(output);
+    }
+
+    pub fn u64_to_bin(input: u64) -> String {
+        let mut input: u64 = input;
+        let mut output: String = String::new();
+        for _x in 0..64 {
+            let y: u8 = input as u8 & 0b1;
+            input >>= 1;
+            output.push((y + b'0') as char);
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u64_to_bin_(input: u64) -> String {
+        let mut input: u64 = input;
+        let mut output: String = String::new();
+        for x in 0..64 {
+            if x != 0 && x % 8 == 0 {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0b1;
+            input >>= 1;
+            output.push((y + b'0') as char);
+        }
+        output.push('b');
+        output.push('0');
+        return output.chars().rev().collect();
+    }
+
+    pub fn u32_to_bin(input: u32) -> String {
+        let mut input: u32 = input;
+        let mut output: String = String::new();
+        for _x in 0..32 {
+            let y: u8 = input as u8 & 0b1;
+            input >>= 1;
+            output.push((y + b'0') as char);
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u32_to_bin_(input: u32) -> String {
+        let mut input: u32 = input;
+        let mut output: String = String::new();
+        for x in 0..32 {
+            if x != 0 && x % 8 == 0 {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0b1;
+            input >>= 1;
+            output.push((y + b'0') as char);
+        }
+        output.push('b');
+        output.push('0');
+        return output.chars().rev().collect();
+    }
+
+    pub fn u16_to_bin(input: u16) -> String {
+        let mut input: u16 = input;
+        let mut output: String = String::new();
+        for _x in 0..16 {
+            let y: u8 = input as u8 & 0b1;
+            input >>= 1;
+            output.push((y + b'0') as char);
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u16_to_bin_(input: u16) -> String {
+        let mut input: u16 = input;
+        let mut output: String = String::new();
+        for x in 0..16 {
+            if x != 0 && x % 8 == 0 {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0b1;
+            input >>= 1;
+            output.push((y + b'0') as char);
+        }
+        output.push('b');
+        output.push('0');
+        return output.chars().rev().collect();
+    }
+
+    pub fn u8_to_bin(input: u8) -> String {
+        let mut input: u8 = input;
+        let mut output: String = String::new();
+        for _x in 0..8 {
+            let y: u8 = input as u8 & 0b1;
+            input >>= 1;
+            output.push((y + b'0') as char);
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u8_to_bin_(input: u8) -> String {
+        let mut input: u8 = input;
+        let mut output: String = String::new();
+        for x in 0..8 {
+            if x != 0 && x % 8 == 0 {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0b1;
+            input >>= 1;
+            output.push((y + b'0') as char);
+        }
+        output.push('b');
+        output.push('0');
+        return output.chars().rev().collect();
+    }
+
+    pub fn u64_to_oct(input: u64) -> String {
+        let mut input: u64 = input;
+        let mut output: String = String::new();
+        for _x in 0..22 {
+            let y: u8 = input as u8 & 0b111;
+            input >>= 3;
+            output.push((y + b'0') as char);
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u64_to_oct_(input: u64) -> String {
+        let mut input: u64 = input;
+        let mut output: String = String::new();
+        for x in 0..22 {
+            if x != 0 && false {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0b111;
+            input >>= 3;
+            output.push((y + b'0') as char);
+        }
+        output.push('o');
+        output.push('0');
+        return output.chars().rev().collect();
+    }
+
+    pub fn u32_to_oct(input: u32) -> String {
+        let mut input: u32 = input;
+        let mut output: String = String::new();
+        for _x in 0..11 {
+            let y: u8 = input as u8 & 0b111;
+            input >>= 3;
+            output.push((y + b'0') as char);
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u32_to_oct_(input: u32) -> String {
+        let mut input: u32 = input;
+        let mut output: String = String::new();
+        for x in 0..11 {
+            if x != 0 && false {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0b111;
+            input >>= 3;
+            output.push((y + b'0') as char);
+        }
+        output.push('o');
+        output.push('0');
+        return output.chars().rev().collect();
+    }
+
+    pub fn u16_to_oct(input: u16) -> String {
+        let mut input: u16 = input;
+        let mut output: String = String::new();
+        for _x in 0..6 {
+            let y: u8 = input as u8 & 0b111;
+            input >>= 3;
+            output.push((y + b'0') as char);
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u16_to_oct_(input: u16) -> String {
+        let mut input: u16 = input;
+        let mut output: String = String::new();
+        for x in 0..6 {
+            if x != 0 && false {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0b111;
+            input >>= 3;
+            output.push((y + b'0') as char);
+        }
+        output.push('o');
+        output.push('0');
+        return output.chars().rev().collect();
+    }
+
+    pub fn u8_to_oct(input: u8) -> String {
+        let mut input: u8 = input;
+        let mut output: String = String::new();
+        for _x in 0..3 {
+            let y: u8 = input as u8 & 0b111;
+            input >>= 3;
+            output.push((y + b'0') as char);
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u8_to_oct_(input: u8) -> String {
+        let mut input: u8 = input;
+        let mut output: String = String::new();
+        for x in 0..3 {
+            if x != 0 && false {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0b111;
+            input >>= 3;
+            output.push((y + b'0') as char);
+        }
+        output.push('o');
+        output.push('0');
+        return output.chars().rev().collect();
+    }
+
+    pub fn u64_to_hex(input: u64) -> String {
+        let mut input: u64 = input;
+        let mut output: String = String::new();
+        for _x in 0..16 {
+            let y: u8 = input as u8 & 0xF;
+            input >>= 4;
+            if y < 10 {
+                output.push((y + b'0') as char);
+            } else {
+                output.push((y - 10 + b'A') as char);
+            }
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u64_to_hex_(input: u64) -> String {
+        let mut input: u64 = input;
+        let mut output: String = String::new();
+        for x in 0..16 {
+            if x != 0 && x % 4 == 0 {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0xF;
+            input >>= 4;
+            if y < 10 {
+                output.push((y + b'0') as char);
+            } else {
+                output.push((y - 10 + b'A') as char);
+            }
+        }
+        output.push('x');
+        output.push('0');
+        return output.chars().rev().collect();
+    }
+
+    pub fn u32_to_hex(input: u32) -> String {
+        let mut input: u32 = input;
+        let mut output: String = String::new();
+        for _x in 0..8 {
+            let y: u8 = input as u8 & 0xF;
+            input >>= 4;
+            if y < 10 {
+                output.push((y + b'0') as char);
+            } else {
+                output.push((y - 10 + b'A') as char);
+            }
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u32_to_hex_(input: u32) -> String {
+        let mut input: u32 = input;
+        let mut output: String = String::new();
+        for x in 0..8 {
+            if x != 0 && x % 4 == 0 {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0xF;
+            input >>= 4;
+            if y < 10 {
+                output.push((y + b'0') as char);
+            } else {
+                output.push((y - 10 + b'A') as char);
+            }
+        }
+        output.push('x');
+        output.push('0');
+        return output.chars().rev().collect();
+    }
+
+    pub fn u16_to_hex(input: u16) -> String {
+        let mut input: u16 = input;
+        let mut output: String = String::new();
+        for _x in 0..4 {
+            let y: u8 = input as u8 & 0xF;
+            input >>= 4;
+            if y < 10 {
+                output.push((y + b'0') as char);
+            } else {
+                output.push((y - 10 + b'A') as char);
+            }
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u16_to_hex_(input: u16) -> String {
+        let mut input: u16 = input;
+        let mut output: String = String::new();
+        for x in 0..4 {
+            if x != 0 && x % 4 == 0 {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0xF;
+            input >>= 4;
+            if y < 10 {
+                output.push((y + b'0') as char);
+            } else {
+                output.push((y - 10 + b'A') as char);
+            }
+        }
+        output.push('x');
+        output.push('0');
+        return output.chars().rev().collect();
+    }
+
+    pub fn u8_to_hex(input: u8) -> String {
+        let mut input: u8 = input;
+        let mut output: String = String::new();
+        for _x in 0..2 {
+            let y: u8 = input as u8 & 0xF;
+            input >>= 4;
+            if y < 10 {
+                output.push((y + b'0') as char);
+            } else {
+                output.push((y - 10 + b'A') as char);
+            }
+        }
+        return output.chars().rev().collect();
+    }
+
+    pub fn u8_to_hex_(input: u8) -> String {
+        let mut input: u8 = input;
+        let mut output: String = String::new();
+        for x in 0..2 {
+            if x != 0 && x % 4 == 0 {
+                output.push('_');
+            }
+            let y: u8 = input as u8 & 0xF;
+            input >>= 4;
+            if y < 10 {
+                output.push((y + b'0') as char);
+            } else {
+                output.push((y - 10 + b'A') as char);
+            }
+        }
+        output.push('x');
+        output.push('0');
+        return output.chars().rev().collect();
     }
 }
 

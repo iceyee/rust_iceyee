@@ -199,9 +199,9 @@ impl std::str::FromStr for Args {
             }
             let mut a001 = x.splitn(2, '=');
             let key: String = a001.next().unwrap().to_string();
-            let key: String = UrlEncoder::decode(&key).unwrap_or("".to_string());
+            let key: String = UrlEncoder::decode(&key).unwrap_or_else(|_| "".to_string());
             let value: String = a001.next().unwrap().to_string();
-            let value: String = UrlEncoder::decode(&value).unwrap_or("".to_string());
+            let value: String = UrlEncoder::decode(&value).unwrap_or_else(|_| "".to_string());
             if !args.hm.contains_key(&key) {
                 args.hm.insert(key.clone(), Vec::new());
             }
@@ -226,7 +226,7 @@ impl Args {
     }
 
     pub fn get<'a>(&'a self, key: &str) -> &'a Vec<String> {
-        return self.hm.get(key).unwrap_or(&self.empty_vec);
+        return self.hm.get(key).unwrap_or_else(|| &self.empty_vec);
     }
 }
 

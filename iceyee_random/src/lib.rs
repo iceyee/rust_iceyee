@@ -11,6 +11,7 @@ use std::time::SystemTime;
 
 thread_local! {
     static SEED: Cell<u64> = Cell::new(0);
+    static THREAD_ID: Cell<u64> = Cell::new(0);
 }
 
 // Enum.
@@ -35,9 +36,20 @@ impl Random {
     pub fn next() -> u64 {
         let mut seed: u64 = SEED.with(|seed| {
             if seed.get() == 0 {
-                init();
+                let id: u64 = get_thread_id();
+                let time: u64 = SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as u64;
+                seed.set(id ^ time);
             }
             seed.get()
+        });
+        let thread_id: u64 = THREAD_ID.with(|id| {
+            if id.get() == 0 {
+                id.set(get_thread_id() & 0xFFFFFFFF)
+            }
+            id.get()
         });
         const TABLE: [u64; 32] = [
             0x59763CEA1457DFC5,
@@ -79,11 +91,12 @@ impl Random {
             seed ^= TABLE[x];
             seed = ((seed as u128) + (TABLE[x + N] as u128)) as u64;
         }
+        seed += thread_id;
         SEED.with(|s| s.set(seed));
         return seed;
     }
 
-    /// 下一个不大于max的随机数, 相当于next() % max.
+    /// 下一个小于max的随机数, 相当于next() % max.
     pub fn next_less_than(max: u64) -> u64 {
         return Self::next() % max;
     }
@@ -91,38 +104,24 @@ impl Random {
 
 // Function.
 
-// 初始化种子.
-fn init() {
-    let id: u64 = get_thread_id();
-    let time: u64 = SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
-    let seed: u64 = id & 0xFFFF;
-    let seed: u64 = (seed << 48) | (seed << 32) | (seed << 16) | (seed << 0);
-    let seed: u64 = seed ^ time;
-    SEED.with(|s| s.set(seed));
-    return;
-}
-
 // 取线程id.
 fn get_thread_id() -> u64 {
     #[cfg(target_os = "linux")]
-    unsafe {
+    {
         // type pthread_t = long unsigned int.
         // pthread_t pthread_self(void);
         use std::ffi::c_ulong;
-        extern "C" {
+        unsafe extern "C" {
             fn pthread_self() -> c_ulong;
         }
-        return pthread_self() as u64;
+        return unsafe { pthread_self() } as u64;
     }
     #[cfg(target_os = "windows")]
-    unsafe {
+    {
         // DWORD GetCurrentThreadId();
-        extern "C" {
+        unsafe extern "C" {
             fn GetCurrentThreadId() -> u32;
         }
-        return GetCurrentThreadId() as u64;
+        return unsafe { GetCurrentThreadId() } as u64;
     }
 }
