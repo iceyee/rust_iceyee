@@ -14,8 +14,8 @@ use crate::http::server::Filter;
 use crate::http::server::R;
 use crate::http::Status;
 use iceyee_encoder::Base64Encoder;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -28,14 +28,14 @@ use std::pin::Pin;
 #[derive(Clone, Debug)]
 pub(in crate::http::server) struct FileRouter {
     root: String,
-    map: HashMap<String, String>,
+    map: BTreeMap<String, String>,
 }
 
 impl FileRouter {
     pub fn new(root: &str) -> FileRouter {
         let mut this = FileRouter {
             root: root.to_string(),
-            map: HashMap::new(),
+            map: BTreeMap::new(),
         };
         for (key, value) in [
             ("", "text/plain"),
@@ -195,15 +195,15 @@ impl Filter for FileRouter {
 
 #[derive(Clone, Debug)]
 pub(in crate::http::server) struct FilterHost {
-    full_hosts: HashSet<String>,
-    usual_hosts: HashSet<String>,
+    full_hosts: BTreeSet<String>,
+    usual_hosts: BTreeSet<String>,
 }
 
 impl FilterHost {
     pub fn new() -> FilterHost {
         let mut host_filter = FilterHost {
-            full_hosts: HashSet::new(),
-            usual_hosts: HashSet::new(),
+            full_hosts: BTreeSet::new(),
+            usual_hosts: BTreeSet::new(),
         };
         host_filter.full_hosts.insert("0.0.0.0".to_string());
         host_filter.full_hosts.insert("127.0.0.1".to_string());
@@ -268,13 +268,13 @@ impl Filter for FilterHost {
 
 /// 简单的用户认证.
 pub struct FilterBasicAuth {
-    auth_string_s: HashSet<String>,
+    auth_string_s: BTreeSet<String>,
 }
 
 impl FilterBasicAuth {
     pub fn new(user: &str, password: &str) -> Self {
         let this = Self {
-            auth_string_s: HashSet::new(),
+            auth_string_s: BTreeSet::new(),
         };
         return this.add(user, password);
     }

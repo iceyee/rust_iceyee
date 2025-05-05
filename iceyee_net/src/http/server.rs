@@ -31,7 +31,7 @@ use async_compression::tokio::bufread::GzipEncoder;
 use iceyee_encoder::HexEncoder;
 use iceyee_random::Random;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::future::Future;
 use std::net::IpAddr;
 use std::pin::Pin;
@@ -314,10 +314,10 @@ impl std::fmt::Display for Id {
 
 /// cookies.
 #[derive(Clone, Debug, Default)]
-pub struct Cookies(pub HashMap<String, String>);
+pub struct Cookies(pub BTreeMap<String, String>);
 
 impl std::ops::Deref for Cookies {
-    type Target = HashMap<String, String>;
+    type Target = BTreeMap<String, String>;
 
     fn deref(&self) -> &Self::Target {
         return &self.0;
@@ -349,24 +349,24 @@ impl std::str::FromStr for Cookies {
 
 impl Cookies {
     pub fn new() -> Self {
-        return Cookies(HashMap::new());
+        return Cookies(BTreeMap::new());
     }
 }
 
 /// 会话, 以键值的方式存储用户数据, 内部包含有读写锁.
 #[derive(Clone)]
-pub struct Session(pub Arc<TokioRwLock<HashMap<String, String>>>);
+pub struct Session(pub Arc<TokioRwLock<BTreeMap<String, String>>>);
 
 impl Session {
     pub fn new() -> Session {
-        return Session(Arc::new(TokioRwLock::new(HashMap::new())));
+        return Session(Arc::new(TokioRwLock::new(BTreeMap::new())));
     }
 
-    pub async fn read(&self) -> RwLockReadGuard<'_, HashMap<String, String>> {
+    pub async fn read(&self) -> RwLockReadGuard<'_, BTreeMap<String, String>> {
         return self.0.read().await;
     }
 
-    pub async fn write(&self) -> RwLockWriteGuard<'_, HashMap<String, String>> {
+    pub async fn write(&self) -> RwLockWriteGuard<'_, BTreeMap<String, String>> {
         return self.0.write().await;
     }
 }
@@ -438,10 +438,10 @@ impl R {
 pub struct HttpServer {
     connection_timeout: u64,
     session_timeout: u64,
-    sessions: Arc<TokioMutex<HashMap<String, Session>>>,
+    sessions: Arc<TokioMutex<BTreeMap<String, Session>>>,
     global_session: Session,
     filters_before_work: Vec<Arc<dyn Filter>>,
-    works: HashMap<String, Arc<dyn Work>>,
+    works: BTreeMap<String, Arc<dyn Work>>,
     filters_after_work: Vec<Arc<dyn Filter>>,
     filter_host: FilterHost,
     file_router: Option<FileRouter>,
@@ -455,10 +455,10 @@ impl HttpServer {
         let server = HttpServer {
             connection_timeout: 1_000 * 60,
             session_timeout: 1_000 * 60 * 60,
-            sessions: Arc::new(TokioMutex::new(HashMap::new())),
+            sessions: Arc::new(TokioMutex::new(BTreeMap::new())),
             global_session: Session::new(),
             filters_before_work: Vec::new(),
-            works: HashMap::new(),
+            works: BTreeMap::new(),
             filters_after_work: Vec::new(),
             filter_host: FilterHost::new(),
             file_router: None,
