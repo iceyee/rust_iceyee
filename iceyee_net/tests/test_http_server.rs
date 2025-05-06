@@ -146,7 +146,7 @@ pub async fn test_first_work() {
         .add_work(WorkJson.wrap())
         .test("localhost", 10877)
         .await
-        .expect("HttpServer::test()");
+        .expect("HttpServer::test");
     // let _ = HttpClient::get(false, "http://localhost:10877/first_work", "").await;
     // let _ = HttpClient::get(false, "http://localhost:10877/error", "").await;
     // let _ = HttpClient::get(false, "http://localhost:10877/json", "").await;
@@ -157,7 +157,7 @@ pub async fn test_first_work() {
         .expect("NEVER")
         .send(Some(proxy.clone()))
         .await
-        .expect("HttpClient::send()");
+        .expect("HttpClient::send");
     HttpClient::new()
         .set_verbose(false)
         .set_url("http://localhost:10877/error")
@@ -165,7 +165,7 @@ pub async fn test_first_work() {
         .set_header("Authorization", "Basic aWNleWVlOjc0NTkxODcw")
         .send(Some(proxy.clone()))
         .await
-        .expect("HttpClient::send()");
+        .expect("HttpClient::send");
     HttpClient::new()
         .set_verbose(false)
         .set_url("http://localhost:10877/json")
@@ -173,7 +173,7 @@ pub async fn test_first_work() {
         .set_header("Authorization", "Basic aWNleWVlOjc0NTkxODcw")
         .send(Some(proxy.clone()))
         .await
-        .expect("HttpClient::send()");
+        .expect("HttpClient::send");
     stop.store(true, SeqCst);
     iceyee_time::sleep(300).await;
     return;

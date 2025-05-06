@@ -11,7 +11,7 @@ pub mod client;
 pub mod server;
 
 use iceyee_encoder::UrlEncoder;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::time::Duration;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
@@ -157,7 +157,7 @@ impl Status {
 /// Url参数.
 #[derive(Clone, Debug, Default)]
 pub struct Args {
-    hm: HashMap<String, Vec<String>>,
+    hm: BTreeMap<String, Vec<String>>,
     empty_vec: Vec<String>,
 }
 
@@ -517,7 +517,7 @@ pub struct Request {
     pub query: Args,
     pub fragment: Option<String>,
     pub version: String,
-    pub header: HashMap<String, String>,
+    pub header: BTreeMap<String, String>,
     pub body: Vec<u8>,
 }
 
@@ -529,7 +529,7 @@ impl std::default::Default for Request {
             query: Args::default(),
             fragment: None,
             version: "HTTP/1.1".to_string(),
-            header: HashMap::with_capacity(0xFF),
+            header: BTreeMap::new(),
             body: Vec::new(),
         };
     }
@@ -538,7 +538,7 @@ impl std::default::Default for Request {
 /// 转成报文, 但不包含请求正文.
 impl ToString for Request {
     fn to_string(&self) -> String {
-        let mut output: String = String::with_capacity(0xFFF);
+        let mut output: String = String::new();
         output.push_str(&self.method);
         output.push_str(" ");
         output.push_str(&self.path);
@@ -798,7 +798,7 @@ pub struct Response {
     pub version: String,
     pub status_code: u16,
     pub status: String,
-    pub header: HashMap<String, Vec<String>>,
+    pub header: BTreeMap<String, Vec<String>>,
     pub body: Vec<u8>,
 }
 
@@ -808,7 +808,7 @@ impl std::default::Default for Response {
             version: "HTTP/1.1".to_string(),
             status_code: 200,
             status: "OK".to_string(),
-            header: HashMap::with_capacity(0xFF),
+            header: BTreeMap::new(),
             body: Vec::new(),
         };
     }
