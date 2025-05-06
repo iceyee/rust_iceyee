@@ -47,6 +47,8 @@ use iceyee_time::Timer;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::fs::File;
@@ -55,7 +57,17 @@ use tokio::io::AsyncWriteExt;
 use tokio::io::Stdout;
 use tokio::sync::Mutex as TokioMutex;
 
-static LOGGER: TokioMutex<Option<Arc<Logger>>> = TokioMutex::const_new(None);
+lazy_static::lazy_static! {
+static ref LOGGER: Logger = Logger {
+    timer: Timer::new(),
+    time: Arc::new(TokioMutex::new(DateTime::new().to_string())),
+    level: Arc::new(AtomicUsize::new(Level::default().to_usize())),
+    project_name: Arc::new(TokioMutex::new(None)),
+    target_directory: Arc::new(TokioMutex::new(None)),
+    warn_file: Arc::new(TokioMutex::new(None)),
+    error_file: Arc::new(TokioMutex::new(None)),
+};
+}
 
 // Enum.
 
@@ -77,8 +89,8 @@ pub enum Level {
     Error,
 }
 
-impl From<u64> for Level {
-    fn from(value: u64) -> Self {
+impl From<usize> for Level {
+    fn from(value: usize) -> Self {
         match value {
             0 => Self::Debug,
             1 => Self::Info,
@@ -89,8 +101,8 @@ impl From<u64> for Level {
     }
 }
 
-impl Into<u64> for Level {
-    fn into(self) -> u64 {
+impl Level {
+    fn to_usize(&self) -> usize {
         return match self {
             Self::Debug => 0,
             Self::Info => 1,
@@ -102,8 +114,8 @@ impl Into<u64> for Level {
 
 impl PartialOrd for Level {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let x: u64 = self.clone().into();
-        let y: u64 = other.clone().into();
+        let x: usize = self.clone().to_usize();
+        let y: usize = other.clone().to_usize();
         return x.partial_cmp(&y);
     }
 }
@@ -135,15 +147,15 @@ impl Level {
 // Struct.
 
 /// 日志.
-// #[allow(dead_code)]
+#[derive(Clone)]
 pub struct Logger {
     timer: Timer,
-    time: TokioMutex<String>,
-    level: Level,
-    project_name: Option<String>,
-    target_directory: Option<String>,
-    warn_file: TokioMutex<Option<File>>,
-    error_file: TokioMutex<Option<File>>,
+    time: Arc<TokioMutex<String>>,
+    level: Arc<AtomicUsize>,
+    project_name: Arc<TokioMutex<Option<String>>>,
+    target_directory: Arc<TokioMutex<Option<String>>>,
+    warn_file: Arc<TokioMutex<Option<File>>>,
+    error_file: Arc<TokioMutex<Option<File>>>,
 }
 
 /// 更新时间.
@@ -161,7 +173,7 @@ impl Schedule1 for Logger {
         'a: 'b,
     {
         return Box::pin(async {
-            *self.time.lock().await = DateTime::new().to_string();
+            *LOGGER.time.lock().await = DateTime::new().to_string();
             return true;
         });
     }
@@ -181,17 +193,20 @@ impl Schedule2 for Logger {
         'a: 'b,
     {
         return Box::pin(async {
-            if self.project_name.is_none() {
+            let project_name: Option<String> = LOGGER.project_name.lock().await.clone();
+            if project_name.is_none() {
                 return true;
             }
-            let project_name: String = self.project_name.as_ref().expect("NEVER").clone();
-            let target_directory: String = self
+            let project_name: String = project_name.as_ref().expect("NEVER").clone();
+            let target_directory: String = LOGGER
                 .target_directory
+                .lock()
+                .await
                 .clone()
                 .unwrap_or_else(|| default_target());
             let path: String = target_directory.clone() + "/" + &project_name;
             // 刷新缓存, 然后关闭文件.
-            let mut warn_file = self.warn_file.lock().await;
+            let mut warn_file = LOGGER.warn_file.lock().await;
             if warn_file.is_some() {
                 warn_file
                     .as_mut()
@@ -201,7 +216,7 @@ impl Schedule2 for Logger {
                     .expect("File::flush");
             }
             *warn_file = None;
-            let mut error_file = self.error_file.lock().await;
+            let mut error_file = LOGGER.error_file.lock().await;
             if error_file.is_some() {
                 error_file
                     .as_mut()
@@ -263,12 +278,15 @@ impl Schedule3 for Logger {
         'a: 'b,
     {
         return Box::pin(async {
-            if self.project_name.is_none() {
+            let project_name: Option<String> = LOGGER.project_name.lock().await.clone();
+            if project_name.is_none() {
                 return true;
             }
-            let project_name: String = self.project_name.as_ref().expect("NEVER").clone();
-            let target_directory: String = self
+            let project_name: String = project_name.as_ref().expect("NEVER").clone();
+            let target_directory: String = LOGGER
                 .target_directory
+                .lock()
+                .await
                 .clone()
                 .unwrap_or_else(|| default_target());
             let path: String = target_directory.clone() + "/" + &project_name;
@@ -311,7 +329,7 @@ impl Schedule4 for Logger {
         'a: 'b,
     {
         return Box::pin(async {
-            let mut warn_file = self.warn_file.lock().await;
+            let mut warn_file = LOGGER.warn_file.lock().await;
             if warn_file.is_some() {
                 warn_file
                     .as_mut()
@@ -321,7 +339,7 @@ impl Schedule4 for Logger {
                     .expect("File::flush");
             }
             drop(warn_file);
-            let mut error_file = self.error_file.lock().await;
+            let mut error_file = LOGGER.error_file.lock().await;
             if error_file.is_some() {
                 error_file
                     .as_mut()
@@ -339,8 +357,8 @@ impl Schedule4 for Logger {
     where
         'a: 'b,
     {
-        return Box::pin(async move {
-            let mut warn_file = self.warn_file.lock().await;
+        return Box::pin(async {
+            let mut warn_file = LOGGER.warn_file.lock().await;
             if warn_file.is_some() {
                 warn_file
                     .as_mut()
@@ -350,7 +368,7 @@ impl Schedule4 for Logger {
                     .expect("File::flush");
             }
             drop(warn_file);
-            let mut error_file = self.error_file.lock().await;
+            let mut error_file = LOGGER.error_file.lock().await;
             if error_file.is_some() {
                 error_file
                     .as_mut()
@@ -365,51 +383,64 @@ impl Schedule4 for Logger {
     }
 }
 
+// pub struct Logger {
+//     timer: Timer,
+//     time: TokioMutex<String>,
+//     level: AtomicUsize,
+//     project_name: TokioMutex<Option<String>>,
+//     target_directory: TokioMutex<Option<String>>,
+//     warn_file: TokioMutex<Option<File>>,
+//     error_file: TokioMutex<Option<File>>,
+// }
+
 impl Logger {
-    pub async fn new(
+    pub async fn init(
         level: Option<Level>,
         project_name: Option<&str>,
         target_directory: Option<&str>,
-    ) -> Arc<Self> {
-        let this: Logger = Logger {
-            timer: Timer::new(),
-            time: TokioMutex::new(DateTime::new().to_string()),
-            level: level.unwrap_or_else(|| Level::default()),
-            project_name: project_name
-                .map(|x| x.trim().to_string())
-                .filter(|x| x.len() != 0),
-            target_directory: target_directory
-                .map(|x| x.trim().to_string())
-                .filter(|x| x.len() != 0),
-            warn_file: TokioMutex::new(None),
-            error_file: TokioMutex::new(None),
-        };
-        let this: Arc<Logger> = Arc::new(this);
+    ) {
+        LOGGER.timer.stop_and_wait().await;
+        LOGGER.timer.start().await;
+        let level = level.unwrap_or_else(|| Level::default());
+        LOGGER.level.store(level.to_usize(), SeqCst);
+        *LOGGER.project_name.lock().await = project_name.clone().and_then(|x| Some(x.to_string()));
+        *LOGGER.target_directory.lock().await =
+            target_directory.clone().and_then(|x| Some(x.to_string()));
+        *LOGGER.warn_file.lock().await = None;
+        *LOGGER.error_file.lock().await = None;
         // 打开文件.
         {
-            let (warn_file, error_file) = Self::create_file(this.clone()).await;
-            *this.warn_file.lock().await = warn_file;
-            *this.error_file.lock().await = error_file;
+            let (warn_file, error_file) = Self::create_file().await;
+            *LOGGER.warn_file.lock().await = warn_file;
+            *LOGGER.error_file.lock().await = error_file;
         }
         // 更新时间.
-        this.timer.schedule1(this.clone()).await;
+        LOGGER.timer.schedule1(LOGGER.clone().wrap1()).await;
         // 重命名.
-        this.timer.schedule2(this.clone()).await;
+        LOGGER.timer.schedule2(LOGGER.clone().wrap2()).await;
         // 删除两个月前的文件.
-        this.timer.schedule3(this.clone()).await;
+        LOGGER.timer.schedule3(LOGGER.clone().wrap3()).await;
         // 更新缓存.
-        this.timer.schedule4(this.clone()).await;
-        return this;
+        LOGGER.timer.schedule4(LOGGER.clone().wrap4()).await;
+        return;
     }
 
     // 创建目录文件.
-    async fn create_file(logger: Arc<Logger>) -> (Option<File>, Option<File>) {
-        if logger.project_name.is_none() {
+    async fn create_file() -> (Option<File>, Option<File>) {
+        if LOGGER.project_name.lock().await.is_none() {
             return (None, None);
         }
-        let project_name: String = logger.project_name.as_ref().expect("NEVER").clone();
-        let target_directory: String = logger
+        let project_name: String = LOGGER
+            .project_name
+            .lock()
+            .await
+            .as_ref()
+            .expect("NEVER")
+            .clone();
+        let target_directory: String = LOGGER
             .target_directory
+            .lock()
+            .await
             .clone()
             .unwrap_or_else(|| default_target());
         let path: String = target_directory.clone() + "/" + &project_name;
@@ -432,13 +463,13 @@ impl Logger {
     }
 
     pub async fn print(&self, level: Level, message: &str) {
+        if level.to_usize() < self.level.load(SeqCst) {
+            return;
+        }
         static STDOUT: TokioMutex<Option<Stdout>> = TokioMutex::const_new(None);
         let mut stdout = STDOUT.lock().await;
         if stdout.is_none() {
             *stdout = Some(tokio::io::stdout());
-        }
-        if level < self.level {
-            return;
         }
         let time: String = self.time.lock().await.clone();
         let message: String = message.to_string().replace("\n", "\n    ");
@@ -542,21 +573,13 @@ pub async fn init(
     project_name: Option<&str>,
     target_directory: Option<&str>,
 ) {
-    let mut logger = LOGGER.lock().await;
-    if logger.is_some() {
-        logger.as_mut().expect("NEVER").timer.stop_and_wait().await;
-    }
-    *logger = Some(Logger::new(level, project_name, target_directory).await);
+    Logger::init(level, project_name, target_directory).await;
     return;
 }
 
 /// 输出日志.
 pub async fn print(level: Level, message: &str) {
-    let mut logger = LOGGER.lock().await;
-    if logger.is_none() {
-        *logger = Some(Logger::new(None, None, None).await);
-    }
-    logger.as_ref().expect("NEVER").print(level, message).await;
+    LOGGER.print(level, message).await;
     return;
 }
 
