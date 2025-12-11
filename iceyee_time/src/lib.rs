@@ -487,11 +487,11 @@ impl std::default::Default for Timer {
     fn default() -> Self {
         static TIMER: Mutex<Option<Timer>> = Mutex::new(None);
         static O: Once = Once::new();
-        O.call_once(|| *TIMER.lock().expect("Mutex::lock") = Some(Timer::new()));
+        O.call_once(|| *TIMER.lock().expect("TIMER") = Some(Timer::new()));
         O.wait();
         return TIMER
             .lock()
-            .expect("Mutex::lock")
+            .expect("TIMER")
             .as_ref()
             .expect("NEVER")
             .clone();

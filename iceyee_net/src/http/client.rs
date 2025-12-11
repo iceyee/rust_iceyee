@@ -156,6 +156,9 @@ impl Proxy for NoProxy {
                 TokioTcpStream::connect((target_host.clone(), target_port))
                     .await
                     .map_err(|e| iceyee_error::a!(e))?;
+            plain_socket
+                .set_nodelay(true)
+                .map_err(|e| iceyee_error::a!(e))?;
             if !using_ssl {
                 self.plain_socket = Some(plain_socket);
             } else {
@@ -249,6 +252,9 @@ impl Proxy for HttpProxy {
                 TokioTcpStream::connect((self.proxy_host.clone(), self.proxy_port))
                     .await
                     .map_err(|e| iceyee_error::a!(e))?;
+            plain_socket
+                .set_nodelay(true)
+                .map_err(|e| iceyee_error::a!(e))?;
             // 2 CONNECT.
             let mut request: Request = Request::default();
             request.method = "CONNECT".to_string();
@@ -390,6 +396,9 @@ impl Proxy for Socks5Proxy {
                 TokioTcpStream::connect((self.proxy_host.clone(), self.proxy_port))
                     .await
                     .map_err(|e| iceyee_error::a!(e))?;
+            plain_socket
+                .set_nodelay(true)
+                .map_err(|e| iceyee_error::a!(e))?;
             // 2 认证.
             // client:
             // +----+----------+----------+

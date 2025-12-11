@@ -18,7 +18,7 @@ use iceyee_net::http::client::Proxy;
 
 // Function.
 
-// #[tokio::test]
+#[tokio::test]
 #[allow(unused_variables)]
 pub async fn test_httpclient_no_proxy() {
     println!("");
