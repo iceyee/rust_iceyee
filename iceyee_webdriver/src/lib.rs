@@ -33,6 +33,8 @@ pub async fn chrome(
     headless: bool,
     http_proxy: Option<String>,
     socks5_proxy: Option<String>,
+    socks5_username: Option<String>,
+    socks5_password: Option<String>,
 ) -> WebDriverResult<(WebDriver, Child)> {
     let port: u64 = Random::next() % 0x7FFF + 0xFFF;
     let child = std::process::Command::new("chromium.chromedriver")
@@ -53,8 +55,8 @@ pub async fn chrome(
         ssl_proxy: None,
         socks_proxy: socks5_proxy.clone(),
         socks_version: Some(5),
-        socks_username: None,
-        socks_password: None,
+        socks_username: socks5_username.clone(),
+        socks_password: socks5_password.clone(),
         no_proxy: None,
     };
     if http_proxy.is_some() || socks5_proxy.is_some() {
@@ -91,6 +93,8 @@ pub async fn edge(
     headless: bool,
     http_proxy: Option<String>,
     socks5_proxy: Option<String>,
+    socks5_username: Option<String>,
+    socks5_password: Option<String>,
 ) -> WebDriverResult<(WebDriver, Child)> {
     let _headless = if headless { "--headless" } else { " " };
     let port: u64 = Random::next() % 0x7FFF + 0xFFF;
@@ -108,8 +112,8 @@ pub async fn edge(
         ssl_proxy: None,
         socks_proxy: socks5_proxy.clone(),
         socks_version: Some(5),
-        socks_username: None,
-        socks_password: None,
+        socks_username: socks5_username.clone(),
+        socks_password: socks5_password.clone(),
         no_proxy: None,
     };
     if http_proxy.is_some() || socks5_proxy.is_some() {
