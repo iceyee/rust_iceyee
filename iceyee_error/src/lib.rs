@@ -56,15 +56,15 @@
 //! Inherit error at iceyee_error/tests/test_a.rs:25:16
 //! ```
 
-// Use.
+/* Use. */
 
-// Enum.
+/* Enum. */
 
-// Trait.
+/* Trait. */
 
-// Struct.
+/* Struct. */
 
-// Function.
+/* Function. */
 
 /// 创建异常.
 ///
@@ -115,6 +115,26 @@ macro_rules! b {
                 message.push_str(", ");
                 message.push_str($x.to_string().as_str());
             )*
+            message
+        }
+    };
+}
+
+/// 堆栈信息.
+///
+/// @return [String]
+#[macro_export]
+macro_rules! c {
+    ($($x:expr),* $(,)?) => {
+        {
+            let mut message = String::new();
+            $(
+                message.push_str($x.to_string().as_str());
+                message.push_str(" ");
+            )*
+            let message = format!("error: {}\n{}", 
+                    message,
+                    std::backtrace::Backtrace::force_capture());
             message
         }
     };

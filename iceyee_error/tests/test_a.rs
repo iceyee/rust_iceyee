@@ -35,5 +35,7 @@ pub fn a() {
     println!("{}", a005);
     println!("继承异常, 无参数");
     println!("{}", a006);
+    println!("{}", iceyee_error::c!("hello world"));
+    println!("{}", iceyee_error::c!(1, 2, 3));
     return;
 }
