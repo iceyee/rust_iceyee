@@ -19,7 +19,7 @@
 
 pub mod component;
 
-// Use.
+/* Use. */
 
 pub use crate::http::Request;
 pub use crate::http::Response;
@@ -48,9 +48,9 @@ use tokio::sync::RwLockReadGuard;
 use tokio::sync::RwLockWriteGuard;
 use tokio::sync::Semaphore;
 
-// Enum.
+/* Enum. */
 
-// Trait.
+/* Trait. */
 
 /// 过滤器.
 ///
@@ -259,7 +259,7 @@ pub trait Work: Send + Sync {
     }
 }
 
-// Struct.
+/* Struct. */
 
 /// 一般用于[Response]返回的json对象.
 #[derive(Clone, Debug, Serialize)]
@@ -437,14 +437,14 @@ impl R {
 #[derive(Clone)]
 pub struct HttpServer {
     connection_timeout: u64,
+    file_router: Option<FileRouter>,
+    filter_host: FilterHost,
+    filters_after_work: Vec<Arc<dyn Filter>>,
+    filters_before_work: Vec<Arc<dyn Filter>>,
+    global_session: Session,
     session_timeout: u64,
     sessions: Arc<TokioMutex<BTreeMap<String, Session>>>,
-    global_session: Session,
-    filters_before_work: Vec<Arc<dyn Filter>>,
     works: BTreeMap<String, Arc<dyn Work>>,
-    filters_after_work: Vec<Arc<dyn Filter>>,
-    filter_host: FilterHost,
-    file_router: Option<FileRouter>,
 }
 
 // unsafe impl Send for HttpServer {}
@@ -454,14 +454,14 @@ impl HttpServer {
     pub fn new() -> Self {
         let server = HttpServer {
             connection_timeout: 1_000 * 60,
+            file_router: None,
+            filter_host: FilterHost::new(),
+            filters_after_work: Vec::new(),
+            filters_before_work: Vec::new(),
+            global_session: Session::new(),
             session_timeout: 1_000 * 60 * 60,
             sessions: Arc::new(TokioMutex::new(BTreeMap::new())),
-            global_session: Session::new(),
-            filters_before_work: Vec::new(),
             works: BTreeMap::new(),
-            filters_after_work: Vec::new(),
-            filter_host: FilterHost::new(),
-            file_router: None,
         };
         return server;
     }
@@ -540,8 +540,8 @@ impl HttpServer {
             .push(self.filter_host.clone().wrap());
         let listener: TokioTcpListener = TokioTcpListener::bind((address, port))
             .await
-            .map_err(|e| iceyee_error::a!(e))?;
-        let address = listener.local_addr().map_err(|e| iceyee_error::a!(e))?;
+            .map_err(|e| iceyee_error::c!(e))?;
+        let address = listener.local_addr().map_err(|e| iceyee_error::c!(e))?;
         let server = Arc::new(self);
         let _server = server.clone();
         let semaphore: Arc<Semaphore> = Arc::new(Semaphore::new(0));
@@ -578,12 +578,11 @@ impl HttpServer {
                                     Some(server.connection_timeout),
                                 )
                                 .await
-                                .map_err(|e| iceyee_error::b!(e, "read request"))
                                 {
                                     Ok(r) => r,
                                     Err(e) => {
                                         if e.contains("TimedOut") {
-                                            iceyee_logger::debug!("超时异常断开连接", ip, id);
+                                            iceyee_logger::debug!("超时断开连接", ip, id);
                                             break;
                                         } else {
                                             iceyee_logger::debug!("输入异常断开连接", ip, id);
@@ -595,10 +594,7 @@ impl HttpServer {
                                 let mut context: Context =
                                     Self::build_context(server.clone(), request, id.clone()).await;
                                 let close: bool = Self::process(server, &mut context).await;
-                                if let Err(e) = Self::write_to_tcp(&mut tcp, &context)
-                                    .await
-                                    .map_err(|e| iceyee_error::b!(e, "write to tcp"))
-                                {
+                                if let Err(e) = Self::write_to_tcp(&mut tcp, &context).await {
                                     iceyee_logger::debug!("输出异常断开连接", ip, id);
                                     iceyee_logger::error!(e);
                                     break;
@@ -608,7 +604,7 @@ impl HttpServer {
                                     break;
                                 }
                             }
-                            // 关闭连接.
+                            /* 关闭连接. */
                             {
                                 if let Err(e) = tcp.shutdown().await {
                                     iceyee_logger::error!(e);
@@ -627,7 +623,7 @@ impl HttpServer {
         semaphore
             .acquire()
             .await
-            .expect("Semaphore::acquire()")
+            .expect("Semaphore::acquire")
             .forget();
         let _stop = stop.clone();
         tokio::task::spawn(async move {
@@ -643,9 +639,7 @@ impl HttpServer {
 
     /// 启动服务器.
     pub async fn start(self, address: &str, port: u16) -> Result<(), String> {
-        let mut stop = Self::test(self, address, port)
-            .await
-            .map_err(|e| iceyee_error::b!(e, ""))?;
+        let mut stop = Self::test(self, address, port).await?;
         println!("---- 输入[Ctrl+C]停止. ----");
         tokio::signal::ctrl_c().await.expect("");
         println!("---- 退出服务端. ----");
@@ -761,7 +755,7 @@ impl HttpServer {
             }
         }
         if !stop && !done && server.file_router.is_some() {
-            // Work不匹配, 则找本地文件.
+            /* Work不匹配, 则找本地文件. */
             let file_router = server.file_router.as_ref().expect("NEVER");
             if file_router.rule(context).await {
                 match file_router.do_filter(context).await {
@@ -794,7 +788,7 @@ impl HttpServer {
                 }
             }
         }
-        // Connection: close.
+        /* Connection: close. */
         let close: bool = if context.request.header.contains_key("Connection")
             && context.request.header.get("Connection").expect("NEVER") == "close"
         {
@@ -810,7 +804,7 @@ impl HttpServer {
                 .insert("Connection".to_string(), vec!["keep-alive".to_string()]);
             false
         };
-        // 输出.
+        /* 输出. */
         iceyee_logger::debug!(
             "\n",
             context.id,
@@ -824,8 +818,8 @@ impl HttpServer {
             context.response.status_code,
             context.response.status
         );
-        // Content-Length.
-        // chunk.
+        /* Content-Length. */
+        /* chunk. */
         match context
             .request
             .header
@@ -878,10 +872,10 @@ impl HttpServer {
     async fn write_to_tcp(tcp: &mut TokioTcpStream, context: &Context) -> Result<(), String> {
         tcp.write_all(context.response.to_string().as_bytes())
             .await
-            .map_err(|e| iceyee_error::a!(e))?;
+            .map_err(|e| iceyee_error::c!(e))?;
         tcp.write_all(context.response.body.as_slice())
             .await
-            .map_err(|e| iceyee_error::a!(e))?;
+            .map_err(|e| iceyee_error::c!(e))?;
         return Ok(());
     }
 
@@ -916,7 +910,7 @@ impl HttpServer {
     }
 }
 
-// Function.
+/* Function. */
 
 fn ipv4_to_string(ip: std::net::Ipv4Addr) -> String {
     let ip = ip.octets();

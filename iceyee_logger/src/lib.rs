@@ -36,7 +36,7 @@
 //! - @see [iceyee_time](../iceyee_time/index.html)
 //! - @see [tokio](../tokio/index.html)
 
-// Use.
+/* Use. */
 
 use iceyee_time::DateTime;
 use iceyee_time::Schedule1;
@@ -69,7 +69,7 @@ static ref LOGGER: Logger = Logger {
 };
 }
 
-// Enum.
+/* Enum. */
 
 /// 日志等级.
 ///
@@ -142,9 +142,9 @@ impl Level {
     }
 }
 
-// Trait.
+/* Trait. */
 
-// Struct.
+/* Struct. */
 
 /// 日志.
 #[derive(Clone)]
@@ -205,7 +205,7 @@ impl Schedule2 for Logger {
                 .clone()
                 .unwrap_or_else(|| default_target());
             let path: String = target_directory.clone() + "/" + &project_name;
-            // 刷新缓存, 然后关闭文件.
+            /* 刷新缓存, 然后关闭文件. */
             let mut warn_file = LOGGER.warn_file.lock().await;
             if warn_file.is_some() {
                 warn_file
@@ -291,7 +291,7 @@ impl Schedule3 for Logger {
                 .unwrap_or_else(|| default_target());
             let path: String = target_directory.clone() + "/" + &project_name;
             let mut dirs = tokio::fs::read_dir(&path).await.expect("fs::read_dir");
-            // 删除两个月前的文件.
+            /* 删除两个月前的文件. */
             while let Ok(Some(entry)) = dirs.next_entry().await {
                 let t: SystemTime = entry
                     .metadata()
@@ -408,24 +408,24 @@ impl Logger {
             target_directory.clone().and_then(|x| Some(x.to_string()));
         *LOGGER.warn_file.lock().await = None;
         *LOGGER.error_file.lock().await = None;
-        // 打开文件.
+        /* 打开文件. */
         {
             let (warn_file, error_file) = Self::create_file().await;
             *LOGGER.warn_file.lock().await = warn_file;
             *LOGGER.error_file.lock().await = error_file;
         }
-        // 更新时间.
+        /* 更新时间. */
         LOGGER.timer.schedule1(LOGGER.clone().wrap1()).await;
-        // 重命名.
+        /* 重命名. */
         LOGGER.timer.schedule2(LOGGER.clone().wrap2()).await;
-        // 删除两个月前的文件.
+        /* 删除两个月前的文件. */
         LOGGER.timer.schedule3(LOGGER.clone().wrap3()).await;
-        // 更新缓存.
+        /* 更新缓存. */
         LOGGER.timer.schedule4(LOGGER.clone().wrap4()).await;
         return;
     }
 
-    // 创建目录文件.
+    /* 创建目录文件. */
     async fn create_file() -> (Option<File>, Option<File>) {
         if LOGGER.project_name.lock().await.is_none() {
             return (None, None);
@@ -548,10 +548,11 @@ impl Logger {
     }
 }
 
-// Function.
+/* Function. */
 
 /// 日志的默认路径.
 pub fn default_target() -> String {
+    tokio::task::spawn(async move {});
     return home_dir() + "/.iceyee_log";
 }
 

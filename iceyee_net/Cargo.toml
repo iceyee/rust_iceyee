@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_net"
-version = "12.0.2"
+version = "12.1.0"
 edition = "2024"
 
 description = "Net Protocol."
@@ -17,9 +17,9 @@ repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_net/"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-compression = { version = "0.4", features = ["all"] }
+async-compression = { version = "0.3", features = ["all"] }
 iceyee_encoder = "12"
-iceyee_error = "12"
+iceyee_error = "12.1"
 iceyee_logger = "12"
 iceyee_random = "12"
 iceyee_time = "12"

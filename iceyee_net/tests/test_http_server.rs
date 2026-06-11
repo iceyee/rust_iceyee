@@ -87,7 +87,7 @@ impl Work for WorkError {
     {
         return Box::pin(async {
             let _ = context;
-            Err("100%触发异常.".to_string())?;
+            Err(iceyee_error::c!("100%触发异常."))?;
             return Ok(());
         });
     }

@@ -7,7 +7,7 @@
 
 //! SMTP协议.
 
-// Use.
+/* Use. */
 
 use lettre::address::Address;
 use lettre::message::Message;
@@ -15,11 +15,11 @@ use lettre::transport::smtp::authentication::Credentials;
 use lettre::transport::smtp::SmtpTransport;
 use lettre::Transport;
 
-// Enum.
+/* Enum. */
 
-// Trait.
+/* Trait. */
 
-// Struct.
+/* Struct. */
 
 pub struct MailAgent;
 
@@ -69,4 +69,4 @@ impl MailAgent {
     }
 }
 
-// Function.
+/* Function. */
