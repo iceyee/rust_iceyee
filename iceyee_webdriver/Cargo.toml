@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_webdriver"
-version = "6.0.0"
+version = "7.0.0"
 edition = "2024"
 
 description = "web selenium."
@@ -22,5 +22,5 @@ iceyee_logger = "12"
 iceyee_random = "12" 
 iceyee_time = "12" 
 serde_json = "1.0" 
-thirtyfour = "0.31" 
+thirtyfour = "0.31"
 tokio = { version = "1", features = ["full"] } 

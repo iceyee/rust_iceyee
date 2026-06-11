@@ -17,17 +17,15 @@ use thirtyfour::WebDriver;
 
 // Function.
 
-// #[tokio::test]
+#[tokio::test]
 pub async fn _1() {
     println!("");
-    let (driver, _child) = iceyee_webdriver::chrome(false, None, None)
-        .await
-        .expect("test_1.rs 017");
+    let (driver, _child) = iceyee_webdriver::chrome(false, None, None).await.expect("");
     if let Err(e) = _2(&driver).await {
         println!("{}", e.to_string());
     }
-    // iceyee_time::sleep(20_000).await;
-    // let _ = driver.quit().await;
+    let _ = tokio::signal::ctrl_c().await;
+    let _ = driver.quit().await;
     return;
 }
 
@@ -57,7 +55,7 @@ pub async fn _3() {
     let (driver, _child) =
         iceyee_webdriver::chrome(false, None, Some("localhost:1082".to_string()))
             .await
-            .expect("test_1.rs 017");
+            .expect("");
     iceyee_time::sleep(3_000).await;
     let _ = driver.goto("https://steamcommunity.com/").await;
     let _ = tokio::signal::ctrl_c().await;

@@ -10,7 +10,7 @@
 //! - @see [thirtyfour](../thirtyfour/index.html)
 //! - @see [tokio](../tokio/index.html)
 
-// Use.
+/* Use. */
 
 use cookie::SameSite;
 use iceyee_random::Random;
@@ -21,20 +21,18 @@ use thirtyfour::ChromeCapabilities;
 use thirtyfour::EdgeCapabilities;
 use tokio::io::AsyncWriteExt;
 
-// Enum.
+/* Enum. */
 
-// Trait.
+/* Trait. */
 
-// Struct.
+/* Struct. */
 
-// Function.
+/* Function. */
 
 pub async fn chrome(
     headless: bool,
     http_proxy: Option<String>,
     socks5_proxy: Option<String>,
-    socks5_username: Option<String>,
-    socks5_password: Option<String>,
 ) -> WebDriverResult<(WebDriver, Child)> {
     let port: u64 = Random::next() % 0x7FFF + 0xFFF;
     let child = std::process::Command::new("chromium.chromedriver")
@@ -46,6 +44,7 @@ pub async fn chrome(
     let mut options: ChromeCapabilities = ChromeCapabilities::new();
     options.set_ignore_certificate_errors()?;
     options.add_chrome_arg("--no-sandbox")?;
+    options.add_chrome_arg("--ignore-certificate-errors")?;
     if headless {
         options.set_headless()?;
     }
@@ -55,8 +54,8 @@ pub async fn chrome(
         ssl_proxy: None,
         socks_proxy: socks5_proxy.clone(),
         socks_version: Some(5),
-        socks_username: socks5_username.clone(),
-        socks_password: socks5_password.clone(),
+        socks_username: None,
+        socks_password: None,
         no_proxy: None,
     };
     if http_proxy.is_some() || socks5_proxy.is_some() {
@@ -70,21 +69,14 @@ pub async fn chrome(
     let url: String = format!("http://localhost:{port}");
     let driver: WebDriver = WebDriver::new(&url, options).await?;
     if !headless {
-        if let serde_json::value::Value::Number(number) = driver
-            .execute("return window.outerWidth;", vec![])
-            .await?
-            .json()
-        {
-            let width: u32 = number.as_u64().expect("NEVER") as u32;
-            if let serde_json::value::Value::Number(number) = driver
-                .execute("return window.outerHeight;", vec![])
-                .await?
-                .json()
-            {
-                let height: u32 = number.as_u64().expect("NEVER") as u32;
-                driver.set_window_rect(0, 0, width, height * 3 / 4).await?;
-            }
-        }
+        // let width = driver
+        //     .execute("return window.outerWidth;", vec![])
+        //     .await?
+        //     .json()
+        //     .clone()
+        //     .as_number()
+        //     .map(|x| x.as_u64());
+        driver.set_window_rect(0, 0, 860, 600).await?;
     }
     return Ok((driver, child));
 }
@@ -93,8 +85,6 @@ pub async fn edge(
     headless: bool,
     http_proxy: Option<String>,
     socks5_proxy: Option<String>,
-    socks5_username: Option<String>,
-    socks5_password: Option<String>,
 ) -> WebDriverResult<(WebDriver, Child)> {
     let _headless = if headless { "--headless" } else { " " };
     let port: u64 = Random::next() % 0x7FFF + 0xFFF;
@@ -112,8 +102,8 @@ pub async fn edge(
         ssl_proxy: None,
         socks_proxy: socks5_proxy.clone(),
         socks_version: Some(5),
-        socks_username: socks5_username.clone(),
-        socks_password: socks5_password.clone(),
+        socks_username: None,
+        socks_password: None,
         no_proxy: None,
     };
     if http_proxy.is_some() || socks5_proxy.is_some() {
