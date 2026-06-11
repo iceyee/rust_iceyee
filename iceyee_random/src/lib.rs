@@ -4,7 +4,7 @@
 // *  Git: https://github.com/iceyee                *
 // **************************************************
 //
-// Use.
+/* Use. */
 
 use std::cell::Cell;
 use std::time::SystemTime;
@@ -14,11 +14,11 @@ thread_local! {
     static THREAD_ID: Cell<u64> = Cell::new(0);
 }
 
-// Enum.
+/* Enum. */
 
-// Trait.
+/* Trait. */
 
-// Struct.
+/* Struct. */
 
 /// 随机数.
 ///
@@ -102,14 +102,14 @@ impl Random {
     }
 }
 
-// Function.
+/* Function. */
 
-// 取线程id.
+/* 取线程id. */
 fn get_thread_id() -> u64 {
     #[cfg(target_os = "linux")]
     {
-        // type pthread_t = long unsigned int.
-        // pthread_t pthread_self(void);
+        /* type pthread_t = long unsigned int. */
+        /* pthread_t pthread_self(void); */
         use std::ffi::c_ulong;
         unsafe extern "C" {
             fn pthread_self() -> c_ulong;
@@ -118,7 +118,7 @@ fn get_thread_id() -> u64 {
     }
     #[cfg(target_os = "windows")]
     {
-        // DWORD GetCurrentThreadId();
+        /* DWORD GetCurrentThreadId(); */
         unsafe extern "C" {
             fn GetCurrentThreadId() -> u32;
         }

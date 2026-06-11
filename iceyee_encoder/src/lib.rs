@@ -7,13 +7,13 @@
 
 //! 编码器.
 
-// Use.
+/* Use. */
 
-// Enum.
+/* Enum. */
 
-// Trait.
+/* Trait. */
 
-// Struct.
+/* Struct. */
 
 /// Base64编码.
 #[derive(Debug, Clone)]
@@ -121,15 +121,15 @@ impl Base64Encoder {
             return Ok(Vec::<u8>::new());
         }
         if length % 4 != 0 {
-            return Err(iceyee_error::a!("无效的长度"));
+            return Err(iceyee_error::c!("无效的长度"));
         }
         let input_data: &[u8] = input.as_bytes();
         for x in 0..input_data.len() {
             let c: u8 = input_data[x];
             if TABLE[c as usize] != 255 || c == b'=' && input_data.len() <= x + 2 {
-                // 正常.
+                /* 正常. */
             } else {
-                return Err(iceyee_error::a!("出现未预期的字符"));
+                return Err(iceyee_error::c!("出现未预期的字符"));
             }
         }
         let new_length: usize = if input_data[input_data.len() - 2] == b'=' {
@@ -214,7 +214,7 @@ impl HexEncoder {
         let input: String = input.to_string();
         let length: usize = input.len();
         if length % 2 != 0 {
-            return Err(iceyee_error::a!("无效的长度"));
+            return Err(iceyee_error::c!("无效的长度"));
         }
         let mut output: Vec<u8> = Vec::new();
         let input: &[u8] = input.as_bytes();
@@ -231,7 +231,7 @@ impl HexEncoder {
                 b'A'..=b'F' => {
                     high = input[x * 2] - b'A' + 10;
                 }
-                _ => return Err(iceyee_error::a!("出现未预期的字符")),
+                _ => return Err(iceyee_error::c!("出现未预期的字符")),
             }
             match input[x * 2 + 1] {
                 b'0'..=b'9' => {
@@ -243,7 +243,7 @@ impl HexEncoder {
                 b'A'..=b'F' => {
                     low = input[x * 2 + 1] - b'A' + 10;
                 }
-                _ => return Err(iceyee_error::a!("出现未预期的字符")),
+                _ => return Err(iceyee_error::c!("出现未预期的字符")),
             }
             let b: u8 = (high << 4) | (low << 0);
             output.push(b);
@@ -294,7 +294,7 @@ impl HexEncoder {
                     output |= (x - b'A' + 10) as u64;
                 }
                 _ => {
-                    return Err(iceyee_error::a!("出现未预期的字符"));
+                    return Err(iceyee_error::c!("出现未预期的字符"));
                 }
             }
         }
@@ -342,7 +342,7 @@ impl RadixEncoder {
                             output |= (x - b'0') as u64;
                         }
                         _ => {
-                            return Err(iceyee_error::a!("出现未预期的字符"));
+                            return Err(iceyee_error::c!("出现未预期的字符"));
                         }
                     }
                 }
@@ -355,7 +355,7 @@ impl RadixEncoder {
                             output |= (x - b'0') as u64;
                         }
                         _ => {
-                            return Err(iceyee_error::a!("出现未预期的字符"));
+                            return Err(iceyee_error::c!("出现未预期的字符"));
                         }
                     }
                 }
@@ -376,7 +376,7 @@ impl RadixEncoder {
                             output |= (x - b'A' + 10) as u64;
                         }
                         _ => {
-                            return Err(iceyee_error::a!("出现未预期的字符"));
+                            return Err(iceyee_error::c!("出现未预期的字符"));
                         }
                     }
                 }
@@ -808,7 +808,7 @@ impl UrlEncoder {
                         status = Status::Low;
                         high = *x - b'A' + 10;
                     }
-                    _ => return Err(iceyee_error::a!("错误的格式")),
+                    _ => return Err(iceyee_error::c!("错误的格式")),
                 },
                 Status::Low => match *x {
                     b'0'..=b'9' => {
@@ -826,18 +826,18 @@ impl UrlEncoder {
                         low = *x - b'A' + 10;
                         plain.push((high << 4) | (low << 0));
                     }
-                    _ => return Err(iceyee_error::a!("错误的格式")),
+                    _ => return Err(iceyee_error::c!("错误的格式")),
                 },
             }
         }
         match status {
             Status::Normal => {}
-            _ => return Err(iceyee_error::a!("错误的格式")),
+            _ => return Err(iceyee_error::c!("错误的格式")),
         }
         let plain: String =
-            String::from_utf8(plain).map_err(|_| iceyee_error::a!("内容不是UTF-8编码"))?;
+            String::from_utf8(plain).map_err(|_| iceyee_error::c!("内容不是UTF-8编码"))?;
         return Ok(plain);
     }
 }
 
-// Function.
+/* Function. */

@@ -5,7 +5,7 @@
 // **************************************************
 //
 
-// Use.
+/* Use. */
 
 use std::cell::Cell;
 use std::cmp::Ordering as CmpOrdering;
@@ -40,11 +40,11 @@ thread_local! {
     static TIME_OFFSET: Cell<Option<TimeOffset>> = Cell::new(None);
 }
 
-// Enum.
+/* Enum. */
 
-// Trait.
+/* Trait. */
 
-// Struct.
+/* Struct. */
 
 /// 时区所对应的时间偏移.
 /// 比如用+0800表示东八区的时间偏移, 即+08:00.
@@ -77,28 +77,28 @@ impl std::default::Default for TimeOffset {
         }
         #[cfg(target_os = "windows")]
         {
-            // typedef struct _SYSTEMTIME {
-            //     WORD wYear;
-            //     WORD wMonth;
-            //     WORD wDayOfWeek;
-            //     WORD wDay;
-            //     WORD wHour;
-            //     WORD wMinute;
-            //     WORD wSecond;
-            //     WORD wMilliseconds;
-            // } SYSTEMTIME, *PSYSTEMTIME, *LPSYSTEMTIME;
-            // typedef struct _TIME_ZONE_INFORMATION {
-            //     LONG       Bias;
-            //     WCHAR      StandardName[32];
-            //     SYSTEMTIME StandardDate;
-            //     LONG       StandardBias;
-            //     WCHAR      DaylightName[32];
-            //     SYSTEMTIME DaylightDate;
-            //     LONG       DaylightBias;
-            // } TIME_ZONE_INFORMATION, *PTIME_ZONE_INFORMATION, *LPTIME_ZONE_INFORMATION;
-            // DWORD GetTimeZoneInformation(
-            //         [out] LPTIME_ZONE_INFORMATION lpTimeZoneInformation
-            //         );
+            /* typedef struct _SYSTEMTIME {
+             *     WORD wYear;
+             *     WORD wMonth;
+             *     WORD wDayOfWeek;
+             *     WORD wDay;
+             *     WORD wHour;
+             *     WORD wMinute;
+             *     WORD wSecond;
+             *     WORD wMilliseconds;
+             * } SYSTEMTIME, *PSYSTEMTIME, *LPSYSTEMTIME;
+             * typedef struct _TIME_ZONE_INFORMATION {
+             *     LONG       Bias;
+             *     WCHAR      StandardName[32];
+             *     SYSTEMTIME StandardDate;
+             *     LONG       StandardBias;
+             *     WCHAR      DaylightName[32];
+             *     SYSTEMTIME DaylightDate;
+             *     LONG       DaylightBias;
+             * } TIME_ZONE_INFORMATION, *PTIME_ZONE_INFORMATION, *LPTIME_ZONE_INFORMATION;
+             * DWORD GetTimeZoneInformation(
+             *         [out] LPTIME_ZONE_INFORMATION lpTimeZoneInformation
+             *         ); */
             use std::ffi::c_int;
             use std::ffi::c_long;
             use std::ffi::c_ushort;
@@ -207,7 +207,7 @@ impl From<(i64, Option<TimeOffset>)> for DateTime {
             + offset_hour as i64 * 60 * 60 * 1000
             + offset_minute as i64 * 60 * 1000
             + _timestamp;
-        // 年.
+        /* 年. */
         let mut year: i64 = 0;
         year += timestamp / FOUR_HUNDRED_YEAR * 400;
         timestamp %= FOUR_HUNDRED_YEAR;
@@ -244,7 +244,7 @@ impl From<(i64, Option<TimeOffset>)> for DateTime {
             }
         }
         let day_of_year: i64 = timestamp / ONE_DAY + 1;
-        // 月.
+        /* 月. */
         let mut month: i64 = 0;
         for x in 1..=12 {
             let max_days: i64 = match x {
@@ -266,7 +266,7 @@ impl From<(i64, Option<TimeOffset>)> for DateTime {
                 break;
             }
         }
-        // 日.
+        /* 日. */
         let day: i64 = 1 + timestamp / ONE_DAY;
         timestamp %= ONE_DAY;
         // 时分秒.
@@ -277,7 +277,7 @@ impl From<(i64, Option<TimeOffset>)> for DateTime {
         let second: i64 = timestamp / ONE_SECOND;
         timestamp %= ONE_SECOND;
         let millisecond: i64 = timestamp / ONE_MILLISECOND;
-        // 周几.
+        /* 周几. */
         let mut weekday: i64 = (TIME_0
             + offset_hour as i64 * 60 * 60 * 1000
             + offset_minute as i64 * 60 * 1000
@@ -358,7 +358,7 @@ impl From<(u64, u64, u64, u64, u64, u64, u64, Option<TimeOffset>)> for DateTime 
         }
         let mut timestamp: i64 = 0;
         let mut t: i64 = year as i64;
-        // 年.
+        /* 年. */
         timestamp += t * ONE_YEAR;
         timestamp += t / 400 * 97 * ONE_DAY;
         t %= 400;
@@ -375,7 +375,7 @@ impl From<(u64, u64, u64, u64, u64, u64, u64, Option<TimeOffset>)> for DateTime 
             t %= 4;
         }
         let _ = t;
-        // 月.
+        /* 月. */
         t = 0;
         for x in 1..=12 {
             if month <= x {
@@ -396,14 +396,14 @@ impl From<(u64, u64, u64, u64, u64, u64, u64, Option<TimeOffset>)> for DateTime 
             t += max_days;
         }
         // let day_of_year: i64 = t + day as i64;
-        // 日.
+        /* 日. */
         timestamp += (day as i64 - 1) * ONE_DAY;
-        // 时分秒.
+        /* 时分秒. */
         timestamp += hour as i64 * ONE_HOUR;
         timestamp += minute as i64 * ONE_MINUTE;
         timestamp += second as i64 * ONE_SECOND;
         timestamp += millisecond as i64 * ONE_MILLISECOND;
-        // 时间差.
+        /* 时间差. */
         let offset: TimeOffset = offset.unwrap_or(TimeOffset::default());
         let offset: i16 = offset.0;
         let offset_hour: i16 = offset / 100 % 100;
@@ -412,7 +412,7 @@ impl From<(u64, u64, u64, u64, u64, u64, u64, Option<TimeOffset>)> for DateTime 
         timestamp -= offset_hour as i64 * 60 * 60 * 1000;
         timestamp -= offset_minute as i64 * 60 * 1000;
         return Self::from((timestamp, Some(TimeOffset(offset))));
-        // // 周几.
+        /* 周几. */
         // let mut weekday: i64 = timestamp % ONE_WEEK / ONE_DAY + 1 + 3;
         // while 7 < weekday {
         //     weekday -= 7;
@@ -509,7 +509,7 @@ impl Drop for Timer {
     }
 }
 
-// Function.
+/* Function. */
 
 /// 当前系统的时间戳, 单位:毫秒.
 pub fn now() -> i64 {
@@ -550,20 +550,20 @@ pub fn now() -> i64 {
     }
     #[cfg(target_os = "windows")]
     {
-        // typedef struct _SYSTEMTIME {
-        //     WORD wYear;
-        //     WORD wMonth;
-        //     WORD wDayOfWeek;
-        //     WORD wDay;
-        //     WORD wHour;
-        //     WORD wMinute;
-        //     WORD wSecond;
-        //     WORD wMilliseconds;
-        // } SYSTEMTIME, *PSYSTEMTIME, *LPSYSTEMTIME;
-        // void GetLocalTime(
-        //         [out] LPSYSTEMTIME lpSystemTime
-        //         );
-        // time_t time(time_t *);
+        /* typedef struct _SYSTEMTIME {
+         *     WORD wYear;
+         *     WORD wMonth;
+         *     WORD wDayOfWeek;
+         *     WORD wDay;
+         *     WORD wHour;
+         *     WORD wMinute;
+         *     WORD wSecond;
+         *     WORD wMilliseconds;
+         * } SYSTEMTIME, *PSYSTEMTIME, *LPSYSTEMTIME;
+         * void GetLocalTime(
+         *         [out] LPSYSTEMTIME lpSystemTime
+         *         );
+         * time_t time(time_t *); */
         use std::ffi::c_long;
         use std::ffi::c_short;
         #[allow(non_snake_case)]
@@ -659,7 +659,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay0();
             let period: u64 = schedule.sleep_before_perform0();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -674,7 +674,7 @@ impl Timer {
             }
             schedule.initialize0().await;
             while !stop.load(SeqCst) {
-                // 2 等待并执行.
+                /* 2 等待并执行. */
                 {
                     let schedule = schedule.clone();
                     let stop = stop.clone();
@@ -697,10 +697,10 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish0().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -710,7 +710,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay0();
             let period: u64 = schedule.sleep_after_perform0();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -725,7 +725,7 @@ impl Timer {
             }
             schedule.initialize0().await;
             while !stop.load(SeqCst) {
-                // 2 执行后等待.
+                /* 2 执行后等待. */
                 if !schedule.perform0(stop.clone()).await {
                     break;
                 }
@@ -742,18 +742,18 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish0().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
     async fn schedule_0_3(&self, schedule: Arc<dyn Schedule0>) {
         let pattern: String = schedule.schedule_by_pattern0();
-        // 1 解析.
-        // 在'*'可能有'/', 即SLASH.
+        /* 1 解析. */
+        /* 在'*'可能有'/', 即SLASH. */
         enum Status {
             MIN,
             MAX,
@@ -894,7 +894,7 @@ impl Timer {
         } // for x in pattern.split(' ') {...}
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            // 2 初始延迟 开始.
+            /* 2 初始延迟 开始. */
             let delay: u64 = schedule.delay0();
             {
                 let a = delay / 1_000;
@@ -915,7 +915,7 @@ impl Timer {
             let day = &table[3];
             let month = &table[4];
             let weekday = &table[5];
-            // 3 执行.
+            /* 3 执行. */
             while !stop.load(SeqCst) {
                 let dt: DateTime = DateTime::new();
                 if second.0[dt.second as usize]
@@ -936,10 +936,10 @@ impl Timer {
                 let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
-            // 4 结束.
+            /* 4 结束. */
             schedule.finish0().await;
         });
-        // 5 handle管理.
+        /* 5 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -963,7 +963,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay1();
             let period: u64 = schedule.sleep_before_perform1();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -978,7 +978,7 @@ impl Timer {
             }
             schedule.initialize1().await;
             while !stop.load(SeqCst) {
-                // 2 等待并执行.
+                /* 2 等待并执行. */
                 {
                     let schedule = schedule.clone();
                     let stop = stop.clone();
@@ -1001,10 +1001,10 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish1().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -1014,7 +1014,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay1();
             let period: u64 = schedule.sleep_after_perform1();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -1029,7 +1029,7 @@ impl Timer {
             }
             schedule.initialize1().await;
             while !stop.load(SeqCst) {
-                // 2 执行后等待.
+                /* 2 执行后等待. */
                 if !schedule.perform1(stop.clone()).await {
                     break;
                 }
@@ -1046,18 +1046,18 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish1().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
     async fn schedule_1_3(&self, schedule: Arc<dyn Schedule1>) {
         let pattern: String = schedule.schedule_by_pattern1();
-        // 1 解析.
-        // 在'*'可能有'/', 即SLASH.
+        /* 1 解析. */
+        /* 在'*'可能有'/', 即SLASH. */
         enum Status {
             MIN,
             MAX,
@@ -1198,7 +1198,7 @@ impl Timer {
         } // for x in pattern.split(' ') {...}
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            // 2 初始延迟 开始.
+            /* 2 初始延迟 开始. */
             let delay: u64 = schedule.delay1();
             {
                 let a = delay / 1_000;
@@ -1219,7 +1219,7 @@ impl Timer {
             let day = &table[3];
             let month = &table[4];
             let weekday = &table[5];
-            // 3 执行.
+            /* 3 执行. */
             while !stop.load(SeqCst) {
                 let dt: DateTime = DateTime::new();
                 if second.0[dt.second as usize]
@@ -1240,10 +1240,10 @@ impl Timer {
                 let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
-            // 4 结束.
+            /* 4 结束. */
             schedule.finish1().await;
         });
-        // 5 handle管理.
+        /* 5 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -1267,7 +1267,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay2();
             let period: u64 = schedule.sleep_before_perform2();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -1282,7 +1282,7 @@ impl Timer {
             }
             schedule.initialize2().await;
             while !stop.load(SeqCst) {
-                // 2 等待并执行.
+                /* 2 等待并执行. */
                 {
                     let schedule = schedule.clone();
                     let stop = stop.clone();
@@ -1305,10 +1305,10 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish2().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -1318,7 +1318,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay2();
             let period: u64 = schedule.sleep_after_perform2();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -1333,7 +1333,7 @@ impl Timer {
             }
             schedule.initialize2().await;
             while !stop.load(SeqCst) {
-                // 2 执行后等待.
+                /* 2 执行后等待. */
                 if !schedule.perform2(stop.clone()).await {
                     break;
                 }
@@ -1350,18 +1350,18 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish2().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
     async fn schedule_2_3(&self, schedule: Arc<dyn Schedule2>) {
         let pattern: String = schedule.schedule_by_pattern2();
-        // 1 解析.
-        // 在'*'可能有'/', 即SLASH.
+        /* 1 解析. */
+        /* 在'*'可能有'/', 即SLASH. */
         enum Status {
             MIN,
             MAX,
@@ -1502,7 +1502,7 @@ impl Timer {
         } // for x in pattern.split(' ') {...}
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            // 2 初始延迟 开始.
+            /* 2 初始延迟 开始. */
             let delay: u64 = schedule.delay2();
             {
                 let a = delay / 1_000;
@@ -1523,7 +1523,7 @@ impl Timer {
             let day = &table[3];
             let month = &table[4];
             let weekday = &table[5];
-            // 3 执行.
+            /* 3 执行. */
             while !stop.load(SeqCst) {
                 let dt: DateTime = DateTime::new();
                 if second.0[dt.second as usize]
@@ -1544,10 +1544,10 @@ impl Timer {
                 let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
-            // 4 结束.
+            /* 4 结束. */
             schedule.finish2().await;
         });
-        // 5 handle管理.
+        /* 5 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -1571,7 +1571,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay3();
             let period: u64 = schedule.sleep_before_perform3();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -1586,7 +1586,7 @@ impl Timer {
             }
             schedule.initialize3().await;
             while !stop.load(SeqCst) {
-                // 2 等待并执行.
+                /* 2 等待并执行. */
                 {
                     let schedule = schedule.clone();
                     let stop = stop.clone();
@@ -1609,10 +1609,10 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish3().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -1622,7 +1622,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay3();
             let period: u64 = schedule.sleep_after_perform3();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -1637,7 +1637,7 @@ impl Timer {
             }
             schedule.initialize3().await;
             while !stop.load(SeqCst) {
-                // 2 执行后等待.
+                /* 2 执行后等待. */
                 if !schedule.perform3(stop.clone()).await {
                     break;
                 }
@@ -1654,18 +1654,18 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish3().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
     async fn schedule_3_3(&self, schedule: Arc<dyn Schedule3>) {
         let pattern: String = schedule.schedule_by_pattern3();
-        // 1 解析.
-        // 在'*'可能有'/', 即SLASH.
+        /* 1 解析. */
+        /* 在'*'可能有'/', 即SLASH. */
         enum Status {
             MIN,
             MAX,
@@ -1806,7 +1806,7 @@ impl Timer {
         } // for x in pattern.split(' ') {...}
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            // 2 初始延迟 开始.
+            /* 2 初始延迟 开始. */
             let delay: u64 = schedule.delay3();
             {
                 let a = delay / 1_000;
@@ -1827,7 +1827,7 @@ impl Timer {
             let day = &table[3];
             let month = &table[4];
             let weekday = &table[5];
-            // 3 执行.
+            /* 3 执行. */
             while !stop.load(SeqCst) {
                 let dt: DateTime = DateTime::new();
                 if second.0[dt.second as usize]
@@ -1848,10 +1848,10 @@ impl Timer {
                 let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
-            // 4 结束.
+            /* 4 结束. */
             schedule.finish3().await;
         });
-        // 5 handle管理.
+        /* 5 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -1875,7 +1875,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay4();
             let period: u64 = schedule.sleep_before_perform4();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -1890,7 +1890,7 @@ impl Timer {
             }
             schedule.initialize4().await;
             while !stop.load(SeqCst) {
-                // 2 等待并执行.
+                /* 2 等待并执行. */
                 {
                     let schedule = schedule.clone();
                     let stop = stop.clone();
@@ -1913,10 +1913,10 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish4().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -1926,7 +1926,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay4();
             let period: u64 = schedule.sleep_after_perform4();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -1941,7 +1941,7 @@ impl Timer {
             }
             schedule.initialize4().await;
             while !stop.load(SeqCst) {
-                // 2 执行后等待.
+                /* 2 执行后等待. */
                 if !schedule.perform4(stop.clone()).await {
                     break;
                 }
@@ -1958,17 +1958,17 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish4().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
     async fn schedule_4_3(&self, schedule: Arc<dyn Schedule4>) {
         let pattern: String = schedule.schedule_by_pattern4();
-        // 1 解析.
+        /* 1 解析. */
         // 在'*'可能有'/', 即SLASH.
         enum Status {
             MIN,
@@ -2110,7 +2110,7 @@ impl Timer {
         } // for x in pattern.split(' ') {...}
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            // 2 初始延迟 开始.
+            /* 2 初始延迟 开始. */
             let delay: u64 = schedule.delay4();
             {
                 let a = delay / 1_000;
@@ -2131,7 +2131,7 @@ impl Timer {
             let day = &table[3];
             let month = &table[4];
             let weekday = &table[5];
-            // 3 执行.
+            /* 3 执行. */
             while !stop.load(SeqCst) {
                 let dt: DateTime = DateTime::new();
                 if second.0[dt.second as usize]
@@ -2152,10 +2152,10 @@ impl Timer {
                 let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
-            // 4 结束.
+            /* 4 结束. */
             schedule.finish4().await;
         });
-        // 5 handle管理.
+        /* 5 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -2179,7 +2179,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay5();
             let period: u64 = schedule.sleep_before_perform5();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -2194,7 +2194,7 @@ impl Timer {
             }
             schedule.initialize5().await;
             while !stop.load(SeqCst) {
-                // 2 等待并执行.
+                /* 2 等待并执行. */
                 {
                     let schedule = schedule.clone();
                     let stop = stop.clone();
@@ -2217,10 +2217,10 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish5().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -2230,7 +2230,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay5();
             let period: u64 = schedule.sleep_after_perform5();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -2245,7 +2245,7 @@ impl Timer {
             }
             schedule.initialize5().await;
             while !stop.load(SeqCst) {
-                // 2 执行后等待.
+                /* 2 执行后等待. */
                 if !schedule.perform5(stop.clone()).await {
                     break;
                 }
@@ -2262,17 +2262,17 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish5().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
     async fn schedule_5_3(&self, schedule: Arc<dyn Schedule5>) {
         let pattern: String = schedule.schedule_by_pattern5();
-        // 1 解析.
+        /* 1 解析. */
         // 在'*'可能有'/', 即SLASH.
         enum Status {
             MIN,
@@ -2414,7 +2414,7 @@ impl Timer {
         } // for x in pattern.split(' ') {...}
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            // 2 初始延迟 开始.
+            /* 2 初始延迟 开始. */
             let delay: u64 = schedule.delay5();
             {
                 let a = delay / 1_000;
@@ -2435,7 +2435,7 @@ impl Timer {
             let day = &table[3];
             let month = &table[4];
             let weekday = &table[5];
-            // 3 执行.
+            /* 3 执行. */
             while !stop.load(SeqCst) {
                 let dt: DateTime = DateTime::new();
                 if second.0[dt.second as usize]
@@ -2456,10 +2456,10 @@ impl Timer {
                 let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
-            // 4 结束.
+            /* 4 结束. */
             schedule.finish5().await;
         });
-        // 5 handle管理.
+        /* 5 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -2483,7 +2483,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay6();
             let period: u64 = schedule.sleep_before_perform6();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -2498,7 +2498,7 @@ impl Timer {
             }
             schedule.initialize6().await;
             while !stop.load(SeqCst) {
-                // 2 等待并执行.
+                /* 2 等待并执行. */
                 {
                     let schedule = schedule.clone();
                     let stop = stop.clone();
@@ -2521,10 +2521,10 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish6().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -2534,7 +2534,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay6();
             let period: u64 = schedule.sleep_after_perform6();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -2549,7 +2549,7 @@ impl Timer {
             }
             schedule.initialize6().await;
             while !stop.load(SeqCst) {
-                // 2 执行后等待.
+                /* 2 执行后等待. */
                 if !schedule.perform6(stop.clone()).await {
                     break;
                 }
@@ -2566,17 +2566,17 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish6().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
     async fn schedule_6_3(&self, schedule: Arc<dyn Schedule6>) {
         let pattern: String = schedule.schedule_by_pattern6();
-        // 1 解析.
+        /* 1 解析. */
         // 在'*'可能有'/', 即SLASH.
         enum Status {
             MIN,
@@ -2718,7 +2718,7 @@ impl Timer {
         } // for x in pattern.split(' ') {...}
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            // 2 初始延迟 开始.
+            /* 2 初始延迟 开始. */
             let delay: u64 = schedule.delay6();
             {
                 let a = delay / 1_000;
@@ -2739,7 +2739,7 @@ impl Timer {
             let day = &table[3];
             let month = &table[4];
             let weekday = &table[5];
-            // 3 执行.
+            /* 3 执行. */
             while !stop.load(SeqCst) {
                 let dt: DateTime = DateTime::new();
                 if second.0[dt.second as usize]
@@ -2760,10 +2760,10 @@ impl Timer {
                 let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
-            // 4 结束.
+            /* 4 结束. */
             schedule.finish6().await;
         });
-        // 5 handle管理.
+        /* 5 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -2787,7 +2787,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay7();
             let period: u64 = schedule.sleep_before_perform7();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -2802,7 +2802,7 @@ impl Timer {
             }
             schedule.initialize7().await;
             while !stop.load(SeqCst) {
-                // 2 等待并执行.
+                /* 2 等待并执行. */
                 {
                     let schedule = schedule.clone();
                     let stop = stop.clone();
@@ -2825,10 +2825,10 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish7().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -2838,7 +2838,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay7();
             let period: u64 = schedule.sleep_after_perform7();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -2853,7 +2853,7 @@ impl Timer {
             }
             schedule.initialize7().await;
             while !stop.load(SeqCst) {
-                // 2 执行后等待.
+                /* 2 执行后等待. */
                 if !schedule.perform7(stop.clone()).await {
                     break;
                 }
@@ -2870,17 +2870,17 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish7().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
     async fn schedule_7_3(&self, schedule: Arc<dyn Schedule7>) {
         let pattern: String = schedule.schedule_by_pattern7();
-        // 1 解析.
+        /* 1 解析. */
         // 在'*'可能有'/', 即SLASH.
         enum Status {
             MIN,
@@ -3022,7 +3022,7 @@ impl Timer {
         } // for x in pattern.split(' ') {...}
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            // 2 初始延迟 开始.
+            /* 2 初始延迟 开始. */
             let delay: u64 = schedule.delay7();
             {
                 let a = delay / 1_000;
@@ -3043,7 +3043,7 @@ impl Timer {
             let day = &table[3];
             let month = &table[4];
             let weekday = &table[5];
-            // 3 执行.
+            /* 3 执行. */
             while !stop.load(SeqCst) {
                 let dt: DateTime = DateTime::new();
                 if second.0[dt.second as usize]
@@ -3064,10 +3064,10 @@ impl Timer {
                 let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
-            // 4 结束.
+            /* 4 结束. */
             schedule.finish7().await;
         });
-        // 5 handle管理.
+        /* 5 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -3091,7 +3091,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay8();
             let period: u64 = schedule.sleep_before_perform8();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -3106,7 +3106,7 @@ impl Timer {
             }
             schedule.initialize8().await;
             while !stop.load(SeqCst) {
-                // 2 等待并执行.
+                /* 2 等待并执行. */
                 {
                     let schedule = schedule.clone();
                     let stop = stop.clone();
@@ -3129,10 +3129,10 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish8().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -3142,7 +3142,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay8();
             let period: u64 = schedule.sleep_after_perform8();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -3157,7 +3157,7 @@ impl Timer {
             }
             schedule.initialize8().await;
             while !stop.load(SeqCst) {
-                // 2 执行后等待.
+                /* 2 执行后等待. */
                 if !schedule.perform8(stop.clone()).await {
                     break;
                 }
@@ -3174,17 +3174,17 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish8().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
     async fn schedule_8_3(&self, schedule: Arc<dyn Schedule8>) {
         let pattern: String = schedule.schedule_by_pattern8();
-        // 1 解析.
+        /* 1 解析. */
         // 在'*'可能有'/', 即SLASH.
         enum Status {
             MIN,
@@ -3326,7 +3326,7 @@ impl Timer {
         } // for x in pattern.split(' ') {...}
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            // 2 初始延迟 开始.
+            /* 2 初始延迟 开始. */
             let delay: u64 = schedule.delay8();
             {
                 let a = delay / 1_000;
@@ -3347,7 +3347,7 @@ impl Timer {
             let day = &table[3];
             let month = &table[4];
             let weekday = &table[5];
-            // 3 执行.
+            /* 3 执行. */
             while !stop.load(SeqCst) {
                 let dt: DateTime = DateTime::new();
                 if second.0[dt.second as usize]
@@ -3368,10 +3368,10 @@ impl Timer {
                 let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
-            // 4 结束.
+            /* 4 结束. */
             schedule.finish8().await;
         });
-        // 5 handle管理.
+        /* 5 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -3395,7 +3395,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay9();
             let period: u64 = schedule.sleep_before_perform9();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -3410,7 +3410,7 @@ impl Timer {
             }
             schedule.initialize9().await;
             while !stop.load(SeqCst) {
-                // 2 等待并执行.
+                /* 2 等待并执行. */
                 {
                     let schedule = schedule.clone();
                     let stop = stop.clone();
@@ -3433,10 +3433,10 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish9().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
@@ -3446,7 +3446,7 @@ impl Timer {
         let handle = tokio::task::spawn(async move {
             let delay: u64 = schedule.delay9();
             let period: u64 = schedule.sleep_after_perform9();
-            // 1 初始延迟 开始.
+            /* 1 初始延迟 开始. */
             {
                 let a = delay / 1_000;
                 let b = delay % 1_000;
@@ -3461,7 +3461,7 @@ impl Timer {
             }
             schedule.initialize9().await;
             while !stop.load(SeqCst) {
-                // 2 执行后等待.
+                /* 2 执行后等待. */
                 if !schedule.perform9(stop.clone()).await {
                     break;
                 }
@@ -3478,17 +3478,17 @@ impl Timer {
                     }
                 }
             }
-            // 3 结束.
+            /* 3 结束. */
             schedule.finish9().await;
         });
-        // 4 handle管理.
+        /* 4 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
 
     async fn schedule_9_3(&self, schedule: Arc<dyn Schedule9>) {
         let pattern: String = schedule.schedule_by_pattern9();
-        // 1 解析.
+        /* 1 解析. */
         // 在'*'可能有'/', 即SLASH.
         enum Status {
             MIN,
@@ -3630,7 +3630,7 @@ impl Timer {
         } // for x in pattern.split(' ') {...}
         let stop = self.stop.clone();
         let handle = tokio::task::spawn(async move {
-            // 2 初始延迟 开始.
+            /* 2 初始延迟 开始. */
             let delay: u64 = schedule.delay9();
             {
                 let a = delay / 1_000;
@@ -3651,7 +3651,7 @@ impl Timer {
             let day = &table[3];
             let month = &table[4];
             let weekday = &table[5];
-            // 3 执行.
+            /* 3 执行. */
             while !stop.load(SeqCst) {
                 let dt: DateTime = DateTime::new();
                 if second.0[dt.second as usize]
@@ -3672,10 +3672,10 @@ impl Timer {
                 let t: u64 = 200 + 1_000 - now() as u64 % 1_000;
                 sleep(t).await;
             }
-            // 4 结束.
+            /* 4 结束. */
             schedule.finish9().await;
         });
-        // 5 handle管理.
+        /* 5 handle管理. */
         self.thread_handles.lock().await.push(handle);
         return;
     }
