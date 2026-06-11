@@ -23,12 +23,12 @@
 pub mod http;
 pub mod smtp;
 
-// Use.
+/* Use. */
 
-// Enum.
+/* Enum. */
 
-// Trait.
+/* Trait. */
 
-// Struct.
+/* Struct. */
 
-// Function.
+/* Function. */

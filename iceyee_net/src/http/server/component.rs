@@ -7,7 +7,7 @@
 
 //! 一些组件.
 
-// Use.
+/* Use. */
 
 use crate::http::server::Context;
 use crate::http::server::Filter;
@@ -19,11 +19,11 @@ use std::collections::BTreeSet;
 use std::future::Future;
 use std::pin::Pin;
 
-// Enum.
+/* Enum. */
 
-// Trait.
+/* Trait. */
 
-// Struct.
+/* Struct. */
 
 #[derive(Clone, Debug)]
 pub(in crate::http::server) struct FileRouter {
@@ -231,7 +231,7 @@ impl Filter for FilterHost {
         'a: 'b,
     {
         return Box::pin(async move {
-            // 如果有端口, 则截掉端口部分.
+            /* 如果有端口, 则截掉端口部分. */
             let host: Option<String> = context.request.header.get("Host").map(|host| {
                 if host.contains(":") {
                     host.splitn(2, ":").next().expect("NEVER").to_string()
@@ -242,13 +242,13 @@ impl Filter for FilterHost {
             let auth: bool = match host {
                 Some(host) => {
                     if self.full_hosts.contains(&host) {
-                        // 如果全匹配.
+                        /* 如果全匹配. */
                         return Ok(true);
                     } else if !host.contains(".") {
-                        // 如果没有二级域名.
+                        /* 如果没有二级域名. */
                         false
                     } else {
-                        // 如果有二级域名 | 截掉前面的二级域名, 然后匹配.
+                        /* 如果有二级域名 | 截掉前面的二级域名, 然后匹配. */
                         let a001 = host.clone();
                         let mut a001 = a001.splitn(2, ".");
                         a001.next();
@@ -401,4 +401,4 @@ impl Filter for FilterCORS {
     }
 }
 
-// Function.
+/* Function. */

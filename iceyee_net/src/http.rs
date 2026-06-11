@@ -16,9 +16,9 @@ use std::time::Duration;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
 
-// Use.
+/* Use. */
 
-// Enum.
+/* Enum. */
 
 /// 常用的状态码.
 ///
@@ -150,9 +150,9 @@ impl Status {
     }
 }
 
-// Trait.
+/* Trait. */
 
-// Struct.
+/* Struct. */
 
 /// Url参数.
 #[derive(Clone, Debug, Default)]
@@ -283,9 +283,9 @@ impl std::str::FromStr for Url {
                 State::Protocol => {
                     if value[index] == b'/' {
                         let protocol: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| iceyee_error::a!(e, link))?;
+                            .map_err(|e| iceyee_error::c!(e, link))?;
                         if !protocol.ends_with(":") {
-                            return Err(iceyee_error::a!(link));
+                            return Err(iceyee_error::c!(link));
                         }
                         url.protocol = protocol;
                         buffer.clear();
@@ -299,9 +299,9 @@ impl std::str::FromStr for Url {
                 State::Host => match value[index] {
                     b':' | b'/' | b'?' | b'#' => {
                         let host: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| iceyee_error::a!(e, link))?;
+                            .map_err(|e| iceyee_error::c!(e, link))?;
                         if host.len() == 0 {
-                            return Err(iceyee_error::a!(link));
+                            return Err(iceyee_error::c!(link));
                         }
                         url.host = host;
                         buffer.clear();
@@ -335,11 +335,11 @@ impl std::str::FromStr for Url {
                 State::Port => match value[index] {
                     b'/' | b'?' | b'#' => {
                         let port: u16 = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| iceyee_error::a!(e, link))?
+                            .map_err(|e| iceyee_error::c!(e, link))?
                             .parse::<u16>()
-                            .map_err(|e| iceyee_error::a!(e, link))?;
+                            .map_err(|e| iceyee_error::c!(e, link))?;
                         if port == 0 {
-                            return Err(iceyee_error::a!(link));
+                            return Err(iceyee_error::c!(link));
                         }
                         url.port = port;
                         buffer.clear();
@@ -369,7 +369,7 @@ impl std::str::FromStr for Url {
                 State::Path => match value[index] {
                     b'?' | b'#' => {
                         let path: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| iceyee_error::a!(e, link))?;
+                            .map_err(|e| iceyee_error::c!(e, link))?;
                         url.path = path;
                         buffer.clear();
                         match value[index] {
@@ -394,7 +394,7 @@ impl std::str::FromStr for Url {
                 State::Query => match value[index] {
                     b'#' => {
                         let query: String = String::from_utf8(buffer.to_vec())
-                            .map_err(|e| iceyee_error::a!(e, link))?;
+                            .map_err(|e| iceyee_error::c!(e, link))?;
                         url.query = Some(query);
                         buffer.clear();
                         state = State::Fragment;
@@ -413,39 +413,39 @@ impl std::str::FromStr for Url {
         } // while index < length
         match state {
             State::Protocol => {
-                return Err(iceyee_error::a!(link));
+                return Err(iceyee_error::c!(link));
             }
             State::Host => {
                 let host: String =
-                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::a!(e, link))?;
+                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::c!(e, link))?;
                 if host.len() == 0 {
-                    return Err(iceyee_error::a!(link));
+                    return Err(iceyee_error::c!(link));
                 }
                 url.host = host;
             }
             State::Port => {
                 let port: u16 = String::from_utf8(buffer.to_vec())
-                    .map_err(|e| iceyee_error::a!(e, link))?
+                    .map_err(|e| iceyee_error::c!(e, link))?
                     .parse::<u16>()
-                    .map_err(|e| iceyee_error::a!(e, link))?;
+                    .map_err(|e| iceyee_error::c!(e, link))?;
                 if port == 0 {
-                    return Err(iceyee_error::a!(link));
+                    return Err(iceyee_error::c!(link));
                 }
                 url.port = port;
             }
             State::Path => {
                 let path: String =
-                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::a!(e, link))?;
+                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::c!(e, link))?;
                 url.path = path;
             }
             State::Query => {
                 let query: String =
-                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::a!(e, link))?;
+                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::c!(e, link))?;
                 url.query = Some(query);
             }
             State::Fragment => {
                 let fragment: String =
-                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::a!(e, link))?;
+                    String::from_utf8(buffer.to_vec()).map_err(|e| iceyee_error::c!(e, link))?;
                 url.fragment = Some(fragment);
             }
         }
@@ -611,11 +611,11 @@ impl Request {
                 )
                 .await
                 {
-                    Ok(length) => length.map_err(|e| iceyee_error::a!(e))?,
-                    Err(_) => return Err(iceyee_error::a!("TimedOut")),
+                    Ok(length) => length.map_err(|e| iceyee_error::c!(e))?,
+                    Err(_) => return Err(iceyee_error::c!("TimedOut")),
                 };
                 if length == 0 {
-                    return Err(iceyee_error::a!("UnexpectedEof"));
+                    return Err(iceyee_error::c!("UnexpectedEof"));
                 }
                 buffer.extend(&buf, length);
             }
@@ -650,7 +650,7 @@ impl Request {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
                             request.method = String::from_utf8(bytes.clone())
-                                .map_err(|e| iceyee_error::a!(e))?;
+                                .map_err(|e| iceyee_error::c!(e))?;
                             bytes.clear();
                             state = State::PathSpace;
                             break;
@@ -658,7 +658,7 @@ impl Request {
                             bytes.push(buffer.block[x]);
                             x += 1;
                             if 0xFF < bytes.len() {
-                                return Err(iceyee_error::a!("大小非预期"));
+                                return Err(iceyee_error::c!("大小非预期"));
                             }
                         }
                     }
@@ -667,7 +667,7 @@ impl Request {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
                             request.path = String::from_utf8(bytes.clone())
-                                .map_err(|e| iceyee_error::a!(e))?;
+                                .map_err(|e| iceyee_error::c!(e))?;
                             bytes.clear();
                             state = State::VersionSpace;
                             if request.path.contains("?") {
@@ -682,7 +682,7 @@ impl Request {
                             bytes.push(buffer.block[x]);
                             x += 1;
                             if 0xFFF < bytes.len() {
-                                return Err(iceyee_error::a!("大小非预期"));
+                                return Err(iceyee_error::c!("大小非预期"));
                             }
                         }
                     }
@@ -691,7 +691,7 @@ impl Request {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
                             request.version = String::from_utf8(bytes.clone())
-                                .map_err(|e| iceyee_error::a!(e))?;
+                                .map_err(|e| iceyee_error::c!(e))?;
                             bytes.clear();
                             state = State::Header;
                             needed = 4;
@@ -700,7 +700,7 @@ impl Request {
                             bytes.push(buffer.block[x]);
                             x += 1;
                             if 0xFF < bytes.len() {
-                                return Err(iceyee_error::a!("大小非预期"));
+                                return Err(iceyee_error::c!("大小非预期"));
                             }
                         }
                     }
@@ -713,7 +713,7 @@ impl Request {
                             && buffer.block[x + 3] == b'\n'
                         {
                             let header: String = String::from_utf8(bytes.clone())
-                                .map_err(|e| iceyee_error::a!(e))?;
+                                .map_err(|e| iceyee_error::c!(e))?;
                             bytes.clear();
                             state = State::BodySpace;
                             for line in header.split("\r\n") {
@@ -729,7 +729,7 @@ impl Request {
                             bytes.push(buffer.block[x]);
                             x += 1;
                             if 0xFFFF < bytes.len() {
-                                return Err(iceyee_error::a!("大小非预期"));
+                                return Err(iceyee_error::c!("大小非预期"));
                             }
                         }
                     }
@@ -747,10 +747,10 @@ impl Request {
                             .unwrap()
                             .trim()
                             .parse::<usize>()
-                            .map_err(|e| iceyee_error::a!(e))?
+                            .map_err(|e| iceyee_error::c!(e))?
                     };
                     if 0x3FFFFFFF < needed {
-                        return Err(iceyee_error::a!("大小非预期"));
+                        return Err(iceyee_error::c!("大小非预期"));
                     }
                 }
                 State::Body => {
@@ -890,11 +890,11 @@ impl Response {
                 )
                 .await
                 {
-                    Ok(length) => length.map_err(|e| iceyee_error::a!(e))?,
-                    Err(_) => return Err(iceyee_error::a!("TimedOut")),
+                    Ok(length) => length.map_err(|e| iceyee_error::c!(e))?,
+                    Err(_) => return Err(iceyee_error::c!("TimedOut")),
                 };
                 if length == 0 {
-                    return Err(iceyee_error::a!("UnexpectedEof"));
+                    return Err(iceyee_error::c!("UnexpectedEof"));
                 }
                 buffer.extend(&buf, length);
             }
@@ -914,7 +914,7 @@ impl Response {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
                             response.version = String::from_utf8(bytes.clone())
-                                .map_err(|e| iceyee_error::a!(e))?;
+                                .map_err(|e| iceyee_error::c!(e))?;
                             bytes.clear();
                             state = State::StatusCodeSpace;
                             break;
@@ -938,9 +938,9 @@ impl Response {
                     while x < buffer.length {
                         if buffer.block[x].is_ascii_whitespace() {
                             response.status_code = String::from_utf8(bytes.clone())
-                                .map_err(|e| iceyee_error::a!(e))?
+                                .map_err(|e| iceyee_error::c!(e))?
                                 .parse::<u16>()
-                                .map_err(|e| iceyee_error::a!(e))?;
+                                .map_err(|e| iceyee_error::c!(e))?;
                             bytes.clear();
                             state = State::StatusSpace;
                             needed = 2;
@@ -970,7 +970,7 @@ impl Response {
                     while x + 1 < buffer.length {
                         if buffer.block[x] == b'\r' && buffer.block[x + 1] == b'\n' {
                             response.status = String::from_utf8(bytes.clone())
-                                .map_err(|e| iceyee_error::a!(e))?;
+                                .map_err(|e| iceyee_error::c!(e))?;
                             bytes.clear();
                             state = State::Header;
                             needed = 4;
@@ -989,7 +989,7 @@ impl Response {
                             && buffer.block[x + 3] == b'\n'
                         {
                             let a001: String = String::from_utf8(bytes.clone())
-                                .map_err(|e| iceyee_error::a!(e))?;
+                                .map_err(|e| iceyee_error::c!(e))?;
                             bytes.clear();
                             for line in a001.split("\r\n") {
                                 if line.contains(":") {
@@ -1015,7 +1015,7 @@ impl Response {
                     if response.header.contains_key("Content-Length") {
                         needed = response.header.get("Content-Length").unwrap().as_slice()[0]
                             .parse::<usize>()
-                            .map_err(|e| iceyee_error::a!(e))?;
+                            .map_err(|e| iceyee_error::c!(e))?;
                         state = State::Body;
                     } else if response.header.contains_key("Transfer-Encoding") {
                         needed = 2;
@@ -1046,9 +1046,9 @@ impl Response {
                     while x + 1 < buffer.length {
                         if buffer.block[x] == b'\r' && buffer.block[x + 1] == b'\n' {
                             let a001: String = String::from_utf8(bytes.clone())
-                                .map_err(|e| iceyee_error::a!(e))?;
+                                .map_err(|e| iceyee_error::c!(e))?;
                             needed = usize::from_str_radix(&a001, 16)
-                                .map_err(|e| iceyee_error::a!(e))?;
+                                .map_err(|e| iceyee_error::c!(e))?;
                             bytes.clear();
                             if needed == 0 {
                                 needed = 2;
@@ -1083,7 +1083,7 @@ impl Response {
                 }
                 State::ChunkSpace => {
                     if buffer.block[0] != b'\r' || buffer.block[1] != b'\n' {
-                        return Err(iceyee_error::a!("非预期的格式"));
+                        return Err(iceyee_error::c!("非预期的格式"));
                     }
                     bytes.clear();
                     x += 2;
@@ -1092,7 +1092,7 @@ impl Response {
                 }
                 State::ChunkEnd => {
                     if buffer.block[0] != b'\r' || buffer.block[1] != b'\n' {
-                        return Err(iceyee_error::a!("非预期的格式"));
+                        return Err(iceyee_error::c!("非预期的格式"));
                     }
                     buffer.roll(2);
                     break 'A;
@@ -1104,4 +1104,4 @@ impl Response {
     }
 }
 
-// Function.
+/* Function. */
