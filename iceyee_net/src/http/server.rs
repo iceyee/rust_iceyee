@@ -46,7 +46,6 @@ use tokio::sync::Mutex as TokioMutex;
 use tokio::sync::RwLock as TokioRwLock;
 use tokio::sync::RwLockReadGuard;
 use tokio::sync::RwLockWriteGuard;
-use tokio::sync::Semaphore;
 
 /* Enum. */
 
@@ -348,7 +347,7 @@ impl std::str::FromStr for Cookies {
 }
 
 impl Cookies {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         return Cookies(BTreeMap::new());
     }
 }
@@ -447,9 +446,6 @@ pub struct HttpServer {
     works: BTreeMap<String, Arc<dyn Work>>,
 }
 
-// unsafe impl Send for HttpServer {}
-// unsafe impl Sync for HttpServer {}
-
 impl HttpServer {
     pub fn new() -> Self {
         let server = HttpServer {
@@ -543,26 +539,24 @@ impl HttpServer {
             .map_err(|e| iceyee_error::c!(e))?;
         let address = listener.local_addr().map_err(|e| iceyee_error::c!(e))?;
         let server = Arc::new(self);
-        let _server = server.clone();
-        let semaphore: Arc<Semaphore> = Arc::new(Semaphore::new(0));
-        let _semaphore = semaphore.clone();
-        let stop: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-        let _stop = stop.clone();
+        let stop_1: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+        let stop_2 = stop_1.clone();
+        let stop_3 = stop_1.clone();
         tokio::task::spawn(async move {
-            _semaphore.add_permits(1);
             let mut clean_t: i64 = iceyee_time::now();
-            while !_stop.load(SeqCst) {
-                let server = _server.clone();
+            let stop = stop_1.clone();
+            while !stop.load(SeqCst) {
+                let server = server.clone();
                 match listener.accept().await {
                     Ok((mut tcp, address)) => {
                         if 1_000 * 60 * 60 < iceyee_time::now() - clean_t {
                             Self::clean_expired_session(server.clone()).await;
                             clean_t = iceyee_time::now();
                         }
-                        if _stop.load(SeqCst) {
+                        if stop.load(SeqCst) {
                             break;
                         }
-                        let stop = _stop.clone();
+                        let stop = stop_1.clone();
                         tokio::task::spawn(async move {
                             let mut id: Id = Id::new();
                             let ip: String = match address.ip() {
@@ -618,23 +612,17 @@ impl HttpServer {
                     }
                 }
             }
-            _semaphore.add_permits(1);
         });
-        semaphore
-            .acquire()
-            .await
-            .expect("Semaphore::acquire")
-            .forget();
-        let _stop = stop.clone();
         tokio::task::spawn(async move {
-            while !_stop.load(SeqCst) {
+            let stop = stop_2.clone();
+            while !stop.load(SeqCst) {
                 iceyee_time::sleep(100).await;
             }
             if let Ok(mut tcp) = TokioTcpStream::connect(address).await {
                 let _ = tcp.shutdown().await;
             }
         });
-        return Ok(stop);
+        return Ok(stop_3);
     }
 
     /// 启动服务器.

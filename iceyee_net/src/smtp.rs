@@ -55,16 +55,16 @@ impl MailAgent {
             .to(to.parse::<Address>().unwrap().into())
             .subject(title)
             .body(body.to_string())
-            .map_err(|e| iceyee_error::a!(e))?;
+            .map_err(|e| iceyee_error::c!(e))?;
         let a001: Vec<u8> = message.formatted();
-        let a002: String = String::from_utf8(a001).map_err(|e| iceyee_error::a!(e))?;
+        let a002: String = String::from_utf8(a001).map_err(|e| iceyee_error::c!(e))?;
         iceyee_logger::warn!("\n", a002);
         SmtpTransport::relay(server)
-            .map_err(|e| iceyee_error::a!(e))?
+            .map_err(|e| iceyee_error::c!(e))?
             .credentials(Credentials::new(name.to_string(), auth.to_string()))
             .build()
             .send(&message)
-            .map_err(|e| iceyee_error::a!(e))?;
+            .map_err(|e| iceyee_error::c!(e))?;
         return Ok(());
     }
 }
