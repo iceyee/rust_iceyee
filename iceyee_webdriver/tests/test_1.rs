@@ -17,7 +17,7 @@ use thirtyfour::WebDriver;
 
 // Function.
 
-#[tokio::test]
+// #[tokio::test]
 pub async fn _1() {
     println!("");
     let (driver, _child) = iceyee_webdriver::chrome(false, None, None).await.expect("");

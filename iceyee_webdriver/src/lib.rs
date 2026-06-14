@@ -12,7 +12,6 @@
 
 /* Use. */
 
-use cookie::SameSite;
 use iceyee_random::Random;
 use std::process::Child;
 use thirtyfour::common::capabilities::desiredcapabilities::Proxy as WebProxy;
@@ -34,17 +33,17 @@ pub async fn chrome(
     http_proxy: Option<String>,
     socks5_proxy: Option<String>,
 ) -> WebDriverResult<(WebDriver, Child)> {
-    let port: u64 = Random::next() % 0x7FFF + 0xFFF;
+    let port = Random::next() % 0x7FFF + 0xFFF;
     let child = std::process::Command::new("chromium.chromedriver")
         .arg("--log-level=WARNING")
         .arg("--port=".to_string() + port.to_string().as_str())
         .spawn()
         .expect("start chromium.chromedriver");
     iceyee_time::sleep(3_000).await;
-    let mut options: ChromeCapabilities = ChromeCapabilities::new();
+    let mut options = ChromeCapabilities::new();
     options.set_ignore_certificate_errors()?;
-    options.add_chrome_arg("--no-sandbox")?;
-    options.add_chrome_arg("--ignore-certificate-errors")?;
+    options.add_arg("--no-sandbox")?;
+    options.add_arg("--ignore-certificate-errors")?;
     if headless {
         options.set_headless()?;
     }
@@ -59,10 +58,10 @@ pub async fn chrome(
         no_proxy: None,
     };
     if http_proxy.is_some() || socks5_proxy.is_some() {
-        options.insert(
+        options.set(
             "proxy".to_string(),
-            serde_json::to_value(proxy).map_err(|e| WebDriverError::Json(e))?,
-        );
+            serde_json::to_value(proxy).map_err(|e| WebDriverError::Json(e.to_string()))?,
+        )?;
     }
     iceyee_logger::info!("打开浏览器");
     iceyee_logger::info_object!(&options);
@@ -107,10 +106,10 @@ pub async fn edge(
         no_proxy: None,
     };
     if http_proxy.is_some() || socks5_proxy.is_some() {
-        options.insert(
+        options.set(
             "proxy".to_string(),
-            serde_json::to_value(proxy).map_err(|e| WebDriverError::Json(e))?,
-        );
+            serde_json::to_value(proxy).map_err(|e| WebDriverError::Json(e.to_string()))?,
+        )?;
     }
     iceyee_logger::info!("打开浏览器");
     iceyee_logger::info_object!(&options);
@@ -216,7 +215,7 @@ pub async fn add_cookie(
     let mut cookie = Cookie::new(key.to_string(), value.to_string());
     cookie.set_domain(domain.to_string());
     cookie.set_path("/");
-    cookie.set_same_site(Some(SameSite::None));
+    cookie.set_same_site(SameSite::None);
     return driver.add_cookie(cookie.clone()).await;
 }
 
@@ -232,7 +231,7 @@ pub async fn set_cookie(driver: &WebDriver, cookie: &str, domain: &str) -> WebDr
                 let mut cookie = Cookie::new(key, value);
                 cookie.set_domain(domain.to_string());
                 cookie.set_path("/");
-                cookie.set_same_site(Some(SameSite::None));
+                cookie.set_same_site(SameSite::None);
                 driver.add_cookie(cookie.clone()).await?;
             }
         }
@@ -244,12 +243,11 @@ pub async fn get_cookie(driver: &WebDriver) -> WebDriverResult<(String, String)>
     let mut output_1: String = String::new();
     let mut output_2: String = String::new();
     for cookie in driver.get_all_cookies().await? {
-        output_1.push_str(format!("{}={}; ", cookie.name(), cookie.value()).as_str());
+        output_1.push_str(format!("{}={}; ", &cookie.name, &cookie.value).as_str());
         output_2.push_str(
             format!(
                 "\r\ndocument.cookie='{}={}; path=/;' ",
-                cookie.name(),
-                cookie.value()
+                &cookie.name, &cookie.value
             )
             .as_str(),
         );

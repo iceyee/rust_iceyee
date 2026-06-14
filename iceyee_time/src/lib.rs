@@ -15,30 +15,24 @@ use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::Once;
 use std::time::Duration;
 use tokio::sync::Mutex as TokioMutex;
 use tokio::task::JoinHandle;
 use tokio::time::Sleep;
 
-const ONE_MILLISECOND: i64 = 1;
-const ONE_SECOND: i64 = 1_000 * ONE_MILLISECOND;
-const ONE_MINUTE: i64 = 60 * ONE_SECOND;
-const ONE_HOUR: i64 = 60 * ONE_MINUTE;
-const ONE_DAY: i64 = 24 * ONE_HOUR;
-const ONE_WEEK: i64 = 7 * ONE_DAY;
-// const ONE_MONTH: i64 = 31 * ONE_DAY;
-const ONE_YEAR: i64 = 365 * ONE_DAY;
-const FOUR_YEAR: i64 = 4 * ONE_YEAR + ONE_DAY;
-const ONE_HUNDRED_YEAR: i64 = 25 * FOUR_YEAR - ONE_DAY;
-const FOUR_HUNDRED_YEAR: i64 = 4 * ONE_HUNDRED_YEAR + ONE_DAY;
-const TIME_0: i64 =
+pub const ONE_MILLISECOND: i64 = 1;
+pub const ONE_SECOND: i64 = 1_000 * ONE_MILLISECOND;
+pub const ONE_MINUTE: i64 = 60 * ONE_SECOND;
+pub const ONE_HOUR: i64 = 60 * ONE_MINUTE;
+pub const ONE_DAY: i64 = 24 * ONE_HOUR;
+pub const ONE_WEEK: i64 = 7 * ONE_DAY;
+pub const ONE_MONTH: i64 = 31 * ONE_DAY;
+pub const ONE_YEAR: i64 = 365 * ONE_DAY;
+pub const FOUR_YEAR: i64 = 4 * ONE_YEAR + ONE_DAY;
+pub const ONE_HUNDRED_YEAR: i64 = 25 * FOUR_YEAR - ONE_DAY;
+pub const FOUR_HUNDRED_YEAR: i64 = 4 * ONE_HUNDRED_YEAR + ONE_DAY;
+pub const TIME_0: i64 =
     4 * FOUR_HUNDRED_YEAR + 3 * ONE_HUNDRED_YEAR + ONE_DAY + 17 * FOUR_YEAR + 2 * ONE_YEAR;
-
-thread_local! {
-    static TIME_OFFSET: Cell<Option<TimeOffset>> = Cell::new(None);
-}
 
 /* Enum. */
 
@@ -54,6 +48,9 @@ pub struct TimeOffset(pub i16);
 impl std::default::Default for TimeOffset {
     /// 默认返回系统设置的时区.
     fn default() -> Self {
+        thread_local! {
+            static TIME_OFFSET: Cell<Option<TimeOffset>> = Cell::new(None);
+        }
         if TIME_OFFSET.get().is_some() {
             return TIME_OFFSET.get().expect("NEVER");
         }
@@ -376,7 +373,6 @@ impl From<(u64, u64, u64, u64, u64, u64, u64, Option<TimeOffset>)> for DateTime 
         }
         let _ = t;
         /* 月. */
-        t = 0;
         for x in 1..=12 {
             if month <= x {
                 break;
@@ -393,7 +389,6 @@ impl From<(u64, u64, u64, u64, u64, u64, u64, Option<TimeOffset>)> for DateTime 
                 _ => 30,
             };
             timestamp += max_days * ONE_DAY;
-            t += max_days;
         }
         // let day_of_year: i64 = t + day as i64;
         /* 日. */
@@ -485,16 +480,18 @@ pub struct Timer {
 /// 默认的定时器, 这是全局变量.
 impl std::default::Default for Timer {
     fn default() -> Self {
-        static TIMER: Mutex<Option<Timer>> = Mutex::new(None);
+        use std::sync::Once;
+        static mut TIMER: Option<Timer> = None;
         static O: Once = Once::new();
-        O.call_once(|| *TIMER.lock().expect("TIMER") = Some(Timer::new()));
-        O.wait();
-        return TIMER
-            .lock()
-            .expect("TIMER")
-            .as_ref()
-            .expect("NEVER")
-            .clone();
+        unsafe {
+            O.call_once(|| TIMER = Some(Timer::new()));
+            O.wait();
+            return (&raw const TIMER)
+                .as_ref()
+                .expect("NEVER")
+                .clone()
+                .expect("NEVER");
+        }
     }
 }
 
