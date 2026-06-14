@@ -47,7 +47,7 @@ use iceyee_time::Timer;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -57,16 +57,44 @@ use tokio::io::AsyncWriteExt;
 use tokio::io::Stdout;
 use tokio::sync::Mutex as TokioMutex;
 
-lazy_static::lazy_static! {
-static ref LOGGER: Logger = Logger {
-    timer: Timer::new(),
-    time: Arc::new(TokioMutex::new(DateTime::new().to_string())),
-    level: Arc::new(AtomicUsize::new(Level::default().to_usize())),
-    project_name: Arc::new(TokioMutex::new(None)),
-    target_directory: Arc::new(TokioMutex::new(None)),
-    warn_file: Arc::new(TokioMutex::new(None)),
-    error_file: Arc::new(TokioMutex::new(None)),
-};
+static mut TIMER: Option<Timer> = None;
+static mut TIME_1: String = String::new();
+static mut TIME_2: String = String::new();
+static mut TIME: AtomicPtr<String> = AtomicPtr::new(&raw mut TIME_1);
+static mut LEVEL: usize = 0;
+static mut PROJECT_NAME: Option<String> = None;
+static mut TARGET_DIRECTORY: Option<String> = None;
+static WARN_FILE: TokioMutex<Option<File>> = TokioMutex::const_new(None);
+static ERROR_FILE: TokioMutex<Option<File>> = TokioMutex::const_new(None);
+
+fn g_timer() -> &'static mut Timer {
+    return unsafe {
+        (&raw mut TIMER)
+            .as_mut()
+            .expect("NEVER")
+            .as_mut()
+            .expect("NEVER")
+    };
+}
+
+fn g_time_1() -> &'static mut String {
+    return unsafe { (&raw mut TIME_1).as_mut().expect("NEVER") };
+}
+
+fn g_time_2() -> &'static mut String {
+    return unsafe { (&raw mut TIME_2).as_mut().expect("NEVER") };
+}
+
+fn g_level() -> &'static mut usize {
+    return unsafe { (&raw mut LEVEL).as_mut().expect("NEVER") };
+}
+
+fn g_project_name() -> &'static mut Option<String> {
+    return unsafe { (&raw mut PROJECT_NAME).as_mut().expect("NEVER") };
+}
+
+fn g_target_directory() -> &'static mut Option<String> {
+    return unsafe { (&raw mut TARGET_DIRECTORY).as_mut().expect("NEVER") };
 }
 
 /* Enum. */
@@ -147,24 +175,15 @@ impl Level {
 /* Struct. */
 
 /// 日志.
-#[derive(Clone)]
-pub struct Logger {
-    timer: Timer,
-    time: Arc<TokioMutex<String>>,
-    level: Arc<AtomicUsize>,
-    project_name: Arc<TokioMutex<Option<String>>>,
-    target_directory: Arc<TokioMutex<Option<String>>>,
-    warn_file: Arc<TokioMutex<Option<File>>>,
-    error_file: Arc<TokioMutex<Option<File>>>,
-}
+pub struct Logger;
 
 /// 更新时间.
-
 impl Schedule1 for Logger {
     fn sleep_after_perform1(&self) -> u64 {
         100
     }
 
+    #[allow(static_mut_refs)]
     fn perform1<'a, 'b>(
         &'a self,
         _stop: Arc<AtomicBool>,
@@ -173,7 +192,19 @@ impl Schedule1 for Logger {
         'a: 'b,
     {
         return Box::pin(async {
-            *LOGGER.time.lock().await = DateTime::new().to_string();
+            static mut SWITCH: bool = true;
+            unsafe {
+                SWITCH = !SWITCH;
+                if SWITCH {
+                    let time_1 = g_time_1();
+                    *time_1 = DateTime::new().to_string();
+                    TIME.store(time_1, SeqCst);
+                } else {
+                    let time_2 = g_time_2();
+                    *time_2 = DateTime::new().to_string();
+                    TIME.store(time_2, SeqCst);
+                }
+            };
             return true;
         });
     }
@@ -193,20 +224,16 @@ impl Schedule2 for Logger {
         'a: 'b,
     {
         return Box::pin(async {
-            let project_name: Option<String> = LOGGER.project_name.lock().await.clone();
+            let project_name: Option<String> = g_project_name().clone();
             if project_name.is_none() {
                 return true;
             }
             let project_name: String = project_name.as_ref().expect("NEVER").clone();
-            let target_directory: String = LOGGER
-                .target_directory
-                .lock()
-                .await
-                .clone()
-                .unwrap_or_else(|| default_target());
+            let target_directory: String =
+                g_target_directory().clone().unwrap_or_else(default_target);
             let path: String = target_directory.clone() + "/" + &project_name;
             /* 刷新缓存, 然后关闭文件. */
-            let mut warn_file = LOGGER.warn_file.lock().await;
+            let mut warn_file = WARN_FILE.lock().await;
             if warn_file.is_some() {
                 warn_file
                     .as_mut()
@@ -216,7 +243,7 @@ impl Schedule2 for Logger {
                     .expect("File::flush");
             }
             *warn_file = None;
-            let mut error_file = LOGGER.error_file.lock().await;
+            let mut error_file = ERROR_FILE.lock().await;
             if error_file.is_some() {
                 error_file
                     .as_mut()
@@ -278,17 +305,13 @@ impl Schedule3 for Logger {
         'a: 'b,
     {
         return Box::pin(async {
-            let project_name: Option<String> = LOGGER.project_name.lock().await.clone();
+            let project_name: Option<String> = g_project_name().clone();
             if project_name.is_none() {
                 return true;
             }
             let project_name: String = project_name.as_ref().expect("NEVER").clone();
-            let target_directory: String = LOGGER
-                .target_directory
-                .lock()
-                .await
-                .clone()
-                .unwrap_or_else(|| default_target());
+            let target_directory: String =
+                g_target_directory().clone().unwrap_or_else(default_target);
             let path: String = target_directory.clone() + "/" + &project_name;
             let mut dirs = tokio::fs::read_dir(&path).await.expect("fs::read_dir");
             /* 删除两个月前的文件. */
@@ -329,7 +352,7 @@ impl Schedule4 for Logger {
         'a: 'b,
     {
         return Box::pin(async {
-            let mut warn_file = LOGGER.warn_file.lock().await;
+            let mut warn_file = WARN_FILE.lock().await;
             if warn_file.is_some() {
                 warn_file
                     .as_mut()
@@ -339,7 +362,7 @@ impl Schedule4 for Logger {
                     .expect("File::flush");
             }
             drop(warn_file);
-            let mut error_file = LOGGER.error_file.lock().await;
+            let mut error_file = ERROR_FILE.lock().await;
             if error_file.is_some() {
                 error_file
                     .as_mut()
@@ -358,7 +381,7 @@ impl Schedule4 for Logger {
         'a: 'b,
     {
         return Box::pin(async {
-            let mut warn_file = LOGGER.warn_file.lock().await;
+            let mut warn_file = WARN_FILE.lock().await;
             if warn_file.is_some() {
                 warn_file
                     .as_mut()
@@ -368,7 +391,7 @@ impl Schedule4 for Logger {
                     .expect("File::flush");
             }
             drop(warn_file);
-            let mut error_file = LOGGER.error_file.lock().await;
+            let mut error_file = ERROR_FILE.lock().await;
             if error_file.is_some() {
                 error_file
                     .as_mut()
@@ -383,66 +406,50 @@ impl Schedule4 for Logger {
     }
 }
 
-// pub struct Logger {
-//     timer: Timer,
-//     time: TokioMutex<String>,
-//     level: AtomicUsize,
-//     project_name: TokioMutex<Option<String>>,
-//     target_directory: TokioMutex<Option<String>>,
-//     warn_file: TokioMutex<Option<File>>,
-//     error_file: TokioMutex<Option<File>>,
-// }
-
 impl Logger {
     pub async fn init(
         level: Option<Level>,
         project_name: Option<&str>,
         target_directory: Option<&str>,
     ) {
-        LOGGER.timer.stop_and_wait().await;
-        LOGGER.timer.start().await;
-        let level = level.unwrap_or_else(|| Level::default());
-        LOGGER.level.store(level.to_usize(), SeqCst);
-        *LOGGER.project_name.lock().await = project_name.clone().and_then(|x| Some(x.to_string()));
-        *LOGGER.target_directory.lock().await =
-            target_directory.clone().and_then(|x| Some(x.to_string()));
-        *LOGGER.warn_file.lock().await = None;
-        *LOGGER.error_file.lock().await = None;
+        unsafe {
+            if (&raw const TIMER).as_ref().expect("NEVER").is_none() {
+                TIMER = Some(Timer::new());
+            }
+        }
+        let timer = g_timer();
+        timer.stop_and_wait().await;
+        timer.start().await;
+        *g_level() = level.unwrap_or_else(|| Level::default()).to_usize();
+        *g_project_name() = project_name.map(|x| x.to_string());
+        *g_target_directory() = target_directory.map(|x| x.to_string());
+        *WARN_FILE.lock().await = None;
+        *ERROR_FILE.lock().await = None;
         /* 打开文件. */
         {
             let (warn_file, error_file) = Self::create_file().await;
-            *LOGGER.warn_file.lock().await = warn_file;
-            *LOGGER.error_file.lock().await = error_file;
+            *WARN_FILE.lock().await = warn_file;
+            *ERROR_FILE.lock().await = error_file;
         }
         /* 更新时间. */
-        LOGGER.timer.schedule1(LOGGER.clone().wrap1()).await;
+        Logger.perform1(AtomicBool::new(true).into()).await;
+        timer.schedule1(Logger.wrap1()).await;
         /* 重命名. */
-        LOGGER.timer.schedule2(LOGGER.clone().wrap2()).await;
+        timer.schedule2(Logger.wrap2()).await;
         /* 删除两个月前的文件. */
-        LOGGER.timer.schedule3(LOGGER.clone().wrap3()).await;
+        timer.schedule3(Logger.wrap3()).await;
         /* 更新缓存. */
-        LOGGER.timer.schedule4(LOGGER.clone().wrap4()).await;
+        timer.schedule4(Logger.wrap4()).await;
         return;
     }
 
     /* 创建目录文件. */
     async fn create_file() -> (Option<File>, Option<File>) {
-        if LOGGER.project_name.lock().await.is_none() {
+        if g_project_name().is_none() {
             return (None, None);
         }
-        let project_name: String = LOGGER
-            .project_name
-            .lock()
-            .await
-            .as_ref()
-            .expect("NEVER")
-            .clone();
-        let target_directory: String = LOGGER
-            .target_directory
-            .lock()
-            .await
-            .clone()
-            .unwrap_or_else(|| default_target());
+        let project_name: String = g_project_name().clone().expect("NEVER");
+        let target_directory: String = g_target_directory().clone().unwrap_or_else(default_target);
         let path: String = target_directory.clone() + "/" + &project_name;
         let _ = tokio::fs::create_dir_all(&path).await;
         let warn_file: String = path.clone() + "/" + &project_name + "_warn.log";
@@ -462,8 +469,9 @@ impl Logger {
         return (Some(warn_file), Some(error_file));
     }
 
-    pub async fn print(&self, level: Level, message: &str) {
-        if level.to_usize() < self.level.load(SeqCst) {
+    #[allow(static_mut_refs)]
+    pub async fn print(level: Level, message: &str) {
+        if level.to_usize() < *g_level() {
             return;
         }
         static STDOUT: TokioMutex<Option<Stdout>> = TokioMutex::const_new(None);
@@ -471,7 +479,7 @@ impl Logger {
         if stdout.is_none() {
             *stdout = Some(tokio::io::stdout());
         }
-        let time: String = self.time.lock().await.clone();
+        let time: String = unsafe { TIME.load(SeqCst).as_ref().expect("NEVER").clone() };
         let message: String = message.to_string().replace("\n", "\n    ");
         match level {
             Level::Debug | Level::Info => {
@@ -505,7 +513,7 @@ impl Logger {
                     .await
                     .expect("Stdout::write");
                 drop(stdout);
-                let mut warn_file = self.warn_file.lock().await;
+                let mut warn_file = WARN_FILE.lock().await;
                 if warn_file.is_some() {
                     warn_file
                         .as_mut()
@@ -532,7 +540,7 @@ impl Logger {
                     .await
                     .expect("File::write");
                 drop(stdout);
-                let mut error_file = self.error_file.lock().await;
+                let mut error_file = ERROR_FILE.lock().await;
                 if error_file.is_some() {
                     error_file
                         .as_mut()
@@ -552,7 +560,6 @@ impl Logger {
 
 /// 日志的默认路径.
 pub fn default_target() -> String {
-    tokio::task::spawn(async move {});
     return home_dir() + "/.iceyee_log";
 }
 
@@ -580,7 +587,7 @@ pub async fn init(
 
 /// 输出日志.
 pub async fn print(level: Level, message: &str) {
-    LOGGER.print(level, message).await;
+    Logger::print(level, message).await;
     return;
 }
 
