@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_webdriver"
-version = "7.0.1"
+version = "7.0.2"
 edition = "2024"
 
 description = "web selenium."

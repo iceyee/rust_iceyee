@@ -68,14 +68,11 @@ pub async fn chrome(
     let url: String = format!("http://localhost:{port}");
     let driver: WebDriver = WebDriver::new(&url, options).await?;
     if !headless {
-        // let width = driver
-        //     .execute("return window.outerWidth;", vec![])
-        //     .await?
-        //     .json()
-        //     .clone()
-        //     .as_number()
-        //     .map(|x| x.as_u64());
-        driver.set_window_rect(0, 0, 860, 600).await?;
+        driver.fullscreen_window().await?;
+        let rect = driver.get_window_rect().await?;
+        driver
+            .set_window_rect(0, 0, rect.width as u32, (rect.height * 3 / 4) as u32)
+            .await?;
     }
     return Ok((driver, child));
 }
@@ -115,20 +112,12 @@ pub async fn edge(
     iceyee_logger::info_object!(&options);
     let url: String = format!("http://localhost:{port}");
     let driver: WebDriver = WebDriver::new(&url, options).await?;
-    if let serde_json::value::Value::Number(number) = driver
-        .execute("return window.outerWidth;", vec![])
-        .await?
-        .json()
-    {
-        let width: u32 = number.as_u64().expect("NEVER") as u32;
-        if let serde_json::value::Value::Number(number) = driver
-            .execute("return window.outerHeight;", vec![])
-            .await?
-            .json()
-        {
-            let height: u32 = number.as_u64().expect("NEVER") as u32;
-            driver.set_window_rect(0, 0, width, height * 3 / 4).await?;
-        }
+    if !headless {
+        driver.fullscreen_window().await?;
+        let rect = driver.get_window_rect().await?;
+        driver
+            .set_window_rect(0, 0, rect.width as u32, (rect.height * 3 / 4) as u32)
+            .await?;
     }
     return Ok((driver, child));
 }
