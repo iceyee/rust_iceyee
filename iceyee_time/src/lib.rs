@@ -561,7 +561,6 @@ pub fn now() -> i64 {
          *         [out] LPSYSTEMTIME lpSystemTime
          *         );
          * time_t time(time_t *); */
-        use std::ffi::c_long;
         use std::ffi::c_short;
         #[allow(non_snake_case)]
         #[derive(Debug, Clone, Default)]
@@ -578,11 +577,11 @@ pub fn now() -> i64 {
         }
         unsafe extern "C" {
             fn GetLocalTime(lpSystemTime: *mut SYSTEMTIME);
-            fn time(t: *mut c_long) -> c_long;
+            fn time(t: *mut i64) -> i64;
         }
         let mut st: SYSTEMTIME = Default::default();
         unsafe { GetLocalTime(&mut st) };
-        let mut t: c_long = 0;
+        let mut t: i64 = 0;
         unsafe { time(&mut t) };
         return t as i64 * 1_000 + st.wMilliseconds as i64;
     }
