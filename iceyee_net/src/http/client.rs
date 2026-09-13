@@ -1017,10 +1017,22 @@ impl HttpClient {
         proxy.get_logger().push_str("\r\n---- Response ----\r\n");
         let mut response = Response::read_from(proxy.deref_mut(), self.timeout.clone()).await?;
         proxy.get_logger().push_str(response.to_string().as_str());
-        if response.header.contains_key("Content-Encoding")
+        if (response.header.contains_key("Content-Encoding")
             && response.header.get("Content-Encoding").expect("NEVER")[0]
                 .to_lowercase()
-                .contains("gzip")
+                .contains("gzip"))
+            || (response.header.contains_key("content-Encoding")
+                && response.header.get("content-Encoding").expect("NEVER")[0]
+                    .to_lowercase()
+                    .contains("gzip"))
+            || (response.header.contains_key("Content-encoding")
+                && response.header.get("Content-encoding").expect("NEVER")[0]
+                    .to_lowercase()
+                    .contains("gzip"))
+            || (response.header.contains_key("content-encoding")
+                && response.header.get("content-encoding").expect("NEVER")[0]
+                    .to_lowercase()
+                    .contains("gzip"))
         {
             /* gzip解压. */
             let mut body: Vec<u8> = Vec::new();
