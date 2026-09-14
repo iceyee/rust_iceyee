@@ -7,12 +7,13 @@
 
 //! 日志.
 //!
-//! [debug], [info], [warn], [error], 这四个要求参数比须实现[ToString].
+//! [debug], [info], [warn], [error], 这四个要求参数比须实现[Display](std::fmt::Display).
 //!
 //! [debug_object], [info_object], [warn_object], [error_object],
 //!     这四个要求参数比须实现[Debug].
 //!
 //! # Example
+//!
 //! ```
 //! iceyee_logger::debug!(0, "hello world debug.", "second", "third", "fourth");
 //! iceyee_logger::info!(1, "hello world debug.", "second", "third", "fourth");
@@ -21,6 +22,7 @@
 //! ```
 //!
 //! # Output
+//!
 //! ```text
 //! 2024-09-29T12:12:44.917+08:00 DEBUG # 0 hello world debug. second third fourth
 //!
@@ -32,9 +34,6 @@
 //!     iceyee_logger/tests/test_logger.rs:59:5 test_logger #
 //!     3 hello world debug. second third fourth
 //! ```
-//!
-//! - @see [iceyee_time](../iceyee_time/index.html)
-//! - @see [tokio](../tokio/index.html)
 
 /* Use. */
 
@@ -142,8 +141,8 @@ impl Level {
 
 impl PartialOrd for Level {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let x: usize = self.clone().to_usize();
-        let y: usize = other.clone().to_usize();
+        let x: usize = self.to_usize();
+        let y: usize = other.to_usize();
         return x.partial_cmp(&y);
     }
 }
@@ -264,12 +263,10 @@ impl Schedule2 for Logger {
             let error_file_from: String = path.clone() + "/" + &project_name + "_error.log";
             let warn_file_to: String = path.clone() + "/" + &project_name + &date + "_warn.log";
             let error_file_to: String = path.clone() + "/" + &project_name + &date + "_error.log";
-            tokio::fs::rename(&warn_file_from, &warn_file_to)
-                .await
-                .expect("fs::rename");
+            tokio::fs::rename(&warn_file_from, &warn_file_to).await.ok();
             tokio::fs::rename(&error_file_from, &error_file_to)
                 .await
-                .expect("fs::rename");
+                .ok();
             *warn_file = Some(
                 OpenOptions::new()
                     .create(true)
@@ -316,6 +313,9 @@ impl Schedule3 for Logger {
             let mut dirs = tokio::fs::read_dir(&path).await.expect("fs::read_dir");
             /* 删除两个月前的文件. */
             while let Ok(Some(entry)) = dirs.next_entry().await {
+                if !entry.file_type().await.expect("Entry::file_type").is_file() {
+                    continue;
+                }
                 let t: SystemTime = entry
                     .metadata()
                     .await
@@ -451,7 +451,7 @@ impl Logger {
         let project_name: String = g_project_name().clone().expect("NEVER");
         let target_directory: String = g_target_directory().clone().unwrap_or_else(default_target);
         let path: String = target_directory.clone() + "/" + &project_name;
-        let _ = tokio::fs::create_dir_all(&path).await;
+        tokio::fs::create_dir_all(&path).await.ok();
         let warn_file: String = path.clone() + "/" + &project_name + "_warn.log";
         let error_file: String = path.clone() + "/" + &project_name + "_error.log";
         let warn_file: File = OpenOptions::new()
@@ -480,7 +480,7 @@ impl Logger {
             *stdout = Some(tokio::io::stdout());
         }
         let time: String = unsafe { TIME.load(SeqCst).as_ref().expect("NEVER").clone() };
-        let message: String = message.to_string().replace("\n", "\n    ");
+        let message: String = message.replace("\n", "\n    ");
         match level {
             Level::Debug | Level::Info => {
                 let message_a: String = format!(
@@ -573,6 +573,10 @@ pub fn home_dir() -> String {
     {
         return std::env::var("USERPROFILE").expect("std::env::var('USERPROFILE')");
     }
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    {
+        compile_error!("iceyee_logger 只支持 linux 和 windows.");
+    }
 }
 
 /// 初始化.
@@ -595,10 +599,10 @@ pub async fn print(level: Level, message: &str) {
 macro_rules! debug {
     ($($x:expr),* $(,)?) => {
         {
+            use std::fmt::Write as _;
             let mut message: String = String::with_capacity(0xFF);
             $(
-                let x: String = $x.to_string();
-                message.push_str(&x);
+                write!(message, "{}", $x).ok();
                 if !message.ends_with("\n") {
                     message.push_str(" ");
                 }
@@ -612,10 +616,10 @@ macro_rules! debug {
 macro_rules! info {
     ($($x:expr),* $(,)?) => {
         {
+            use std::fmt::Write as _;
             let mut message: String = String::with_capacity(0xFF);
             $(
-                let x: String = $x.to_string();
-                message.push_str(&x);
+                write!(message, "{}", $x).ok();
                 if !message.ends_with("\n") {
                     message.push_str(" ");
                 }
@@ -629,10 +633,10 @@ macro_rules! info {
 macro_rules! warn {
     ($($x:expr),* $(,)?) => {
         {
+            use std::fmt::Write as _;
             let mut message: String = String::with_capacity(0xFF);
             $(
-                let x: String = $x.to_string();
-                message.push_str(&x);
+                write!(message, "{}", $x).ok();
                 if !message.ends_with("\n") {
                     message.push_str(" ");
                 }
@@ -646,11 +650,11 @@ macro_rules! warn {
 macro_rules! error {
     ($($x:expr),* $(,)?) => {
         {
+            use std::fmt::Write as _;
             let mut message: String = String::with_capacity(0xFF);
-            message.push_str(&format!("{}:{}:{} {} # \n", file!(), line!(), column!(), module_path!()));
+            write!(message, "{}:{}:{} {} # \n", file!(), line!(), column!(), module_path!()).ok();
             $(
-                let x: String = $x.to_string();
-                message.push_str(&x);
+                write!(message, "{}", $x).ok();
                 if !message.ends_with("\n") {
                     message.push_str(" ");
                 }
@@ -664,9 +668,10 @@ macro_rules! error {
 macro_rules! debug_object {
     ($($x:expr),* $(,)?) => {
         {
+            use std::fmt::Write as _;
             let mut message: String = String::with_capacity(0xFF);
             $(
-                message.push_str(&format!("\n{:?}", $x));
+                write!(message, "\n{:?}", $x).ok();
             )*
             iceyee_logger::print(iceyee_logger::Level::Debug, &message).await;
         }
@@ -677,9 +682,10 @@ macro_rules! debug_object {
 macro_rules! info_object {
     ($($x:expr),* $(,)?) => {
         {
+            use std::fmt::Write as _;
             let mut message: String = String::with_capacity(0xFF);
             $(
-                message.push_str(&format!("\n{:?}", $x));
+                write!(message, "\n{:?}", $x).ok();
             )*
             iceyee_logger::print(iceyee_logger::Level::Info, &message).await;
         }
@@ -690,9 +696,10 @@ macro_rules! info_object {
 macro_rules! warn_object {
     ($($x:expr),* $(,)?) => {
         {
+            use std::fmt::Write as _;
             let mut message: String = String::with_capacity(0xFF);
             $(
-                message.push_str(&format!("\n{:?}", $x));
+                write!(message, "\n{:?}", $x).ok();
             )*
             iceyee_logger::print(iceyee_logger::Level::Warn, &message).await;
         }
@@ -703,10 +710,11 @@ macro_rules! warn_object {
 macro_rules! error_object {
     ($($x:expr),* $(,)?) => {
         {
+            use std::fmt::Write as _;
             let mut message: String = String::with_capacity(0xFF);
-            message.push_str(&format!("{}:{}:{} {} | ", file!(), line!(), column!(), module_path!()));
+            write!(message, "{}:{}:{} {} | ", file!(), line!(), column!(), module_path!()).ok();
             $(
-                message.push_str(&format!("\n{:?}", $x));
+                write!(message, "\n{:?}", $x).ok();
             )*
             iceyee_logger::print(iceyee_logger::Level::Error, &message).await;
         }
