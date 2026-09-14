@@ -73,14 +73,14 @@
 macro_rules! a {
     ($($x:expr),* $(,)?) => {
         {
+            use std::fmt::Write as _;
             let mut message = format!(
                     "Create error at {}:{}:{}",
                     file!(),
                     line!(),
                     column!());
             $(
-                message.push_str(", ");
-                message.push_str($x.to_string().as_str());
+                let _ = write!(message, ", {}", $x);
             )*
             message
         }
@@ -105,6 +105,7 @@ macro_rules! b {
     };
     ($e:expr, $($x:expr),* $(,)?) => {
         {
+            use std::fmt::Write as _;
             let mut message = format!(
                     "{}\nInherit error at {}:{}:{}",
                     $e,
@@ -112,8 +113,7 @@ macro_rules! b {
                     line!(),
                     column!());
             $(
-                message.push_str(", ");
-                message.push_str($x.to_string().as_str());
+                let _ = write!(message, ", {}", $x);
             )*
             message
         }
@@ -127,12 +127,12 @@ macro_rules! b {
 macro_rules! c {
     ($($x:expr),* $(,)?) => {
         {
+            use std::fmt::Write as _;
             let mut message = String::new();
             $(
-                message.push_str($x.to_string().as_str());
-                message.push_str(" ");
+                let _ = write!(message, "{} ", $x);
             )*
-            let message = format!("error: {}\n{}", 
+            let message = format!("error: {}\n{}",
                     message,
                     std::backtrace::Backtrace::force_capture());
             message
