@@ -4,6 +4,12 @@
 // *  Git: https://github.com/iceyee                *
 // **************************************************
 //
+#![allow(
+    clippy::needless_range_loop,
+    clippy::needless_return,
+    clippy::println_empty_string
+)]
+
 // Use.
 
 use iceyee_random::Random;

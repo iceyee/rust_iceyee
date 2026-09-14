@@ -4,15 +4,25 @@
 // *  Git: https://github.com/iceyee                *
 // **************************************************
 //
+#![allow(clippy::needless_return)]
+
 /* Use. */
 
 use std::cell::Cell;
 use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 thread_local! {
-    static SEED: Cell<u64> = Cell::new(0);
-    static THREAD_ID: Cell<u64> = Cell::new(0);
+    /* 已经是const初始化; clippy 1.98 的missing_const_for_thread_local对const块会误报, 故忽略. */
+    #[allow(clippy::missing_const_for_thread_local)]
+    static SEED: Cell<u64> = const { Cell::new(0) };
 }
+
+/* 计数器步长, 黄金分割常数. */
+const GOLDEN_RATIO: u64 = 0x9E37_79B9_7F4A_7C15;
+
+/* 兜底种子, 极端情况下才会用到. */
+const DEFAULT_SEED: u64 = 0x2545_F491_4F6C_DD1D;
 
 /* Enum. */
 
@@ -23,86 +33,62 @@ thread_local! {
 /// 随机数.
 ///
 /// 种子是线程变量.
+///
+/// 内部状态是一个64位计数器, 每取一次递增一个黄金分割常数, 因此周期是2^64;
+/// 对外输出再把状态过一遍splitmix64混淆函数, 保证雪崩效应与低位质量.
 pub struct Random;
 
 impl Random {
     /// 设置种子, 种子是线程变量.
+    ///
+    /// 参数为0时, 用当前线程id作为种子.
     pub fn set_seed(s: u64) {
+        let s: u64 = if s == 0 { get_thread_id() } else { s };
         SEED.with(|seed| seed.set(s));
         return;
     }
 
     /// 下一个随机数.
     pub fn next() -> u64 {
-        let mut seed: u64 = SEED.with(|seed| {
-            if seed.get() == 0 {
-                let id: u64 = get_thread_id();
-                let time: u64 = SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as u64;
-                seed.set(id ^ time);
+        let state: u64 = SEED.with(|seed| {
+            let mut state: u64 = seed.get();
+            if state == 0 {
+                /* 没有设置过种子, 用线程id与时间戳初始化. */
+                state = get_thread_id() ^ get_time_nanos();
+                if state == 0 {
+                    state = DEFAULT_SEED;
+                }
             }
-            seed.get()
+            state = state.wrapping_add(GOLDEN_RATIO);
+            seed.set(state);
+            return state;
         });
-        let thread_id: u64 = THREAD_ID.with(|id| {
-            if id.get() == 0 {
-                id.set(get_thread_id() & 0xFFFFFFFF)
-            }
-            id.get()
-        });
-        const TABLE: [u64; 32] = [
-            0x59763CEA1457DFC5,
-            0x0E701C6631DCCC01,
-            0x67793534A8C778D7,
-            0x64770DE4EB0B80CE,
-            0x747A9AF32BB93809,
-            0xC71D4F13A1E22A09,
-            0xE74813B3E6C1ECAB,
-            0x3B88A9B5A97C3862,
-            0x24057CC3128D9579,
-            0xD41D3C71A9426A59,
-            0xE5E61B92D1F676F4,
-            0xA01EC8F62398DE1C,
-            0x3025BB78C7E3DD78,
-            0xD869150399B67D2A,
-            0xD4F8F70CEEFBB738,
-            0xF910F138AFE1C1C9,
-            0xE63F12FA3125DB84,
-            0x84DC6ADA95196F95,
-            0x6C47E3124371EF67,
-            0x3339D137640D3929,
-            0x6604916E4DF3C5AF,
-            0x8D86EBD5FD2374CD,
-            0xAD13E8135162601F,
-            0xDA5C5215F3867431,
-            0x1540D632794D96C6,
-            0x012533A3629D7DE8,
-            0x238F9B1046DDCA4C,
-            0xB61FAC20EBE58CEA,
-            0xF6982B86164D089B,
-            0xEAA86C9587A038B3,
-            0xF4B1F470ABDA3652,
-            0x10A7C3C4A75EF01E,
-        ];
-        const N: usize = 2;
-        for x in 0..N {
-            seed = (seed << 63) | (seed >> 1);
-            seed ^= TABLE[x];
-            seed = ((seed as u128) + (TABLE[x + N] as u128)) as u64;
-        }
-        seed += thread_id;
-        SEED.with(|s| s.set(seed));
-        return seed;
+        /* splitmix64混淆函数. */
+        let mut z: u64 = state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
+        return z ^ (z >> 31);
     }
 
     /// 下一个小于max的随机数, 相当于next() % max.
+    ///
+    /// max为0时返回0.
     pub fn next_less_than(max: u64) -> u64 {
+        if max == 0 {
+            return 0;
+        }
         return Self::next() % max;
     }
 }
 
 /* Function. */
+
+/* 取当前时间戳, 单位纳秒. */
+fn get_time_nanos() -> u64 {
+    return SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_nanos() as u64);
+}
 
 /* 取线程id. */
 fn get_thread_id() -> u64 {
@@ -123,5 +109,10 @@ fn get_thread_id() -> u64 {
             fn GetCurrentThreadId() -> u32;
         }
         return unsafe { GetCurrentThreadId() } as u64;
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    {
+        /* 只考虑linux与windows. */
+        compile_error!("iceyee_random 只支持 linux 和 windows.")
     }
 }
