@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_error"
-version = "13.0.0"
+version = "13.0.1"
 edition = "2024"
 
 description = "Error Message."

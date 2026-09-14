@@ -80,7 +80,7 @@ macro_rules! a {
                     line!(),
                     column!());
             $(
-                let _ = write!(message, ", {}", $x);
+                write!(message, ", {}", $x).ok();
             )*
             message
         }
@@ -113,7 +113,7 @@ macro_rules! b {
                     line!(),
                     column!());
             $(
-                let _ = write!(message, ", {}", $x);
+                write!(message, ", {}", $x).ok();
             )*
             message
         }
@@ -130,7 +130,7 @@ macro_rules! c {
             use std::fmt::Write as _;
             let mut message = String::new();
             $(
-                let _ = write!(message, "{} ", $x);
+                write!(message, "{} ", $x).ok();
             )*
             let message = format!("error: {}\n{}",
                     message,
