@@ -4,6 +4,9 @@
 // *  Git: https://github.com/iceyee                *
 // **************************************************
 //
+/* clippy: 本crate风格是每个函数显式写return. */
+#![allow(clippy::needless_return, clippy::println_empty_string)]
+
 // Use.
 
 use iceyee_encoder::RadixEncoder;
@@ -25,7 +28,9 @@ pub fn test_radix_encoder() {
         RadixEncoder::u64_to_bin(0xFF00),
         "0000000000000000000000000000000000000000000000001111111100000000"
     );
-    println!("0xFF00 u64_to_bin_ 0b00000000_00000000_00000000_00000000_00000000_00000000_11111111_00000000");
+    println!(
+        "0xFF00 u64_to_bin_ 0b00000000_00000000_00000000_00000000_00000000_00000000_11111111_00000000"
+    );
     assert_eq!(
         RadixEncoder::u64_to_bin_(0xFF00),
         "0b00000000_00000000_00000000_00000000_00000000_00000000_11111111_00000000"

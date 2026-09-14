@@ -4,6 +4,9 @@
 // *  Git: https://github.com/iceyee                *
 // **************************************************
 //
+/* clippy: 本crate风格是每个函数显式写return. */
+#![allow(clippy::needless_return, clippy::println_empty_string)]
+
 // Use.
 
 use iceyee_encoder::HexEncoder;
@@ -68,6 +71,10 @@ fn test_hex_encoder() {
         println!("0x{y:x} <encode_number> {x}");
         let mut x = x.to_uppercase().replace(" ", "").replace("_", "");
         x.truncate(16);
+        /* encode_number 会去掉多余的首位'0', 与 decode_number 对称. */
+        if x.len() > 1 && x.starts_with('0') {
+            x.remove(0);
+        }
         assert_eq!(HexEncoder::encode_number(y), x);
     }
     println!("测试decode_number功能.");
@@ -86,5 +93,30 @@ fn test_hex_encoder() {
         HexEncoder::decode_number("012345678z").map_err(|x| x.contains("出现未预期的字符")),
         Err(true)
     );
+    println!("测试decode_number的非ASCII输入, 应该报错而不是panic.");
+    assert_eq!(
+        HexEncoder::decode_number(&"你".repeat(10)).map_err(|x| x.contains("出现未预期的字符")),
+        Err(true)
+    );
+    println!("测试encode_number与decode_number对称.");
+    for x in [
+        0u64,
+        1,
+        0xF,
+        0x10,
+        0xFF,
+        0x100,
+        0x0F0F,
+        0x0123_4567_89AB_CDEF,
+    ] {
+        let text: String = HexEncoder::encode_number(x);
+        println!(
+            "0x{x:x} <encode_number> {text} <decode_number> 0x{:x}",
+            HexEncoder::decode_number(&text).expect("NEVER")
+        );
+        assert_eq!(HexEncoder::decode_number(&text).expect("NEVER"), x);
+        /* 结果要么是"0", 要么首位不是'0'. */
+        assert!(text == "0" || !text.starts_with('0'));
+    }
     return;
 }
