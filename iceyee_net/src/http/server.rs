@@ -35,9 +35,9 @@ use std::collections::BTreeMap;
 use std::future::Future;
 use std::net::IpAddr;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
-use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener as TokioTcpListener;
@@ -619,7 +619,7 @@ impl HttpServer {
                 iceyee_time::sleep(100).await;
             }
             if let Ok(mut tcp) = TokioTcpStream::connect(address).await {
-                let _ = tcp.shutdown().await;
+                tcp.shutdown().await.ok();
             }
         });
         return Ok(stop_3);
@@ -629,7 +629,7 @@ impl HttpServer {
     pub async fn start(self, address: &str, port: u16) -> Result<(), String> {
         let mut stop = Self::test(self, address, port).await?;
         println!("---- 输入[Ctrl+C]停止. ----");
-        tokio::signal::ctrl_c().await.expect("");
+        tokio::signal::ctrl_c().await.ok();
         println!("---- 退出服务端. ----");
         stop.store(true, SeqCst);
         println!("---- 等待所有TCP处理完毕. ----");

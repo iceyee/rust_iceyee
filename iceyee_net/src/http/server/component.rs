@@ -9,10 +9,10 @@
 
 /* Use. */
 
+use crate::http::Status;
 use crate::http::server::Context;
 use crate::http::server::Filter;
 use crate::http::server::R;
-use crate::http::Status;
 use iceyee_encoder::Base64Encoder;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -43,7 +43,6 @@ impl FileRouter {
             (".7z", "application/x-7z-compressed"),
             (".ar", "application/x-archive"),
             (".asp", "application/x-asp"),
-            (".avi", "video/avi"),
             (".avi", "video/x-msvideo"),
             (".bmp", "image/bmp"),
             (".css", "text/css"),
@@ -141,17 +140,24 @@ impl Filter for FileRouter {
                 );
                 return Ok(true);
             }
+            /* 解析符号链接, 并校验目标仍在根目录内. */
+            let canonical_root = tokio::fs::canonicalize(&self.root)
+                .await
+                .map_err(|e| e.to_string())?;
+            let canonical_path = tokio::fs::canonicalize(&path)
+                .await
+                .map_err(|e| e.to_string())?;
+            if !canonical_path.starts_with(&canonical_root) {
+                R::write_status(
+                    &mut context.response,
+                    Status::Forbidden(Some("禁止访问根目录之外".to_string())),
+                );
+                return Ok(true);
+            }
+            path = canonical_path.to_string_lossy().to_string();
             let metadata = tokio::fs::metadata(&path)
                 .await
                 .map_err(|e| e.to_string())?;
-            if metadata.is_symlink() {
-                path = tokio::fs::read_link(&path)
-                    .await
-                    .map_err(|e| e.to_string())?
-                    .to_str()
-                    .expect("fs::read_link()")
-                    .to_string();
-            }
             if metadata.is_dir() {
                 R::write_status(
                     &mut context.response,

@@ -54,7 +54,7 @@ pub enum Status {
     NotImplemented(Option<String>),
     BadGateway(Option<String>),
     ServiceUnavailable(Option<String>),
-    UnkownStatusCode,
+    UnknownStatusCode,
 }
 
 impl From<u16> for Status {
@@ -75,54 +75,54 @@ impl From<u16> for Status {
             501 => Self::NotImplemented(None),
             502 => Self::BadGateway(None),
             503 => Self::ServiceUnavailable(None),
-            _ => Self::UnkownStatusCode,
+            _ => Self::UnknownStatusCode,
         }
     }
 }
 
-impl Into<u16> for Status {
-    fn into(self) -> u16 {
-        return match self {
-            Self::OK(_) => 200,
-            Self::Created(_) => 201,
-            Self::Accepted(_) => 202,
-            Self::NoContent => 204,
-            Self::MovedPermanently(_) => 301,
-            Self::MovedTemporarily(_) => 302,
-            Self::NotModified(_) => 304,
-            Self::BadRequest(_) => 400,
-            Self::Unauthorized(_) => 401,
-            Self::Forbidden(_) => 403,
-            Self::NotFound(_) => 404,
-            Self::InternalServerError(_) => 500,
-            Self::NotImplemented(_) => 501,
-            Self::BadGateway(_) => 502,
-            Self::ServiceUnavailable(_) => 503,
-            Self::UnkownStatusCode => 0,
+impl From<Status> for u16 {
+    fn from(value: Status) -> u16 {
+        return match value {
+            Status::OK(_) => 200,
+            Status::Created(_) => 201,
+            Status::Accepted(_) => 202,
+            Status::NoContent => 204,
+            Status::MovedPermanently(_) => 301,
+            Status::MovedTemporarily(_) => 302,
+            Status::NotModified(_) => 304,
+            Status::BadRequest(_) => 400,
+            Status::Unauthorized(_) => 401,
+            Status::Forbidden(_) => 403,
+            Status::NotFound(_) => 404,
+            Status::InternalServerError(_) => 500,
+            Status::NotImplemented(_) => 501,
+            Status::BadGateway(_) => 502,
+            Status::ServiceUnavailable(_) => 503,
+            Status::UnknownStatusCode => 0,
         };
     }
 }
 
-impl ToString for Status {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for Status {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let default_string: String = self.default_string();
         return match self {
-            Self::OK(s) => s.as_ref().unwrap_or(&default_string).clone(),
-            Self::Created(s) => s.clone(),
-            Self::Accepted(s) => s.as_ref().unwrap_or(&default_string).clone(),
-            Self::NoContent => "".to_string(),
-            Self::NotModified(s) => s.as_ref().unwrap_or(&default_string).clone(),
-            Self::BadRequest(s) => s.as_ref().unwrap_or(&default_string).clone(),
-            Self::Unauthorized(s) => s.as_ref().unwrap_or(&default_string).clone(),
-            Self::Forbidden(s) => s.as_ref().unwrap_or(&default_string).clone(),
-            Self::NotFound(s) => s.as_ref().unwrap_or(&default_string).clone(),
-            Self::InternalServerError(s) => s.as_ref().unwrap_or(&default_string).clone(),
-            Self::NotImplemented(s) => s.as_ref().unwrap_or(&default_string).clone(),
-            Self::BadGateway(s) => s.as_ref().unwrap_or(&default_string).clone(),
-            Self::ServiceUnavailable(s) => s.as_ref().unwrap_or(&default_string).clone(),
-            Self::MovedPermanently(s) => s.clone(),
-            Self::MovedTemporarily(s) => s.clone(),
-            Self::UnkownStatusCode => "Unkown Status Code".to_string(),
+            Self::OK(s) => f.write_str(s.as_deref().unwrap_or(&default_string)),
+            Self::Created(s) => f.write_str(s),
+            Self::Accepted(s) => f.write_str(s.as_deref().unwrap_or(&default_string)),
+            Self::NoContent => f.write_str(""),
+            Self::NotModified(s) => f.write_str(s.as_deref().unwrap_or(&default_string)),
+            Self::BadRequest(s) => f.write_str(s.as_deref().unwrap_or(&default_string)),
+            Self::Unauthorized(s) => f.write_str(s.as_deref().unwrap_or(&default_string)),
+            Self::Forbidden(s) => f.write_str(s.as_deref().unwrap_or(&default_string)),
+            Self::NotFound(s) => f.write_str(s.as_deref().unwrap_or(&default_string)),
+            Self::InternalServerError(s) => f.write_str(s.as_deref().unwrap_or(&default_string)),
+            Self::NotImplemented(s) => f.write_str(s.as_deref().unwrap_or(&default_string)),
+            Self::BadGateway(s) => f.write_str(s.as_deref().unwrap_or(&default_string)),
+            Self::ServiceUnavailable(s) => f.write_str(s.as_deref().unwrap_or(&default_string)),
+            Self::MovedPermanently(s) => f.write_str(s),
+            Self::MovedTemporarily(s) => f.write_str(s),
+            Self::UnknownStatusCode => f.write_str("Unknown Status Code"),
         };
     }
 }
@@ -145,7 +145,7 @@ impl Status {
             Self::NotImplemented(_) => "Not Implemented".to_string(),
             Self::BadGateway(_) => "Bad Gateway".to_string(),
             Self::ServiceUnavailable(_) => "Service Unavailable".to_string(),
-            Self::UnkownStatusCode => "Unkown Status Code".to_string(),
+            Self::UnknownStatusCode => "Unknown Status Code".to_string(),
         };
     }
 }
@@ -161,25 +161,25 @@ pub struct Args {
     empty_vec: Vec<String>,
 }
 
-impl ToString for Args {
+impl std::fmt::Display for Args {
     /// 转字符串, 如'?a=1&b=2&b=3', 包含url编码.
-    fn to_string(&self) -> String {
-        let mut output: String = String::new();
-        let mut keys = Vec::from_iter(self.hm.keys());
-        keys.sort();
-        for key in keys {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write as _;
+        let mut first: bool = true;
+        for key in self.hm.keys() {
             for value in self.hm.get(key).expect("") {
-                if output.len() == 0 {
-                    output.push_str("?");
+                if first {
+                    f.write_char('?')?;
+                    first = false;
                 } else {
-                    output.push_str("&");
+                    f.write_char('&')?;
                 }
-                output.push_str(UrlEncoder::encode(key).as_str());
-                output.push_str("=");
-                output.push_str(UrlEncoder::encode(value).as_str());
+                f.write_str(UrlEncoder::encode(key).as_str())?;
+                f.write_char('=')?;
+                f.write_str(UrlEncoder::encode(value).as_str())?;
             }
         }
-        return output;
+        return Ok(());
     }
 }
 
@@ -271,13 +271,13 @@ impl std::str::FromStr for Url {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let link: String = s.to_string();
-        let value = s.to_string();
-        let value: &[u8] = value.as_bytes();
+        let value: &[u8] = s.as_bytes();
         let length: usize = value.len();
         let mut state: State = State::Protocol;
         let mut index: usize = 0;
         let mut buffer: Vec<u8> = Vec::new();
         let mut url: Url = Url::default();
+        url.port = 0;
         while index < length {
             match state {
                 State::Protocol => {
@@ -449,8 +449,11 @@ impl std::str::FromStr for Url {
                 url.fragment = Some(fragment);
             }
         }
-        if url.port == 80 && url.protocol == "https:" {
+        if url.protocol == "https:" && url.port == 0 {
             url.port = 443;
+        }
+        if url.port == 0 {
+            url.port = 80;
         }
         if url.path.len() == 0 {
             url.path = "/".to_string();
@@ -536,30 +539,24 @@ impl std::default::Default for Request {
 }
 
 /// 转成报文, 但不包含请求正文.
-impl ToString for Request {
-    fn to_string(&self) -> String {
-        let mut output: String = String::new();
-        output.push_str(&self.method);
-        output.push_str(" ");
-        output.push_str(&self.path);
-        output.push_str(&self.query.to_string());
-        self.fragment.as_ref().filter(|t| {
-            output.push_str(t);
-            false
-        });
-        output.push_str(" ");
-        output.push_str(&self.version);
-        output.push_str("\r\n");
-        let mut keys = Vec::from_iter(self.header.keys());
-        keys.sort();
-        for key in keys {
-            output.push_str(key);
-            output.push_str(": ");
-            output.push_str(self.header.get(key).unwrap());
-            output.push_str("\r\n");
+impl std::fmt::Display for Request {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write as _;
+        f.write_str(&self.method)?;
+        f.write_char(' ')?;
+        f.write_str(&self.path)?;
+        write!(f, "{}", &self.query)?;
+        if let Some(t) = self.fragment.as_ref() {
+            f.write_str(t)?;
         }
-        output.push_str("\r\n");
-        return output;
+        f.write_char(' ')?;
+        f.write_str(&self.version)?;
+        f.write_str("\r\n")?;
+        for key in self.header.keys() {
+            write!(f, "{}: {}\r\n", key, self.header.get(key).unwrap())?;
+        }
+        f.write_str("\r\n")?;
+        return Ok(());
     }
 }
 
@@ -814,27 +811,20 @@ impl std::default::Default for Response {
     }
 }
 
-impl ToString for Response {
-    fn to_string(&self) -> String {
-        let mut output: String = String::with_capacity(0xFFF);
-        output.push_str(self.version.as_str());
-        output.push_str(" ");
-        output.push_str(self.status_code.to_string().as_str());
-        output.push_str(" ");
-        output.push_str(self.status.as_str());
-        output.push_str("\r\n");
-        let mut keys = Vec::from_iter(self.header.keys());
-        keys.sort();
-        for key in keys {
+impl std::fmt::Display for Response {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} {} {}\r\n",
+            self.version, self.status_code, self.status
+        )?;
+        for key in self.header.keys() {
             for value in self.header.get(key).unwrap() {
-                output.push_str(key);
-                output.push_str(": ");
-                output.push_str(value);
-                output.push_str("\r\n");
+                write!(f, "{}: {}\r\n", key, value)?;
             }
         }
-        output.push_str("\r\n");
-        return output;
+        f.write_str("\r\n")?;
+        return Ok(());
     }
 }
 
@@ -885,7 +875,7 @@ impl Response {
             {
                 let mut buf: [u8; 0xFFF] = [0; 0xFFF];
                 let length: usize = match tokio::time::timeout(
-                    Duration::from_millis(timeout as u64),
+                    Duration::from_millis(timeout),
                     input.read(&mut buf),
                 )
                 .await

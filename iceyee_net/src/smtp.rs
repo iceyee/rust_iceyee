@@ -9,11 +9,12 @@
 
 /* Use. */
 
+use lettre::AsyncTransport;
+use lettre::Tokio1Executor;
 use lettre::address::Address;
 use lettre::message::Message;
+use lettre::transport::smtp::AsyncSmtpTransport;
 use lettre::transport::smtp::authentication::Credentials;
-use lettre::transport::smtp::SmtpTransport;
-use lettre::Transport;
 
 /* Enum. */
 
@@ -56,15 +57,18 @@ impl MailAgent {
             .subject(title)
             .body(body.to_string())
             .map_err(|e| iceyee_error::c!(e))?;
-        let a001: Vec<u8> = message.formatted();
-        let a002: String = String::from_utf8(a001).map_err(|e| iceyee_error::c!(e))?;
-        iceyee_logger::warn!("\n", a002);
-        SmtpTransport::relay(server)
+        let formatted: Vec<u8> = message.formatted();
+        AsyncSmtpTransport::<Tokio1Executor>::relay(server)
             .map_err(|e| iceyee_error::c!(e))?
             .credentials(Credentials::new(name.to_string(), auth.to_string()))
             .build()
-            .send(&message)
+            .send(message)
+            .await
             .map_err(|e| iceyee_error::c!(e))?;
+        /* 日志放在发送之后, 失败仅跳过日志, 不影响发送结果. */
+        if let Ok(a002) = String::from_utf8(formatted) {
+            iceyee_logger::warn!("\n", a002);
+        }
         return Ok(());
     }
 }
