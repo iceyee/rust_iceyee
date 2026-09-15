@@ -65,17 +65,19 @@ pub async fn chrome(
     if headless {
         options.set_headless()?;
     }
-    let proxy: WebProxy = WebProxy::Manual {
-        ftp_proxy: None,
-        http_proxy: http_proxy.clone(),
-        ssl_proxy: http_proxy.clone(),
-        socks_proxy: socks5_proxy.clone(),
-        socks_version: Some(5),
-        socks_username: None,
-        socks_password: None,
-        no_proxy: None,
-    };
-    if http_proxy.is_some() || socks5_proxy.is_some() {
+    if http_proxy.is_none() && socks5_proxy.is_none() {
+        options.set_proxy(WebProxy::Direct)?;
+    } else {
+        let proxy: WebProxy = WebProxy::Manual {
+            ftp_proxy: None,
+            http_proxy: http_proxy.clone(),
+            ssl_proxy: http_proxy.clone(),
+            socks_proxy: socks5_proxy.clone(),
+            socks_version: Some(5),
+            socks_username: None,
+            socks_password: None,
+            no_proxy: None,
+        };
         options.set_proxy(proxy)?;
     }
     iceyee_logger::info!("打开浏览器");
@@ -112,17 +114,19 @@ pub async fn edge(
     if headless {
         options.set_headless()?;
     }
-    let proxy: WebProxy = WebProxy::Manual {
-        ftp_proxy: None,
-        http_proxy: http_proxy.clone(),
-        ssl_proxy: http_proxy.clone(),
-        socks_proxy: socks5_proxy.clone(),
-        socks_version: Some(5),
-        socks_username: None,
-        socks_password: None,
-        no_proxy: None,
-    };
-    if http_proxy.is_some() || socks5_proxy.is_some() {
+    if http_proxy.is_none() && socks5_proxy.is_none() {
+        options.set_proxy(WebProxy::Direct)?;
+    } else {
+        let proxy: WebProxy = WebProxy::Manual {
+            ftp_proxy: None,
+            http_proxy: http_proxy.clone(),
+            ssl_proxy: http_proxy.clone(),
+            socks_proxy: socks5_proxy.clone(),
+            socks_version: Some(5),
+            socks_username: None,
+            socks_password: None,
+            no_proxy: None,
+        };
         options.set_proxy(proxy)?;
     }
     iceyee_logger::info!("打开浏览器");
