@@ -17,12 +17,11 @@
 #[tokio::test]
 pub async fn _1() {
     println!("");
-    let (driver, mut _child) = iceyee_webdriver::edge(false, None, None)
-        .await
-        .expect("test_1.rs 249");
-    let _ = driver.goto("https://www.baidu.com/").await;
-    let _ = tokio::signal::ctrl_c().await;
-    driver.quit().await.expect("Driver quit.");
-    _child.kill().expect("child kill.");
+    let (driver, mut child) = iceyee_webdriver::edge(false, None, None).await.expect("");
+    driver.goto("https://www.baidu.com/").await.ok();
+    tokio::signal::ctrl_c().await.ok();
+    driver.quit().await.ok();
+    child.kill().ok();
+    child.wait().ok();
     return;
 }

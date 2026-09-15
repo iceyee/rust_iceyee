@@ -6,7 +6,7 @@
 #                                                   
 [package]
 name = "iceyee_webdriver"
-version = "7.0.3"
+version = "8.0.0"
 edition = "2024"
 
 description = "web selenium."
@@ -17,9 +17,9 @@ repository = "https://github.com/iceyee/rust_iceyee/tree/main/iceyee_webdriver/"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iceyee_logger = "12" 
-iceyee_random = "12" 
-iceyee_time = "12" 
+iceyee_logger = "13" 
+iceyee_random = "13" 
+iceyee_time = "13" 
 serde_json = "1.0" 
 thirtyfour = "0.37"
 tokio = { version = "1", features = ["full"] } 
