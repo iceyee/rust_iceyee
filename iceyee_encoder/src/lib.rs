@@ -79,7 +79,7 @@ impl Base64Encoder {
 
     /// 编码为Url安全形式, 相当于RFC4648的base64url.
     ///
-    /// 用'-'替代'+', 用'_'替代'/', 并且去掉末尾的'='.
+    /// 用`-`替代`+`, 用`_`替代`/`, 并且去掉末尾的`=`.
     pub fn encode_url(input: &[u8]) -> String {
         let standard: String = Self::encode(input);
         let mut output: String = String::with_capacity(standard.len());
@@ -175,7 +175,7 @@ impl Base64Encoder {
 
     /// 解码Url安全形式的Base64.
     ///
-    /// 用'-'还原'+', 用'_'还原'/', 并自动补齐末尾缺失的'='.
+    /// 用`-`还原`+`, 用`_`还原`/`, 并自动补齐末尾缺失的`=`.
     ///
     /// - @exception 无效的长度.
     /// - @exception 出现未预期的字符.
@@ -254,7 +254,7 @@ impl HexEncoder {
 
     /// 编码64位整数.
     ///
-    /// 结果首位是'0'且长度大于1时去掉首位, 与decode_number对称.
+    /// 结果首位是`0`且长度大于1时去掉首位, 与decode_number对称.
     pub fn encode_number(input: u64) -> String {
         if input == 0 {
             return "0".to_string();
@@ -437,7 +437,7 @@ pub struct UrlEncoder;
 impl UrlEncoder {
     /// 编码.
     ///
-    /// 空格编码成'+'; 不编码 A-Z a-z 0-9 - . _ ~; 其它字节编码成%XX.
+    /// 空格编码成`+`; 不编码 `A-Z a-z 0-9 - . _ ~`; 其它字节编码成`%XX`.
     pub fn encode(input: &str) -> String {
         let data: &[u8] = input.as_bytes();
         /* 最坏情况每个字节都编码成%XX, 一次分配到位. */
